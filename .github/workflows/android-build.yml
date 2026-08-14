@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  workflows: write
 
 jobs:
   unzip-and-build:
@@ -37,7 +38,6 @@ jobs:
           mkdir -p _extracted
           unzip -q "$ZIP_FILE" -d _extracted
 
-          # Handle zip that contains one wrapping folder (e.g. LocalStreamingLibrary/...)
           ITEMS=$(ls _extracted)
           ITEM_COUNT=$(echo "$ITEMS" | wc -l)
           if [ "$ITEM_COUNT" -eq 1 ] && [ -d "_extracted/$ITEMS" ]; then
@@ -46,8 +46,10 @@ jobs:
             SRC="_extracted"
           fi
 
-          # Merge extracted project files into repo root (cp -a merges existing
-          # directories like .github instead of failing like mv would).
+          # Skip re-copying .github — it already exists in the repo and the
+          # default token isn't allowed to push workflow-file changes anyway.
+          rm -rf "$SRC/.github"
+
           cp -a "$SRC"/. .
           rm -rf _extracted "$ZIP_FILE"
 
