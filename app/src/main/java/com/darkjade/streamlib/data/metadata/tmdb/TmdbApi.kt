@@ -19,6 +19,7 @@ data class TmdbMovieDto(
     val runtime: Int?,
     val release_date: String?,
     val genres: List<TmdbGenreDto>? = null,
+    val credits: TmdbCreditsDto? = null,
 )
 
 data class TmdbSeriesDto(
@@ -32,9 +33,18 @@ data class TmdbSeriesDto(
     val first_air_date: String?,
     val genres: List<TmdbGenreDto>? = null,
     val number_of_seasons: Int? = null,
+    val credits: TmdbCreditsDto? = null,
 )
 
 data class TmdbGenreDto(val id: Int, val name: String)
+
+data class TmdbCreditsDto(
+    val cast: List<TmdbCastDto> = emptyList(),
+    val crew: List<TmdbCrewDto> = emptyList(),
+)
+
+data class TmdbCastDto(val name: String, val order: Int = Int.MAX_VALUE)
+data class TmdbCrewDto(val name: String, val job: String)
 
 data class TmdbSeasonDto(
     val season_number: Int,
@@ -63,6 +73,7 @@ interface TmdbApi {
     suspend fun getMovie(
         @Path("id") id: Int,
         @Query("api_key") apiKey: String,
+        @Query("append_to_response") append: String = "credits",
     ): TmdbMovieDto
 
     @GET("search/tv")
@@ -76,6 +87,7 @@ interface TmdbApi {
     suspend fun getSeries(
         @Path("id") id: Int,
         @Query("api_key") apiKey: String,
+        @Query("append_to_response") append: String = "credits",
     ): TmdbSeriesDto
 
     @GET("tv/{id}/season/{seasonNumber}")

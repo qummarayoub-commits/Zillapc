@@ -28,8 +28,11 @@ interface MediaItemDao {
     @Query("SELECT * FROM media_items WHERE id = :id")
     fun observeById(id: Long): Flow<MediaItemEntity?>
 
-    @Query("SELECT * FROM media_items WHERE title = :title AND type = :type AND year IS :year LIMIT 1")
-    suspend fun findByTitleTypeYear(title: String, type: MediaType, year: Int?): MediaItemEntity?
+    @Query("SELECT * FROM media_items WHERE normalizedTitle = :normalizedTitle AND type = :type AND year IS :year LIMIT 1")
+    suspend fun findByTitleTypeYear(normalizedTitle: String, type: MediaType, year: Int?): MediaItemEntity?
+
+    @Query("SELECT * FROM media_items WHERE normalizedTitle = :normalizedTitle AND type = :type LIMIT 1")
+    suspend fun findByNormalizedTitleAndType(normalizedTitle: String, type: MediaType): MediaItemEntity?
 
     @Query("SELECT * FROM media_items ORDER BY dateAdded DESC")
     fun observeAll(): Flow<List<MediaItemEntity>>

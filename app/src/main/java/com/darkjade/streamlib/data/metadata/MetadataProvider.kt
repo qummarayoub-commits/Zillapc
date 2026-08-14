@@ -4,6 +4,7 @@ import com.darkjade.streamlib.data.db.entity.MediaType
 
 /** Provider-agnostic metadata result. UI/DB never talk to TMDB directly. */
 data class MetadataResult(
+    val remoteId: String? = null,
     val title: String,
     val originalTitle: String?,
     val overview: String?,
@@ -13,6 +14,8 @@ data class MetadataResult(
     val ageRating: String?,
     val runtimeMinutes: Int?,
     val genres: List<String>,
+    val director: String? = null,
+    val cast: List<String> = emptyList(),
     val seasons: List<SeasonMetadata> = emptyList(),
 )
 

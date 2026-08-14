@@ -62,4 +62,7 @@ interface EpisodeDao {
 
     @Query("UPDATE episodes SET fileMissing = :missing WHERE id = :id")
     suspend fun setFileMissing(id: Long, missing: Boolean)
+
+    @Query("DELETE FROM episodes WHERE id = :id")
+    suspend fun deleteById(id: Long)
 }

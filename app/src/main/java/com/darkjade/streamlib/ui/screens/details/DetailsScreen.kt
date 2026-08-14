@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -15,25 +16,34 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.RadioButtonUnchecked
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -57,6 +67,8 @@ fun DetailsScreen(
     onPlay: (fileUriString: String, episodeId: Long?) -> Unit,
 ) {
     val state by viewModel.uiState.collectAsState()
+    var showRemoveDialog by remember { mutableStateOf(false) }
+    var showOverflowMenu by remember { mutableStateOf(false) }
 
     Box(modifier = Modifier.fillMaxSize().background(VaultColors.Background)) {
         when {
@@ -91,6 +103,21 @@ fun DetailsScreen(
                             IconButton(onClick = onBack, modifier = Modifier.align(Alignment.TopStart).padding(VaultSpacing.xs)) {
                                 Icon(Icons.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
                             }
+                            Box(modifier = Modifier.align(Alignment.TopEnd).padding(VaultSpacing.xs)) {
+                                IconButton(onClick = { showOverflowMenu = true }) {
+                                    Icon(Icons.Filled.MoreVert, contentDescription = "More options", tint = Color.White)
+                                }
+                                DropdownMenu(expanded = showOverflowMenu, onDismissRequest = { showOverflowMenu = false }) {
+                                    DropdownMenuItem(
+                                        text = { Text("Remove from library") },
+                                        leadingIcon = { Icon(Icons.Filled.Delete, contentDescription = null) },
+                                        onClick = {
+                                            showOverflowMenu = false
+                                            showRemoveDialog = true
+                                        }
+                                    )
+                                }
+                            }
                         }
                     }
 
@@ -114,7 +141,7 @@ fun DetailsScreen(
 
                             media.rating?.let {
                                 Text(
-                                    "Rating: ${"%.1f".format(it)}",
+                                    "IMDb/TMDB Rating: ${"%.1f".format(it)}",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = VaultColors.TextSecondary,
                                     modifier = Modifier.padding(top = VaultSpacing.xxs)
@@ -146,6 +173,23 @@ fun DetailsScreen(
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = VaultColors.TextSecondary,
                                     modifier = Modifier.padding(top = VaultSpacing.xs)
+                                )
+                            }
+
+                            if (!media.director.isNullOrBlank()) {
+                                Text(
+                                    "Director: ${media.director}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = VaultColors.TextSecondary,
+                                    modifier = Modifier.padding(top = VaultSpacing.sm)
+                                )
+                            }
+                            if (media.cast.isNotBlank()) {
+                                Text(
+                                    "Cast: ${media.cast.replace(",", ", ")}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = VaultColors.TextSecondary,
+                                    modifier = Modifier.padding(top = VaultSpacing.xxs)
                                 )
                             }
                         }
@@ -180,7 +224,9 @@ fun DetailsScreen(
                                 onClick = {
                                     viewModel.recordOpened(episode.id)
                                     onPlay(episode.localFileUri, episode.id)
-                                }
+                                },
+                                onToggleWatched = { viewModel.toggleEpisodeWatched(episode) },
+                                onRemove = { viewModel.removeEpisode(episode.id) },
                             )
                         }
 
@@ -194,7 +240,7 @@ fun DetailsScreen(
                             }
                         }
                     } else {
-                        item { androidx.compose.foundation.layout.Spacer(Modifier.height(VaultSpacing.xl)) }
+                        item { Spacer(Modifier.height(VaultSpacing.xl)) }
                     }
                 }
 
@@ -216,13 +262,47 @@ fun DetailsScreen(
                         }
                     }
                 }
+
+                if (showRemoveDialog) {
+                    AlertDialog(
+                        onDismissRequest = { showRemoveDialog = false },
+                        containerColor = VaultColors.Surface,
+                        title = { Text("Remove from library?", color = VaultColors.TextPrimary) },
+                        text = {
+                            Text(
+                                "This removes \"${media.title}\" from DarkVault. Your actual video file is not deleted.",
+                                color = VaultColors.TextSecondary,
+                            )
+                        },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                showRemoveDialog = false
+                                viewModel.removeMediaItem(onRemoved = onBack)
+                            }) {
+                                Text("Remove", color = VaultColors.Error)
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showRemoveDialog = false }) {
+                                Text("Cancel", color = VaultColors.TextSecondary)
+                            }
+                        }
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-private fun EpisodeRow(episode: EpisodeEntity, onClick: () -> Unit) {
+private fun EpisodeRow(
+    episode: EpisodeEntity,
+    onClick: () -> Unit,
+    onToggleWatched: () -> Unit,
+    onRemove: () -> Unit,
+) {
+    var showMenu by remember { mutableStateOf(false) }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -246,14 +326,16 @@ private fun EpisodeRow(episode: EpisodeEntity, onClick: () -> Unit) {
             } else {
                 FallbackPoster(title = "E${episode.episodeNumber}")
             }
-            if (episode.watched) {
-                Icon(
-                    Icons.Filled.CheckCircle,
-                    contentDescription = "Watched",
-                    tint = VaultColors.Orange,
-                    modifier = Modifier.align(Alignment.TopEnd).padding(4.dp).size(18.dp)
-                )
-            }
+            Icon(
+                imageVector = if (episode.watched) Icons.Filled.CheckCircle else Icons.Filled.RadioButtonUnchecked,
+                contentDescription = if (episode.watched) "Watched" else "Not watched",
+                tint = if (episode.watched) VaultColors.Orange else Color.White.copy(alpha = 0.7f),
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(4.dp)
+                    .size(18.dp)
+                    .clickable(onClick = onToggleWatched)
+            )
         }
         Column(modifier = Modifier.padding(start = VaultSpacing.sm).weight(1f)) {
             Text(
@@ -277,5 +359,21 @@ private fun EpisodeRow(episode: EpisodeEntity, onClick: () -> Unit) {
             }
         }
         Icon(Icons.Filled.PlayArrow, contentDescription = "Play", tint = VaultColors.Orange)
+        Box {
+            IconButton(onClick = { showMenu = true }) {
+                Icon(Icons.Filled.MoreVert, contentDescription = "More options", tint = VaultColors.TextSecondary)
+            }
+            DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                DropdownMenuItem(
+                    text = { Text(if (episode.watched) "Mark as unwatched" else "Mark as watched") },
+                    onClick = { showMenu = false; onToggleWatched() }
+                )
+                DropdownMenuItem(
+                    text = { Text("Remove from here") },
+                    leadingIcon = { Icon(Icons.Filled.Delete, contentDescription = null) },
+                    onClick = { showMenu = false; onRemove() }
+                )
+            }
+        }
     }
 }

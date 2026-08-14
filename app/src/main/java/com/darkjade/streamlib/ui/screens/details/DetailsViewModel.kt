@@ -119,4 +119,33 @@ class DetailsViewModel(
             watchRepository.recordOpened(profileId, mediaId, episodeId)
         }
     }
+
+    fun toggleEpisodeWatched(episode: EpisodeEntity) {
+        viewModelScope.launch {
+            libraryRepository.setEpisodeWatched(episode.id, !episode.watched)
+            // Patch the currently displayed list in place for instant UI feedback.
+            _uiState.value = _uiState.value.copy(
+                episodes = _uiState.value.episodes.map {
+                    if (it.id == episode.id) it.copy(watched = !episode.watched) else it
+                }
+            )
+        }
+    }
+
+    fun removeEpisode(episodeId: Long) {
+        viewModelScope.launch {
+            libraryRepository.removeEpisode(episodeId)
+            _uiState.value = _uiState.value.copy(
+                episodes = _uiState.value.episodes.filterNot { it.id == episodeId }
+            )
+        }
+    }
+
+    /** Removes the whole movie/show from the library. Caller should navigate back after this. */
+    fun removeMediaItem(onRemoved: () -> Unit) {
+        viewModelScope.launch {
+            libraryRepository.removeMediaItem(mediaId)
+            onRemoved()
+        }
+    }
 }

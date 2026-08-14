@@ -123,7 +123,7 @@ object MediaJunkFilter {
 
     // Real movies/episodes are essentially never shorter than this.
     // WhatsApp/Instagram/TikTok clips are almost always well under it.
-    private const val MIN_DURATION_MS = 3 * 60 * 1000L // 3 minutes
+    private const val MIN_DURATION_MS = 10 * 60 * 1000L // 10 minutes
 
     // Downloader apps commonly save files as bare hex hashes / UUIDs with no
     // real title in them at all (e.g. "1ec7ccee056f1cb4fd418f4dc0c51d6d 720w.mp4").

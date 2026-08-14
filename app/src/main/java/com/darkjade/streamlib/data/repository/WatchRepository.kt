@@ -14,11 +14,18 @@ class WatchRepository(context: Context) {
     private val db = StreamLibDatabase.getInstance(context)
     private val historyDao = db.watchHistoryDao()
     private val watchlistDao = db.watchlistDao()
-    private val episodeDao = db.episodeDao()
 
     fun observeContinueWatching(profileId: Long) = historyDao.observeContinueWatching(profileId)
     fun observeHistory(profileId: Long) = historyDao.observeHistory(profileId)
 
+    /**
+     * Records that a profile opened this title/episode — used for
+     * Continue Watching / History. Deliberately does NOT mark the episode
+     * as "watched": since playback happens in an external player, tapping
+     * Play doesn't mean the episode was actually finished. Use
+     * setEpisodeWatched (LibraryRepository) to explicitly mark watched —
+     * e.g. via the checkmark or the episode's "..." menu.
+     */
     suspend fun recordOpened(profileId: Long, mediaItemId: Long, episodeId: Long?) {
         historyDao.insert(
             WatchHistoryEntity(
@@ -28,9 +35,6 @@ class WatchRepository(context: Context) {
                 lastOpenedAt = System.currentTimeMillis(),
             )
         )
-        if (episodeId != null) {
-            episodeDao.setWatched(episodeId, true)
-        }
     }
 
     suspend fun clearHistory(profileId: Long) = historyDao.clearHistory(profileId)

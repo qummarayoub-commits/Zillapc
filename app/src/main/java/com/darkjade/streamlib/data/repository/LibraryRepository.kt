@@ -8,7 +8,9 @@ import com.darkjade.streamlib.data.db.entity.MediaItemEntity
 import com.darkjade.streamlib.data.db.entity.MediaType
 import com.darkjade.streamlib.data.db.entity.SeasonEntity
 import com.darkjade.streamlib.data.metadata.MetadataProvider
+import com.darkjade.streamlib.data.metadata.SeasonMetadata
 import com.darkjade.streamlib.data.metadata.isSeriesLike
+import com.darkjade.streamlib.data.parser.normalizeTitleForMatching
 import com.darkjade.streamlib.data.scanner.LibraryScanner
 import com.darkjade.streamlib.data.scanner.MediaStoreScanner
 import com.darkjade.streamlib.data.scanner.ScanEvent
@@ -35,6 +37,11 @@ class LibraryRepository(
     private val episodeDao = db.episodeDao()
     private val scanStatusDao = db.scanStatusDao()
     private val folderSourceDao = db.folderSourceDao()
+
+    // Per-season episode metadata, fetched once per season per app run and
+    // reused across every episode file discovered for that season — avoids
+    // hammering TMDB with one request per episode file.
+    private val seasonMetadataCache = mutableMapOf<Long, SeasonMetadata?>()
 
     fun observeAll(): Flow<List<MediaItemEntity>> = mediaDao.observeAll()
     fun observeRecentlyAdded(limit: Int = 20) = mediaDao.observeRecentlyAdded(limit)
@@ -63,6 +70,12 @@ class LibraryRepository(
 
     suspend fun setEpisodeWatched(episodeId: Long, watched: Boolean) =
         episodeDao.setWatched(episodeId, watched)
+
+    /** "Remove from here" — removes a single episode entry from the library (not the actual file). */
+    suspend fun removeEpisode(episodeId: Long) = episodeDao.deleteById(episodeId)
+
+    /** "Remove from here" — removes an entire movie/show (and its seasons/episodes) from the library. */
+    suspend fun removeMediaItem(mediaItemId: Long) = mediaDao.deleteById(mediaItemId)
 
     suspend fun addFolderSource(treeUri: String, displayName: String): Long {
         val existing = folderSourceDao.findByUri(treeUri)
@@ -194,13 +207,15 @@ class LibraryRepository(
         val parsed = file.parsed
         val type = com.darkjade.streamlib.data.parser.MediaFilenameParser
             .folderTypeHint(file.pathSegments) ?: parsed.type
+        val normalizedTitle = normalizeTitleForMatching(parsed.title)
 
         if (type == MediaType.MOVIE) {
-            val existing = mediaDao.findByTitleTypeYear(parsed.title, MediaType.MOVIE, parsed.year)
+            val existing = mediaDao.findByTitleTypeYear(normalizedTitle, MediaType.MOVIE, parsed.year)
             if (existing == null) {
                 val entity = MediaItemEntity(
                     title = parsed.title,
                     sortTitle = sortableTitle(parsed.title),
+                    normalizedTitle = normalizedTitle,
                     type = MediaType.MOVIE,
                     year = parsed.year,
                     localFileUri = file.uri.toString(),
@@ -213,40 +228,48 @@ class LibraryRepository(
             }
         } else {
             // Series or Anime: find-or-create the parent MediaItem, then the season, then episode.
-            var mediaItem = mediaDao.findByTitleTypeYear(parsed.title, type, null)
+            // Matching is done on a NORMALIZED title (lowercased, punctuation-stripped) so that
+            // small filename differences ("Spider Man" vs "Spider-Man") group under one show
+            // instead of each variant creating a duplicate entry.
+            var mediaItem = mediaDao.findByNormalizedTitleAndType(normalizedTitle, type)
             val mediaItemId: Long
             if (mediaItem == null) {
                 val entity = MediaItemEntity(
                     title = parsed.title,
                     sortTitle = sortableTitle(parsed.title),
+                    normalizedTitle = normalizedTitle,
                     type = type,
                     year = parsed.year,
                     metadataFetched = false,
                     folderSourceId = folderSourceId,
                 )
                 mediaItemId = mediaDao.insert(entity)
-                mediaItem = entity.copy(id = mediaItemId)
-                enrichSeriesMetadata(mediaItemId, mediaItem)
+                enrichSeriesMetadata(mediaItemId, entity)
+                // Re-fetch: enrichment may have set tmdbId, needed below for episode metadata.
+                mediaItem = mediaDao.getById(mediaItemId) ?: entity.copy(id = mediaItemId)
             } else {
                 mediaItemId = mediaItem.id
             }
 
             val seasonNumber = parsed.season ?: 1
-            var season = seasonDao.find(mediaItemId, seasonNumber)
-            val seasonId = if (season == null) {
-                val newSeasonId = seasonDao.insert(SeasonEntity(mediaItemId = mediaItemId, seasonNumber = seasonNumber))
-                newSeasonId
-            } else {
-                season.id
-            }
+            val existingSeason = seasonDao.find(mediaItemId, seasonNumber)
+            val seasonId = existingSeason?.id
+                ?: seasonDao.insert(SeasonEntity(mediaItemId = mediaItemId, seasonNumber = seasonNumber))
 
             val existingEpisode = episodeDao.findByUri(file.uri.toString())
             if (existingEpisode == null) {
+                val episodeMeta = fetchSeasonMetadataCached(seasonId, mediaItem, seasonNumber)
+                    ?.episodes?.find { it.episodeNumber == (parsed.episode ?: -1) }
+
                 episodeDao.insert(
                     EpisodeEntity(
                         mediaItemId = mediaItemId,
                         seasonId = seasonId,
                         episodeNumber = parsed.episode ?: 0,
+                        title = episodeMeta?.title,
+                        overview = episodeMeta?.overview,
+                        thumbnailUrl = episodeMeta?.thumbnailUrl,
+                        durationMinutes = episodeMeta?.runtimeMinutes,
                         localFileUri = file.uri.toString(),
                         localFilePath = file.pathSegments.joinToString("/"),
                         fileSizeBytes = file.sizeBytes,
@@ -255,6 +278,22 @@ class LibraryRepository(
                 )
             }
         }
+    }
+
+    private suspend fun fetchSeasonMetadataCached(
+        seasonId: Long,
+        mediaItem: MediaItemEntity,
+        seasonNumber: Int,
+    ): SeasonMetadata? {
+        if (seasonMetadataCache.containsKey(seasonId)) return seasonMetadataCache[seasonId]
+        val tmdbId = mediaItem.tmdbId
+        val result = if (tmdbId != null) {
+            runCatching { metadataProvider.getSeasonDetails(tmdbId, seasonNumber) }.getOrNull()
+        } else {
+            null
+        }
+        seasonMetadataCache[seasonId] = result
+        return result
     }
 
     private suspend fun enrichMovieMetadata(id: Long, entity: MediaItemEntity) {
@@ -271,6 +310,9 @@ class LibraryRepository(
                     rating = result.rating,
                     runtimeMinutes = result.runtimeMinutes,
                     genres = result.genres.joinToString(","),
+                    director = result.director,
+                    cast = result.cast.joinToString(","),
+                    tmdbId = result.remoteId,
                     metadataFetched = true,
                     metadataMissing = false,
                 )
@@ -295,6 +337,9 @@ class LibraryRepository(
                     backdropUrl = result.backdropUrl,
                     rating = result.rating,
                     genres = result.genres.joinToString(","),
+                    director = result.director,
+                    cast = result.cast.joinToString(","),
+                    tmdbId = result.remoteId,
                     metadataFetched = true,
                     metadataMissing = false,
                 )

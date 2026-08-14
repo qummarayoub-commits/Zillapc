@@ -33,7 +33,7 @@ import com.darkjade.streamlib.data.db.entity.WatchlistEntity
         FolderSourceEntity::class,
         ScanStatusEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = true
 )
 @TypeConverters(Converters::class)

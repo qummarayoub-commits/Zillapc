@@ -45,21 +45,33 @@ class TmdbMetadataProvider : MetadataProvider {
 
     private val api = retrofit.create(TmdbApi::class.java)
 
+    private fun extractDirector(credits: TmdbCreditsDto?): String? =
+        credits?.crew?.firstOrNull { it.job.equals("Director", ignoreCase = true) }?.name
+
+    private fun extractCast(credits: TmdbCreditsDto?, limit: Int = 6): List<String> =
+        credits?.cast.orEmpty().sortedBy { it.order }.take(limit).map { it.name }
+
     override suspend fun searchMovie(title: String, year: Int?): MetadataResult? {
         if (TmdbConfig.apiKey.isBlank()) return null
         return runCatching {
             val response = api.searchMovie(TmdbConfig.apiKey, title, year)
             val match = response.results.firstOrNull() ?: return null
+            // The search endpoint doesn't reliably include runtime/credits —
+            // fetch the full details (with credits appended) for the match.
+            val full = api.getMovie(match.id, TmdbConfig.apiKey)
             MetadataResult(
-                title = match.title ?: title,
-                originalTitle = match.original_title,
-                overview = match.overview,
-                posterUrl = match.poster_path?.let { TmdbConfig.IMAGE_BASE_URL + it },
-                backdropUrl = match.backdrop_path?.let { TmdbConfig.BACKDROP_BASE_URL + it },
-                rating = match.vote_average,
+                remoteId = full.id.toString(),
+                title = full.title ?: title,
+                originalTitle = full.original_title,
+                overview = full.overview,
+                posterUrl = full.poster_path?.let { TmdbConfig.IMAGE_BASE_URL + it },
+                backdropUrl = full.backdrop_path?.let { TmdbConfig.BACKDROP_BASE_URL + it },
+                rating = full.vote_average,
                 ageRating = null,
-                runtimeMinutes = match.runtime,
-                genres = match.genres?.map { it.name } ?: emptyList(),
+                runtimeMinutes = full.runtime,
+                genres = full.genres?.map { it.name } ?: emptyList(),
+                director = extractDirector(full.credits),
+                cast = extractCast(full.credits),
             )
         }.getOrNull()
     }
@@ -71,6 +83,7 @@ class TmdbMetadataProvider : MetadataProvider {
             val match = response.results.firstOrNull() ?: return null
             val full = api.getSeries(match.id, TmdbConfig.apiKey)
             MetadataResult(
+                remoteId = full.id.toString(),
                 title = full.name ?: title,
                 originalTitle = full.original_name,
                 overview = full.overview,
@@ -80,6 +93,8 @@ class TmdbMetadataProvider : MetadataProvider {
                 ageRating = null,
                 runtimeMinutes = null,
                 genres = full.genres?.map { it.name } ?: emptyList(),
+                director = extractDirector(full.credits),
+                cast = extractCast(full.credits),
                 seasons = emptyList(), // fetched lazily via getSeasonDetails to save API calls
             )
         }.getOrNull()
