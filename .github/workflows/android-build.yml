@@ -1,0 +1,104 @@
+name: Unzip and Build Android APK
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  workflows: write
+
+jobs:
+  unzip-and-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Find and extract zip (if project not already extracted)
+        id: extract
+        run: |
+          if [ -f "app/build.gradle.kts" ]; then
+            echo "Project already extracted at repo root — skipping unzip."
+            echo "did_extract=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          ZIP_FILE=$(find . -maxdepth 2 -iname "*.zip" | head -n 1)
+          if [ -z "$ZIP_FILE" ]; then
+            echo "No zip file found and no project at root. Nothing to do."
+            exit 1
+          fi
+          echo "Found zip: $ZIP_FILE"
+
+          mkdir -p _extracted
+          unzip -q "$ZIP_FILE" -d _extracted
+
+          ITEMS=$(ls _extracted)
+          ITEM_COUNT=$(echo "$ITEMS" | wc -l)
+          if [ "$ITEM_COUNT" -eq 1 ] && [ -d "_extracted/$ITEMS" ]; then
+            SRC="_extracted/$ITEMS"
+          else
+            SRC="_extracted"
+          fi
+
+          # Skip re-copying .github — it already exists in the repo and the
+          # default token isn't allowed to push workflow-file changes anyway.
+          rm -rf "$SRC/.github"
+
+          cp -a "$SRC"/. .
+          rm -rf _extracted "$ZIP_FILE"
+
+          echo "did_extract=true" >> "$GITHUB_OUTPUT"
+
+      - name: Commit extracted project back to repo
+        if: steps.extract.outputs.did_extract == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Auto-extract project from zip [skip ci]"
+          git push
+          echo "Pushed extracted source. Re-run this workflow (or push again) to build."
+
+      - name: Set up JDK 17
+        if: steps.extract.outputs.did_extract != 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        if: steps.extract.outputs.did_extract != 'true'
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: 8.7
+
+      - name: Generate Gradle wrapper
+        if: steps.extract.outputs.did_extract != 'true'
+        run: gradle wrapper --gradle-version 8.7
+
+      - name: Grant execute permission for gradlew
+        if: steps.extract.outputs.did_extract != 'true'
+        run: chmod +x gradlew
+
+      - name: Run unit tests
+        if: steps.extract.outputs.did_extract != 'true'
+        run: ./gradlew testDebugUnitTest --stacktrace
+
+      - name: Build debug APK
+        if: steps.extract.outputs.did_extract != 'true'
+        env:
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+        run: ./gradlew assembleDebug --stacktrace
+
+      - name: Upload APK
+        if: steps.extract.outputs.did_extract != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: DarkVault-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
