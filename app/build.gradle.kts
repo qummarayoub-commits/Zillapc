@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -6,9 +8,9 @@ plugins {
 
 // Load TMDB key from local.properties (never committed) with a CI env-var fallback,
 // so the key can be supplied either locally or via a GitHub Actions secret.
-val localProperties = java.util.Properties().apply {
+val localProperties = Properties().apply {
     val f = rootProject.file("local.properties")
-    if (f.exists()) f.inputStream().use { load(it) }
+    if (f.exists()) f.inputStream().use { input -> load(input) }
 }
 val tmdbApiKey: String = (localProperties.getProperty("TMDB_API_KEY")
     ?: System.getenv("TMDB_API_KEY")
@@ -110,6 +112,13 @@ dependencies {
     // Paging
     implementation("androidx.paging:paging-runtime-ktx:3.3.0")
     implementation("androidx.paging:paging-compose:3.3.0")
+    implementation("androidx.room:room-paging:2.6.1")
+
+    // Testing
+    testImplementation("junit:junit:4.13.2")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
+}    implementation("androidx.paging:paging-compose:3.3.0")
     implementation("androidx.room:room-paging:2.6.1")
 
     // Testing
