@@ -85,8 +85,13 @@ object MediaFilenameParser {
 
         // Anime-style: "One Piece - 001" or "One Piece 001" — no explicit season, assume 1
         val animeEpMatch = Regex("""[\-\s](\d{2,4})(?:\s|$)""").find(normalized)
+        // Only fall back to "anime-style trailing number" parsing when there's an
+        // explicit anime folder hint, OR when no year was detected — a detected
+        // year (e.g. "Movie.Name.2024.1080p.mkv") means the trailing digits are
+        // almost certainly a release year, not an episode number, so a movie
+        // must never be misclassified as anime just because it lacks "SxxExx".
         if (animeEpMatch != null && folderHints.any { it.contains("anime", ignoreCase = true) } ||
-            (animeEpMatch != null && looksLikeAnimeNumbering(normalized))
+            (animeEpMatch != null && year == null && looksLikeAnimeNumbering(normalized))
         ) {
             val episode = animeEpMatch.groupValues[1].toIntOrNull()
             val title = cleanTitle(normalized.substringBefore(animeEpMatch.value), folderHints)
