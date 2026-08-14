@@ -37,4 +37,34 @@ class AccountViewModel(private val profileRepository: ProfileRepository) : ViewM
     fun switchProfile(profile: ProfileEntity) {
         _uiState.value = _uiState.value.copy(activeProfile = profile)
     }
+
+    private val restrictionOptions = listOf("None", "7+", "13+", "16+", "18+")
+    private val languageOptions = listOf("English", "Urdu", "Spanish", "Hindi")
+
+    fun cycleContentRestriction() = updateActiveProfile { profile ->
+        val next = nextInCycle(restrictionOptions, profile.contentRestriction)
+        profile.copy(contentRestriction = next)
+    }
+
+    fun cycleAudioLanguage() = updateActiveProfile { profile ->
+        val next = nextInCycle(languageOptions, profile.audioLanguage)
+        profile.copy(audioLanguage = next)
+    }
+
+    fun cycleSubtitleLanguage() = updateActiveProfile { profile ->
+        val next = nextInCycle(languageOptions, profile.subtitleLanguage)
+        profile.copy(subtitleLanguage = next)
+    }
+
+    private fun nextInCycle(options: List<String>, current: String): String {
+        val index = options.indexOf(current).let { if (it == -1) 0 else it }
+        return options[(index + 1) % options.size]
+    }
+
+    private fun updateActiveProfile(transform: (ProfileEntity) -> ProfileEntity) {
+        val current = _uiState.value.activeProfile ?: return
+        val updated = transform(current)
+        _uiState.value = _uiState.value.copy(activeProfile = updated)
+        viewModelScope.launch { profileRepository.updateProfile(updated) }
+    }
 }

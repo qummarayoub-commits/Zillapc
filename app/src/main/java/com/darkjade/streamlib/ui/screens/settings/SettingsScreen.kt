@@ -53,10 +53,21 @@ fun SettingsScreen(
         contract = ActivityResultContracts.OpenDocumentTree()
     ) { uri: Uri? ->
         if (uri != null) {
-            context.contentResolver.takePersistableUriPermission(
-                uri,
-                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
-            )
+            // Some OEM file pickers (e.g. certain ZTE/MyOS builds) don't actually
+            // grant a persistable permission even though they return a URI —
+            // calling takePersistableUriPermission then throws SecurityException,
+            // which previously crashed the app right at folder selection. We still
+            // have temporary read access from this activity result regardless, so
+            // we proceed with the scan even if persisting the grant fails; the
+            // user will just need to re-pick the folder after an app restart.
+            try {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
+                )
+            } catch (e: SecurityException) {
+                // Non-fatal — continue with the one-time scan below.
+            }
             val name = uri.lastPathSegment ?: "Folder"
             viewModel.onFolderSelected(uri, name)
         }

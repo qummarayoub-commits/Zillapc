@@ -51,8 +51,8 @@ class SettingsViewModel(
     /** Called after the SAF folder picker returns a tree URI. */
     fun onFolderSelected(treeUri: Uri, displayName: String) {
         viewModelScope.launch {
-            libraryRepository.addFolderSource(treeUri.toString(), displayName)
-            triggerScan(treeUri, folderSourceId = null)
+            val folderSourceId = libraryRepository.addFolderSource(treeUri.toString(), displayName)
+            triggerScan(treeUri, folderSourceId = folderSourceId)
         }
     }
 

@@ -62,16 +62,15 @@ class LibraryRepository(
     suspend fun setEpisodeWatched(episodeId: Long, watched: Boolean) =
         episodeDao.setWatched(episodeId, watched)
 
-    suspend fun addFolderSource(treeUri: String, displayName: String) {
+    suspend fun addFolderSource(treeUri: String, displayName: String): Long {
         val existing = folderSourceDao.findByUri(treeUri)
-        if (existing == null) {
-            folderSourceDao.insert(
-                com.darkjade.streamlib.data.db.entity.FolderSourceEntity(
-                    treeUri = treeUri,
-                    displayName = displayName,
-                )
+        if (existing != null) return existing.id
+        return folderSourceDao.insert(
+            com.darkjade.streamlib.data.db.entity.FolderSourceEntity(
+                treeUri = treeUri,
+                displayName = displayName,
             )
-        }
+        )
     }
 
     /**

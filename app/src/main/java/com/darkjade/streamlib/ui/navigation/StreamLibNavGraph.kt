@@ -3,6 +3,7 @@ package com.darkjade.streamlib.ui.navigation
 import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -65,7 +66,9 @@ fun StreamLibNavGraph(container: AppContainer) {
         NavHost(
             navController = navController,
             startDestination = Routes.HOME,
-            modifier = Modifier.padding(bottom = padding.calculateBottomPadding()),
+            modifier = Modifier
+                .statusBarsPadding()
+                .padding(bottom = padding.calculateBottomPadding()),
         ) {
             composable(Routes.HOME) {
                 val vm: HomeViewModel = viewModel(factory = SimpleViewModelFactory {
