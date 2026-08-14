@@ -46,9 +46,9 @@ jobs:
             SRC="_extracted"
           fi
 
-          # Move extracted project files to repo root
-          shopt -s dotglob
-          mv "$SRC"/* .
+          # Merge extracted project files into repo root (cp -a merges existing
+          # directories like .github instead of failing like mv would).
+          cp -a "$SRC"/. .
           rm -rf _extracted "$ZIP_FILE"
 
           echo "did_extract=true" >> "$GITHUB_OUTPUT"
