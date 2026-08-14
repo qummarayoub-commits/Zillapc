@@ -23,7 +23,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -195,7 +194,7 @@ private fun HeroSection(
                 OutlinedButton(
                     onClick = onOpenDetails,
                     shape = VaultShapes.button,
-                    colors = OutlinedButtonDefaults.outlinedButtonColors(contentColor = VaultColors.TextPrimary),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = VaultColors.TextPrimary),
                     modifier = Modifier.padding(start = VaultSpacing.sm)
                 ) {
                     Icon(Icons.Filled.Add, contentDescription = null)
