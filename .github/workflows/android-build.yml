@@ -7,7 +7,6 @@ on:
 
 permissions:
   contents: write
-  workflows: write
 
 jobs:
   unzip-and-build:
@@ -46,8 +45,8 @@ jobs:
             SRC="_extracted"
           fi
 
-          # Skip re-copying .github — it already exists in the repo and the
-          # default token isn't allowed to push workflow-file changes anyway.
+          # Skip re-copying .github — it already exists in the repo, and the
+          # default token is never allowed to modify workflow files anyway.
           rm -rf "$SRC/.github"
 
           cp -a "$SRC"/. .
