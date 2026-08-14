@@ -32,7 +32,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -192,7 +191,7 @@ fun SettingsScreen(
                 OutlinedButton(
                     onClick = { folderPicker.launch(null) },
                     shape = VaultShapes.button,
-                    colors = OutlinedButtonDefaults.outlinedButtonColors(contentColor = VaultColors.TextPrimary),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = VaultColors.TextPrimary),
                     modifier = Modifier.fillMaxWidth().padding(vertical = VaultSpacing.sm)
                 ) {
                     Icon(Icons.Filled.CreateNewFolder, contentDescription = null)
@@ -202,7 +201,7 @@ fun SettingsScreen(
                     OutlinedButton(
                         onClick = { viewModel.rescanAll() },
                         shape = VaultShapes.button,
-                        colors = OutlinedButtonDefaults.outlinedButtonColors(contentColor = VaultColors.TextPrimary),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = VaultColors.TextPrimary),
                         modifier = Modifier.fillMaxWidth().padding(top = VaultSpacing.xs)
                     ) {
                         Icon(Icons.Filled.Refresh, contentDescription = null)
