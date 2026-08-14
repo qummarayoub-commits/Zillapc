@@ -213,12 +213,24 @@ fun SettingsScreen(
             item {
                 Divider(color = VaultColors.Divider, modifier = Modifier.padding(vertical = VaultSpacing.sm))
                 SectionHeader("Metadata")
-                Text(
-                    "TMDB metadata is enabled. Posters, backdrops, overviews, and episode details are fetched automatically after scanning.",
-                    color = VaultColors.TextSecondary,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(bottom = VaultSpacing.sm)
-                )
+                val apiKeyConfigured = com.darkjade.streamlib.BuildConfig.TMDB_API_KEY.isNotBlank()
+                if (apiKeyConfigured) {
+                    Text(
+                        "TMDB API key detected — posters, backdrops, overviews, and episode details will be fetched automatically after scanning.",
+                        color = VaultColors.TextSecondary,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(bottom = VaultSpacing.sm)
+                    )
+                } else {
+                    Text(
+                        "TMDB API key is NOT configured in this build — that's why posters/backdrops are missing. " +
+                            "Add a TMDB_API_KEY repository secret on GitHub (Settings > Secrets and variables > Actions), " +
+                            "then rebuild and rescan.",
+                        color = VaultColors.Error,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(bottom = VaultSpacing.sm)
+                    )
+                }
             }
 
             item {
