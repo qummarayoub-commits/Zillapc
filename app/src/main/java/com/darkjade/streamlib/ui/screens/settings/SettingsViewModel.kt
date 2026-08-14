@@ -43,33 +43,50 @@ class SettingsViewModel(
     }
 
     /**
-     * Called after the SAF folder picker returns a tree URI.
-     *
-     * Scanning runs directly on a background coroutine dispatcher tied to this
-     * ViewModel — NOT via WorkManager. Some OEM Android skins (this app has
-     * previously hit this with ZTE/MyOS) aggressively defer or kill scheduled
-     * background work, which silently prevented scans from ever running. A
-     * direct coroutine scan while the app is in the foreground sidesteps that
-     * entirely and gives immediate, visible progress.
+     * Primary scan path: indexes the device's MediaStore video library.
+     * No folder picking, no SAF permission grants — works consistently
+     * across OEMs. Only needs the READ_MEDIA_VIDEO / READ_EXTERNAL_STORAGE
+     * runtime permission, requested from SettingsScreen before this is called.
      */
+    fun scanDeviceForVideos() {
+        viewModelScope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    libraryRepository.scanDeviceMediaStore { /* progress observed via DB flow */ }
+                }
+            } catch (e: Exception) {
+                // Defense in depth — the repository already catches internally
+                // and reports a FAILED scan status, this just guarantees the
+                // app itself can never crash from a scan trigger.
+            }
+        }
+    }
+
+    /** Optional: SAF folder-based scan, kept for users who want to scope to a specific folder. */
     fun onFolderSelected(treeUri: Uri, displayName: String) {
         viewModelScope.launch {
-            val folderSourceId = libraryRepository.addFolderSource(treeUri.toString(), displayName)
-            runScan(treeUri, folderSourceId)
+            try {
+                val folderSourceId = libraryRepository.addFolderSource(treeUri.toString(), displayName)
+                withContext(Dispatchers.IO) {
+                    libraryRepository.scanAndImport(treeUri, folderSourceId) { }
+                }
+            } catch (e: Exception) {
+                // Never crash — the repository already reports FAILED status internally.
+            }
         }
     }
 
     fun rescanAll() {
         viewModelScope.launch {
             _uiState.value.folderSources.forEach { source ->
-                runScan(Uri.parse(source.treeUri), source.id)
+                try {
+                    withContext(Dispatchers.IO) {
+                        libraryRepository.scanAndImport(Uri.parse(source.treeUri), source.id) { }
+                    }
+                } catch (e: Exception) {
+                    // Never crash.
+                }
             }
-        }
-    }
-
-    private suspend fun runScan(treeUri: Uri, folderSourceId: Long?) {
-        withContext(Dispatchers.IO) {
-            libraryRepository.scanAndImport(treeUri, folderSourceId) { /* progress observed via DB flow */ }
         }
     }
 }

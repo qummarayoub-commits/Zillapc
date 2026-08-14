@@ -68,8 +68,8 @@ fun HomeScreen(
             state.libraryEmpty -> {
                 EmptyState(
                     title = "Your library is empty",
-                    message = "Add a folder to start building your library.",
-                    actionLabel = "Add Folder",
+                    message = "Scan your device to start building your library.",
+                    actionLabel = "Scan for Videos",
                     onAction = onOpenSettings,
                 )
             }

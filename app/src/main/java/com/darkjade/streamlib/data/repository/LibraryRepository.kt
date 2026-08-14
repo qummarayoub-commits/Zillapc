@@ -10,6 +10,7 @@ import com.darkjade.streamlib.data.db.entity.SeasonEntity
 import com.darkjade.streamlib.data.metadata.MetadataProvider
 import com.darkjade.streamlib.data.metadata.isSeriesLike
 import com.darkjade.streamlib.data.scanner.LibraryScanner
+import com.darkjade.streamlib.data.scanner.MediaStoreScanner
 import com.darkjade.streamlib.data.scanner.ScanEvent
 import kotlinx.coroutines.flow.Flow
 
@@ -27,6 +28,7 @@ class LibraryRepository(
 ) {
     private val db = StreamLibDatabase.getInstance(context)
     private val scanner = LibraryScanner(context)
+    private val mediaStoreScanner = MediaStoreScanner(context)
 
     private val mediaDao = db.mediaItemDao()
     private val seasonDao = db.seasonDao()
@@ -77,9 +79,39 @@ class LibraryRepository(
      * Scans a folder tree, writing discovered media into Room incrementally
      * (never loads the full library into memory), then attempts metadata
      * enrichment per-item. Emits progress via ScanEvent for the Settings UI.
+     *
+     * Wrapped defensively: any exception (e.g. a SAF permission grant that
+     * silently failed on a quirky OEM DocumentsProvider) is reported as a
+     * FAILED scan status instead of crashing the app.
      */
     suspend fun scanAndImport(
         treeUri: android.net.Uri,
+        folderSourceId: Long?,
+        onEvent: suspend (ScanEvent) -> Unit,
+    ) {
+        try {
+            runScanFlow(scanner.scanTree(treeUri), folderSourceId, onEvent)
+        } catch (e: Exception) {
+            reportScanFailure(e.message ?: "Unknown error while scanning folder", onEvent)
+        }
+    }
+
+    /**
+     * Scans the device-wide MediaStore video index instead of a SAF folder
+     * tree. This is the recommended default: it sidesteps OEM-specific SAF
+     * DocumentsProvider bugs entirely (see MediaStoreScanner) and only needs
+     * the standard READ_MEDIA_VIDEO / READ_EXTERNAL_STORAGE permission.
+     */
+    suspend fun scanDeviceMediaStore(onEvent: suspend (ScanEvent) -> Unit) {
+        try {
+            runScanFlow(mediaStoreScanner.scanDevice(), folderSourceId = null, onEvent)
+        } catch (e: Exception) {
+            reportScanFailure(e.message ?: "Unknown error while scanning device media", onEvent)
+        }
+    }
+
+    private suspend fun runScanFlow(
+        events: kotlinx.coroutines.flow.Flow<ScanEvent>,
         folderSourceId: Long?,
         onEvent: suspend (ScanEvent) -> Unit,
     ) {
@@ -93,11 +125,15 @@ class LibraryRepository(
         var found = 0
         var processed = 0
 
-        scanner.scanTree(treeUri).collect { event ->
+        events.collect { event ->
             when (event) {
                 is ScanEvent.FileFound -> {
                     found++
-                    importScannedFile(event.file, folderSourceId)
+                    try {
+                        importScannedFile(event.file, folderSourceId)
+                    } catch (e: Exception) {
+                        // One bad file must never abort the whole scan.
+                    }
                 }
                 is ScanEvent.Progress -> {
                     processed = event.processed
@@ -138,6 +174,17 @@ class LibraryRepository(
             }
             onEvent(event)
         }
+    }
+
+    private suspend fun reportScanFailure(message: String, onEvent: suspend (ScanEvent) -> Unit) {
+        scanStatusDao.upsert(
+            com.darkjade.streamlib.data.db.entity.ScanStatusEntity(
+                state = com.darkjade.streamlib.data.db.entity.ScanState.FAILED,
+                errorMessage = message,
+                finishedAt = System.currentTimeMillis(),
+            )
+        )
+        onEvent(ScanEvent.Failed(message))
     }
 
     private suspend fun importScannedFile(
