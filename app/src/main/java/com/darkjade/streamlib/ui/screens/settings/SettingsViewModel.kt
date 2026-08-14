@@ -4,21 +4,15 @@ import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.work.Constraints
-import androidx.work.ExistingWorkPolicy
-import androidx.work.NetworkType
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.WorkManager
 import com.darkjade.streamlib.data.db.entity.FolderSourceEntity
-import com.darkjade.streamlib.data.db.entity.ScanState
 import com.darkjade.streamlib.data.db.entity.ScanStatusEntity
 import com.darkjade.streamlib.data.repository.LibraryRepository
-import com.darkjade.streamlib.work.ScanLibraryWorker
-import com.darkjade.streamlib.work.buildScanInputData
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 data class SettingsUiState(
     val folderSources: List<FolderSourceEntity> = emptyList(),
@@ -48,31 +42,34 @@ class SettingsViewModel(
         }
     }
 
-    /** Called after the SAF folder picker returns a tree URI. */
+    /**
+     * Called after the SAF folder picker returns a tree URI.
+     *
+     * Scanning runs directly on a background coroutine dispatcher tied to this
+     * ViewModel — NOT via WorkManager. Some OEM Android skins (this app has
+     * previously hit this with ZTE/MyOS) aggressively defer or kill scheduled
+     * background work, which silently prevented scans from ever running. A
+     * direct coroutine scan while the app is in the foreground sidesteps that
+     * entirely and gives immediate, visible progress.
+     */
     fun onFolderSelected(treeUri: Uri, displayName: String) {
         viewModelScope.launch {
             val folderSourceId = libraryRepository.addFolderSource(treeUri.toString(), displayName)
-            triggerScan(treeUri, folderSourceId = folderSourceId)
+            runScan(treeUri, folderSourceId)
         }
     }
 
     fun rescanAll() {
         viewModelScope.launch {
             _uiState.value.folderSources.forEach { source ->
-                triggerScan(Uri.parse(source.treeUri), source.id)
+                runScan(Uri.parse(source.treeUri), source.id)
             }
         }
     }
 
-    private fun triggerScan(treeUri: Uri, folderSourceId: Long?) {
-        val request = OneTimeWorkRequestBuilder<ScanLibraryWorker>()
-            .setInputData(buildScanInputData(treeUri, folderSourceId))
-            .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.NOT_REQUIRED).build())
-            .build()
-        WorkManager.getInstance(appContext).enqueueUniqueWork(
-            ScanLibraryWorker.UNIQUE_WORK_NAME + (folderSourceId ?: treeUri.toString()),
-            ExistingWorkPolicy.REPLACE,
-            request,
-        )
+    private suspend fun runScan(treeUri: Uri, folderSourceId: Long?) {
+        withContext(Dispatchers.IO) {
+            libraryRepository.scanAndImport(treeUri, folderSourceId) { /* progress observed via DB flow */ }
+        }
     }
 }

@@ -118,6 +118,13 @@ class LibraryRepository(
                             finishedAt = System.currentTimeMillis(),
                         )
                     )
+                    if (folderSourceId != null) {
+                        folderSourceDao.getAll().find { it.id == folderSourceId }?.let { source ->
+                            folderSourceDao.update(
+                                source.copy(itemCount = event.totalFound, lastScannedAt = System.currentTimeMillis())
+                            )
+                        }
+                    }
                 }
                 is ScanEvent.Failed -> {
                     scanStatusDao.upsert(
