@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">DarkVault</string>
+    <string name="tab_home">Home</string>
+    <string name="tab_mylists">My Lists</string>
+    <string name="tab_browse">Browse</string>
+    <string name="tab_search">Search</string>
+    <string name="tab_account">Account</string>
+</resources>
