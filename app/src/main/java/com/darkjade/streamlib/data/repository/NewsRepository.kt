@@ -40,6 +40,7 @@ class NewsRepository(context: Context) {
 
     fun observeAll() = dao.observeAll()
     fun observeByCategory(category: NewsCategory) = dao.observeByCategory(category)
+    suspend fun getById(id: Long) = dao.getById(id)
     suspend fun search(query: String) = if (query.isBlank()) emptyList() else dao.search(query)
     suspend fun hasAnyCachedArticles() = dao.count() > 0
 

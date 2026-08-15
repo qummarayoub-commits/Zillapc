@@ -36,6 +36,8 @@ import com.darkjade.streamlib.ui.screens.home.HomeScreen
 import com.darkjade.streamlib.ui.screens.home.HomeViewModel
 import com.darkjade.streamlib.ui.screens.mylists.MyListsScreen
 import com.darkjade.streamlib.ui.screens.mylists.MyListsViewModel
+import com.darkjade.streamlib.ui.screens.news.NewsArticleDetailsScreen
+import com.darkjade.streamlib.ui.screens.news.NewsArticleDetailsViewModel
 import com.darkjade.streamlib.ui.screens.news.NewsScreen
 import com.darkjade.streamlib.ui.screens.news.NewsViewModel
 import com.darkjade.streamlib.ui.screens.player.PlayerScreen
@@ -154,9 +156,23 @@ fun StreamLibNavGraph(container: AppContainer) {
 
             composable(Routes.NEWS) {
                 val vm: NewsViewModel = viewModel(factory = SimpleViewModelFactory {
-                    NewsViewModel(container.newsRepository)
+                    NewsViewModel(container.newsRepository, container.libraryRepository, container.comicRepository)
                 })
-                NewsScreen(viewModel = vm, onBack = { navController.popBackStack() })
+                NewsScreen(viewModel = vm, onOpenArticle = { navController.navigate(Routes.newsArticle(it)) })
+            }
+
+            composable(
+                route = Routes.NEWS_ARTICLE,
+                arguments = listOf(navArgument("articleId") { type = NavType.LongType })
+            ) { entry: NavBackStackEntry ->
+                val articleId = entry.arguments?.getLong("articleId") ?: -1L
+                val vm: NewsArticleDetailsViewModel = viewModel(
+                    key = "news_article_$articleId",
+                    factory = SimpleViewModelFactory {
+                        NewsArticleDetailsViewModel(articleId, container.newsRepository)
+                    }
+                )
+                NewsArticleDetailsScreen(viewModel = vm, onBack = { navController.popBackStack() })
             }
 
             composable(

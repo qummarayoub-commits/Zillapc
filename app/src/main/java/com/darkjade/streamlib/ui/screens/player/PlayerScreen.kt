@@ -134,6 +134,14 @@ fun PlayerScreen(
         }
     }
 
+    // Auto-dismiss the "audio not supported" notice after a few seconds.
+    LaunchedEffect(state.audioUnavailableNotice) {
+        if (state.audioUnavailableNotice != null) {
+            delay(5000)
+            viewModel.dismissAudioNotice()
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -158,6 +166,18 @@ fun PlayerScreen(
                     }
                 }
         )
+
+        state.audioUnavailableNotice?.let { notice ->
+            Row(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 60.dp)
+                    .background(Color(0xFF3A2A00), androidx.compose.foundation.shape.RoundedCornerShape(6.dp))
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+            ) {
+                Text(notice, color = Color.White, style = MaterialTheme.typography.labelSmall)
+            }
+        }
 
         when {
             state.isLoading -> CircularProgressIndicator(
@@ -233,7 +253,17 @@ fun PlayerScreen(
                         DropdownMenu(expanded = showAudioMenu, onDismissRequest = { showAudioMenu = false }) {
                             state.audioTracks.forEach { track ->
                                 DropdownMenuItem(
-                                    text = { Text(if (track.isSelected) "${track.label} \u2713" else track.label) },
+                                    text = {
+                                        val suffix = when {
+                                            track.isSelected -> " \u2713"
+                                            !track.isSupportedByDevice -> " (unsupported)"
+                                            else -> ""
+                                        }
+                                        Text(
+                                            "${track.label}$suffix",
+                                            color = if (track.isSupportedByDevice) Color.Unspecified else Color.Gray
+                                        )
+                                    },
                                     onClick = {
                                         viewModel.selectAudioTrack(track)
                                         showAudioMenu = false

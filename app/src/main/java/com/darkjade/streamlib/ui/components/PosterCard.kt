@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Delete
@@ -60,7 +61,7 @@ fun PosterCard(
 
     Column(
         modifier = modifier
-            .size(VaultSizes.posterWidth, VaultSizes.posterHeight + if (showTitle) 56.dp else 0.dp)
+            .width(VaultSizes.posterWidth) // height is intrinsic now — see note below
             .clickable(onClick = onClick)
     ) {
         Box(

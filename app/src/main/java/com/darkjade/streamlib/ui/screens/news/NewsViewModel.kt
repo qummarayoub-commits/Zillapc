@@ -2,8 +2,13 @@ package com.darkjade.streamlib.ui.screens.news
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.darkjade.streamlib.data.db.entity.ComicEntity
+import com.darkjade.streamlib.data.db.entity.MediaItemEntity
+import com.darkjade.streamlib.data.db.entity.MediaType
 import com.darkjade.streamlib.data.db.entity.NewsArticleEntity
 import com.darkjade.streamlib.data.db.entity.NewsCategory
+import com.darkjade.streamlib.data.repository.ComicRepository
+import com.darkjade.streamlib.data.repository.LibraryRepository
 import com.darkjade.streamlib.data.repository.NewsRefreshResult
 import com.darkjade.streamlib.data.repository.NewsRepository
 import kotlinx.coroutines.Job
@@ -11,9 +16,13 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+
+private const val DEFAULT_ARTICLE_LIMIT = 10
+private const val LOAD_MORE_INCREMENT = 10
 
 data class NewsUiState(
     val isLoading: Boolean = true,
@@ -22,11 +31,20 @@ data class NewsUiState(
     val query: String = "",
     val searchResults: List<NewsArticleEntity>? = null, // null = not searching, show the category feed instead
     val allArticles: List<NewsArticleEntity> = emptyList(),
+    val visibleCount: Int = DEFAULT_ARTICLE_LIMIT,
     val isOffline: Boolean = false,
     val errorMessage: String? = null,
+    // Quick-jump shortcut banners at the top of News — one sample item per category.
+    val movieBanner: MediaItemEntity? = null,
+    val seriesBanner: MediaItemEntity? = null,
+    val comicBanner: ComicEntity? = null,
 )
 
-class NewsViewModel(private val newsRepository: NewsRepository) : ViewModel() {
+class NewsViewModel(
+    private val newsRepository: NewsRepository,
+    private val libraryRepository: LibraryRepository,
+    private val comicRepository: ComicRepository,
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(NewsUiState())
     val uiState: StateFlow<NewsUiState> = _uiState.asStateFlow()
@@ -46,6 +64,15 @@ class NewsViewModel(private val newsRepository: NewsRepository) : ViewModel() {
         viewModelScope.launch {
             val hasCache = newsRepository.hasAnyCachedArticles()
             refresh(silentIfCached = hasCache)
+        }
+
+        // Top shortcut banners — one representative item per category, if the library has any.
+        viewModelScope.launch {
+            val movie = libraryRepository.observeByType(MediaType.MOVIE).first().randomOrNull()
+            val series = libraryRepository.observeByType(MediaType.SERIES).first().randomOrNull()
+                ?: libraryRepository.observeByType(MediaType.ANIME).first().randomOrNull()
+            val comic = comicRepository.observeAll().first().randomOrNull()
+            _uiState.value = _uiState.value.copy(movieBanner = movie, seriesBanner = series, comicBanner = comic)
         }
     }
 
@@ -68,7 +95,11 @@ class NewsViewModel(private val newsRepository: NewsRepository) : ViewModel() {
     }
 
     fun setCategory(category: NewsCategory?) {
-        _uiState.value = _uiState.value.copy(selectedCategory = category)
+        _uiState.value = _uiState.value.copy(selectedCategory = category, visibleCount = DEFAULT_ARTICLE_LIMIT)
+    }
+
+    fun loadMore() {
+        _uiState.value = _uiState.value.copy(visibleCount = _uiState.value.visibleCount + LOAD_MORE_INCREMENT)
     }
 
     fun onQueryChange(query: String) {

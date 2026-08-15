@@ -19,6 +19,9 @@ interface NewsArticleDao {
     @Query("SELECT * FROM news_articles WHERE category = :category ORDER BY publishedAt DESC")
     fun observeByCategory(category: NewsCategory): Flow<List<NewsArticleEntity>>
 
+    @Query("SELECT * FROM news_articles WHERE id = :id")
+    suspend fun getById(id: Long): NewsArticleEntity?
+
     @Query("""
         SELECT * FROM news_articles 
         WHERE headline LIKE '%' || :query || '%' OR excerpt LIKE '%' || :query || '%'

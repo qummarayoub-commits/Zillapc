@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -39,7 +40,7 @@ fun ComicCard(
 ) {
     Column(
         modifier = modifier
-            .size(VaultSizes.posterWidth, VaultSizes.posterHeight + if (showTitle) 40.dp else 0.dp)
+            .width(VaultSizes.posterWidth) // intrinsic height — same overflow fix as PosterCard
             .clickable(onClick = onClick)
     ) {
         Box(

@@ -1,7 +1,5 @@
 package com.darkjade.streamlib.ui.screens.news
 
-import android.content.Intent
-import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -11,8 +9,10 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -20,12 +20,15 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Article
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
@@ -36,7 +39,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.SubcomposeAsyncImage
@@ -53,20 +55,49 @@ import java.util.concurrent.TimeUnit
 @Composable
 fun NewsScreen(
     viewModel: NewsViewModel,
-    onBack: () -> Unit,
+    onOpenArticle: (Long) -> Unit,
 ) {
     val state by viewModel.uiState.collectAsState()
-    val context = LocalContext.current
 
     Column(modifier = Modifier.fillMaxSize().background(VaultColors.Background)) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(VaultSpacing.md),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            IconButton(onClick = onBack) {
-                Icon(Icons.Filled.ArrowBack, contentDescription = "Back", tint = VaultColors.TextPrimary)
+        Text(
+            "News",
+            style = MaterialTheme.typography.headlineSmall,
+            color = VaultColors.TextPrimary,
+            modifier = Modifier.padding(horizontal = VaultSpacing.md, vertical = VaultSpacing.sm)
+        )
+
+        // Movie / Series / Comics shortcut banners — ABOVE the filters/feed.
+        if (state.movieBanner != null || state.seriesBanner != null || state.comicBanner != null) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = VaultSpacing.md),
+                horizontalArrangement = Arrangement.spacedBy(VaultSpacing.xs),
+            ) {
+                state.movieBanner?.let { movie ->
+                    ShortcutBanner(
+                        label = "Movies",
+                        imageUrl = movie.posterUrl,
+                        modifier = Modifier.weight(1f),
+                        onClick = { viewModel.setCategory(NewsCategory.MOVIES) }
+                    )
+                }
+                state.seriesBanner?.let { series ->
+                    ShortcutBanner(
+                        label = "Series",
+                        imageUrl = series.posterUrl,
+                        modifier = Modifier.weight(1f),
+                        onClick = { viewModel.setCategory(NewsCategory.SERIES) }
+                    )
+                }
+                state.comicBanner?.let { comic ->
+                    ShortcutBanner(
+                        label = "Comics",
+                        imageUrl = comic.coverUrl,
+                        modifier = Modifier.weight(1f),
+                        onClick = { viewModel.setCategory(NewsCategory.COMICS) }
+                    )
+                }
             }
-            Text("News", style = MaterialTheme.typography.headlineSmall, color = VaultColors.TextPrimary)
         }
 
         OutlinedTextField(
@@ -82,7 +113,7 @@ fun NewsScreen(
                 unfocusedTextColor = VaultColors.TextPrimary,
                 cursorColor = VaultColors.Orange,
             ),
-            modifier = Modifier.fillMaxWidth().padding(horizontal = VaultSpacing.md)
+            modifier = Modifier.fillMaxWidth().padding(horizontal = VaultSpacing.md, vertical = VaultSpacing.sm)
         )
 
         if (state.searchResults == null) {
@@ -100,10 +131,15 @@ fun NewsScreen(
             }
         }
 
-        val displayedArticles = state.searchResults ?: run {
+        val allForCategory = state.searchResults ?: run {
             val cat = state.selectedCategory
             if (cat == null) state.allArticles else state.allArticles.filter { it.category == cat }
         }
+        // Default feed stays capped to a reasonable number (10) instead of
+        // flooding the screen — "Load More" reveals more, matching the spec.
+        val isSearching = state.searchResults != null
+        val displayedArticles = if (isSearching) allForCategory else allForCategory.take(state.visibleCount)
+        val hasMore = !isSearching && allForCategory.size > state.visibleCount
 
         when {
             state.isLoading -> CircularProgressIndicator(color = VaultColors.Orange, modifier = Modifier.padding(VaultSpacing.xl))
@@ -113,7 +149,7 @@ fun NewsScreen(
                 actionLabel = "Retry",
                 onAction = { viewModel.refresh() },
             )
-            state.searchResults != null && displayedArticles.isEmpty() -> EmptyState(
+            isSearching && displayedArticles.isEmpty() -> EmptyState(
                 title = "No results found.",
                 message = "Try a different title or keyword.",
             )
@@ -129,17 +165,52 @@ fun NewsScreen(
                     contentPadding = PaddingValues(bottom = VaultSpacing.xl)
                 ) {
                     items(displayedArticles, key = { it.id }) { article ->
-                        NewsArticleCard(article = article, onClick = {
-                            try {
-                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(article.articleUrl)))
-                            } catch (e: Exception) {
-                                // No browser available — fail silently rather than crash.
+                        NewsArticleCard(article = article, onClick = { onOpenArticle(article.id) })
+                    }
+                    if (hasMore) {
+                        item {
+                            OutlinedButton(
+                                onClick = { viewModel.loadMore() },
+                                shape = VaultShapes.button,
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = VaultColors.TextPrimary),
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = VaultSpacing.md, vertical = VaultSpacing.sm)
+                            ) {
+                                Text("Load More")
                             }
-                        })
+                        }
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ShortcutBanner(label: String, imageUrl: String?, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Box(
+        modifier = modifier
+            .height(64.dp)
+            .clip(VaultShapes.card)
+            .background(VaultColors.SurfaceVariant)
+            .clickable(onClick = onClick)
+    ) {
+        if (imageUrl != null) {
+            SubcomposeAsyncImage(
+                model = imageUrl,
+                contentDescription = label,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+                loading = {},
+                error = {},
+            )
+            Box(modifier = Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.35f)))
+        }
+        Text(
+            label,
+            style = MaterialTheme.typography.labelLarge,
+            color = androidx.compose.ui.graphics.Color.White,
+            modifier = Modifier.align(Alignment.Center)
+        )
     }
 }
 
@@ -209,7 +280,7 @@ private fun NewsArticleCard(article: NewsArticleEntity, onClick: () -> Unit) {
                 )
             }
             Text(
-                "${article.category.label()} • ${article.sourceName} • ${relativeTime(article.publishedAt)}",
+                "${article.category.label()} \u2022 ${article.sourceName} \u2022 ${relativeTime(article.publishedAt)}",
                 style = MaterialTheme.typography.labelSmall,
                 color = VaultColors.Orange,
                 modifier = Modifier.padding(top = 4.dp)

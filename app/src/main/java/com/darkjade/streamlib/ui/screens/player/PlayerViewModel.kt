@@ -2,16 +2,19 @@ package com.darkjade.streamlib.ui.screens.player
 
 import android.content.Context
 import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
+import androidx.media3.common.Format
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.Tracks
 import androidx.media3.exoplayer.DefaultRenderersFactory
+import androidx.media3.exoplayer.ExoPlaybackException
 import androidx.media3.exoplayer.ExoPlayer
 import com.darkjade.streamlib.data.repository.LibraryRepository
 import com.darkjade.streamlib.data.repository.PlaybackRepository
@@ -22,11 +25,14 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
+private const val TAG = "DarkVaultPlayer"
+
 data class AudioTrackOption(
     val group: Tracks.Group,
     val trackIndexInGroup: Int,
     val label: String,
     val isSelected: Boolean,
+    val isSupportedByDevice: Boolean,
 )
 
 data class PlayerUiState(
@@ -37,6 +43,8 @@ data class PlayerUiState(
     val isPlaying: Boolean = false,
     val durationMs: Long = 0,
     val positionMs: Long = 0,
+    /** Shown as a brief banner when the audio track couldn't be decoded but video kept playing. */
+    val audioUnavailableNotice: String? = null,
 )
 
 /**
@@ -98,14 +106,12 @@ class PlayerViewModel(
     private var autoSaveJob: Job? = null
     private var positionPollJob: Job? = null
     private var hasResumed = false
+    private var alreadyRetriedWithoutAudio = false
 
     init {
         player.addListener(object : Player.Listener {
             override fun onPlayerError(error: PlaybackException) {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    errorMessage = error.message ?: "This video could not be played."
-                )
+                handlePlaybackError(error)
             }
 
             override fun onPlaybackStateChanged(playbackState: Int) {
@@ -130,6 +136,7 @@ class PlayerViewModel(
             }
 
             override fun onTracksChanged(tracks: Tracks) {
+                logAudioTrackDiagnostics(tracks)
                 _uiState.value = _uiState.value.copy(audioTracks = buildAudioTrackOptions(tracks))
             }
         })
@@ -150,6 +157,94 @@ class PlayerViewModel(
                 startAutoSave()
             } catch (e: Exception) {
                 _uiState.value = PlayerUiState(isLoading = false, errorMessage = e.message ?: "Playback error")
+            }
+        }
+    }
+
+    /**
+     * Investigates the real cause of a playback error instead of just
+     * surfacing a generic message. If the failure is specifically the audio
+     * decoder for this track (not video, not the source itself), disables
+     * that audio track and retries so video keeps playing — matching "the
+     * player does not crash when a track is unsupported / video playback
+     * continues normally."
+     */
+    private fun handlePlaybackError(error: PlaybackException) {
+        val exoError = error as? ExoPlaybackException
+        val failedFormat = exoError?.rendererFormat
+        val isAudioRendererFailure = exoError?.type == ExoPlaybackException.TYPE_RENDERER &&
+            failedFormat?.sampleMimeType?.startsWith("audio/") == true
+
+        Log.e(TAG, buildString {
+            append("Playback error: errorCode=${error.errorCode} (${error.errorCodeName})")
+            append(" rendererType=${exoError?.type}")
+            if (failedFormat != null) {
+                append(" | failedTrack mime=${failedFormat.sampleMimeType}")
+                append(" channels=${failedFormat.channelCount}")
+                append(" sampleRateHz=${failedFormat.sampleRateHz}")
+                append(" bitrate=${failedFormat.bitrate}")
+                append(" language=${failedFormat.language}")
+                append(" codecs=${failedFormat.codecs}")
+            }
+        }, error)
+
+        if (isAudioRendererFailure && !alreadyRetriedWithoutAudio) {
+            alreadyRetriedWithoutAudio = true
+            val mimeLabel = failedFormat?.sampleMimeType?.removePrefix("audio/")?.uppercase() ?: "this"
+            Log.w(TAG, "Disabling unsupported audio track ($mimeLabel) and retrying video-only playback.")
+
+            val resumePosition = player.currentPosition
+            player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
+                .setTrackTypeDisabled(C.TRACK_TYPE_AUDIO, true)
+                .build()
+            _uiState.value = _uiState.value.copy(
+                errorMessage = null,
+                audioUnavailableNotice = "Audio format ($mimeLabel) isn't supported on this device — playing video only.",
+            )
+            player.prepare()
+            player.seekTo(resumePosition)
+            player.playWhenReady = true
+        } else {
+            _uiState.value = _uiState.value.copy(
+                isLoading = false,
+                errorMessage = buildUserFacingErrorMessage(error, exoError, failedFormat),
+            )
+        }
+    }
+
+    private fun buildUserFacingErrorMessage(
+        error: PlaybackException,
+        exoError: ExoPlaybackException?,
+        failedFormat: Format?,
+    ): String {
+        return when {
+            failedFormat != null -> {
+                val codec = failedFormat.sampleMimeType?.substringAfter('/')?.uppercase() ?: "unknown"
+                "This file's ${if (exoError?.type == ExoPlaybackException.TYPE_RENDERER) "media" else ""} format ($codec) isn't supported on this device."
+            }
+            error.errorCode == PlaybackException.ERROR_CODE_IO_FILE_NOT_FOUND -> "This file could no longer be found."
+            error.errorCode == PlaybackException.ERROR_CODE_IO_NO_PERMISSION -> "Permission to access this file was lost."
+            else -> error.message ?: "This video could not be played."
+        }
+    }
+
+    /** Logs full diagnostic info for every detected audio track — codec, channels, sample rate, bitrate, language, support. */
+    private fun logAudioTrackDiagnostics(tracks: Tracks) {
+        val audioGroups = tracks.groups.filter { it.type == C.TRACK_TYPE_AUDIO }
+        Log.d(TAG, "Audio tracks detected: ${audioGroups.sumOf { it.length }}")
+        audioGroups.forEach { group ->
+            for (i in 0 until group.length) {
+                val format = group.getTrackFormat(i)
+                Log.d(TAG, buildString {
+                    append("Audio track: mime=${format.sampleMimeType}")
+                    append(" codecs=${format.codecs}")
+                    append(" channels=${format.channelCount}")
+                    append(" sampleRateHz=${format.sampleRateHz}")
+                    append(" bitrate=${format.bitrate}")
+                    append(" language=${format.language ?: "unknown"}")
+                    append(" selected=${group.isTrackSelected(i)}")
+                    append(" supportedByDevice=${group.isTrackSupported(i)}")
+                })
             }
         }
     }
@@ -253,6 +348,10 @@ class PlayerViewModel(
             .build()
     }
 
+    fun dismissAudioNotice() {
+        _uiState.value = _uiState.value.copy(audioUnavailableNotice = null)
+    }
+
     private fun buildAudioTrackOptions(tracks: Tracks): List<AudioTrackOption> {
         val options = mutableListOf<AudioTrackOption>()
         for (group in tracks.groups) {
@@ -266,6 +365,7 @@ class PlayerViewModel(
                         trackIndexInGroup = i,
                         label = label,
                         isSelected = group.isTrackSelected(i),
+                        isSupportedByDevice = group.isTrackSupported(i),
                     )
                 )
             }
