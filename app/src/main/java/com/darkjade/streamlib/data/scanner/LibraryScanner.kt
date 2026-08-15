@@ -19,6 +19,7 @@ data class ScannedFile(
     val sizeBytes: Long,
     val pathSegments: List<String>, // parent folder names, root -> immediate parent
     val parsed: ParsedMedia,
+    val durationMs: Long = 0, // 0 = unknown (SAF scanner doesn't probe this; MediaStore does)
 )
 
 sealed class ScanEvent {

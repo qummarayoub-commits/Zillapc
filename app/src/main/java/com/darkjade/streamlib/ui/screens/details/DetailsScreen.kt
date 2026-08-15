@@ -52,6 +52,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import coil.compose.SubcomposeAsyncImage
 import com.darkjade.streamlib.data.db.entity.EpisodeEntity
 import com.darkjade.streamlib.ui.components.EmptyState
 import com.darkjade.streamlib.ui.components.FallbackPoster
@@ -128,6 +129,7 @@ fun DetailsScreen(
                             val metaParts = buildList {
                                 media.ageRating?.let { add(it) }
                                 media.year?.let { add(it.toString()) }
+                                media.runtimeMinutes?.let { add("${it}m") }
                                 if (media.genres.isNotBlank()) add(media.genres.replace(",", ", "))
                             }
                             if (metaParts.isNotEmpty()) {
@@ -316,16 +318,17 @@ private fun EpisodeRow(
                 .clip(VaultShapes.card)
                 .background(VaultColors.SurfaceVariant)
         ) {
-            if (episode.thumbnailUrl != null) {
-                AsyncImage(
-                    model = episode.thumbnailUrl,
-                    contentDescription = episode.title,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize(),
-                )
-            } else {
-                FallbackPoster(title = "E${episode.episodeNumber}")
-            }
+            // Prefer TMDB episode thumbnail; fall back to a decoded frame from
+            // the episode's own local video file (always available, unlike
+            // series posters), so episode rows are never left blank.
+            SubcomposeAsyncImage(
+                model = episode.thumbnailUrl ?: episode.localFileUri,
+                contentDescription = episode.title,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+                loading = { FallbackPoster(title = "E${episode.episodeNumber}") },
+                error = { FallbackPoster(title = "E${episode.episodeNumber}") },
+            )
             Icon(
                 imageVector = if (episode.watched) Icons.Filled.CheckCircle else Icons.Filled.RadioButtonUnchecked,
                 contentDescription = if (episode.watched) "Watched" else "Not watched",

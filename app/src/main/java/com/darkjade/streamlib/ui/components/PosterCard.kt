@@ -20,7 +20,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
+import coil.compose.SubcomposeAsyncImage
 import com.darkjade.streamlib.data.db.entity.MediaItemEntity
 import com.darkjade.streamlib.ui.theme.VaultColors
 import com.darkjade.streamlib.ui.theme.VaultShapes
@@ -45,12 +45,18 @@ fun PosterCard(
                 .clip(VaultShapes.card)
                 .background(VaultColors.SurfaceVariant)
         ) {
-            if (item.posterUrl != null) {
-                AsyncImage(
-                    model = item.posterUrl,
+            // Prefer TMDB poster; fall back to decoding a frame directly from the
+            // local video file (movies only — series have no single file) so a
+            // title never looks completely blank just because it lacks metadata.
+            val imageModel = item.posterUrl ?: item.localFileUri
+            if (imageModel != null) {
+                SubcomposeAsyncImage(
+                    model = imageModel,
                     contentDescription = item.title,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize(),
+                    loading = { FallbackPoster(title = item.title) },
+                    error = { FallbackPoster(title = item.title) },
                 )
             } else {
                 FallbackPoster(title = item.title)

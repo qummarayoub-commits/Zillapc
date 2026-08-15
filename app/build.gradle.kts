@@ -103,6 +103,7 @@ dependencies {
 
     // Image loading
     implementation("io.coil-kt:coil-compose:2.6.0")
+    implementation("io.coil-kt:coil-video:2.6.0")
 
     // Networking (metadata provider)
     implementation("com.squareup.retrofit2:retrofit:2.11.0")

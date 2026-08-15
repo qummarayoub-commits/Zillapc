@@ -220,6 +220,7 @@ class LibraryRepository(
                     year = parsed.year,
                     localFileUri = file.uri.toString(),
                     localFilePath = file.pathSegments.joinToString("/"),
+                    runtimeMinutes = file.durationMs.takeIf { it > 0 }?.let { (it / 60000).toInt() },
                     metadataFetched = false,
                     folderSourceId = folderSourceId,
                 )
@@ -269,7 +270,8 @@ class LibraryRepository(
                         title = episodeMeta?.title,
                         overview = episodeMeta?.overview,
                         thumbnailUrl = episodeMeta?.thumbnailUrl,
-                        durationMinutes = episodeMeta?.runtimeMinutes,
+                        durationMinutes = episodeMeta?.runtimeMinutes
+                            ?: file.durationMs.takeIf { it > 0 }?.let { (it / 60000).toInt() },
                         localFileUri = file.uri.toString(),
                         localFilePath = file.pathSegments.joinToString("/"),
                         fileSizeBytes = file.sizeBytes,
@@ -308,7 +310,7 @@ class LibraryRepository(
                     posterUrl = result.posterUrl,
                     backdropUrl = result.backdropUrl,
                     rating = result.rating,
-                    runtimeMinutes = result.runtimeMinutes,
+                    runtimeMinutes = result.runtimeMinutes ?: entity.runtimeMinutes,
                     genres = result.genres.joinToString(","),
                     director = result.director,
                     cast = result.cast.joinToString(","),

@@ -24,7 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
+import coil.compose.SubcomposeAsyncImage
 import com.darkjade.streamlib.data.db.entity.MediaItemEntity
 import com.darkjade.streamlib.ui.components.EmptyState
 import com.darkjade.streamlib.ui.components.FallbackPoster
@@ -102,12 +102,15 @@ private fun ListRow(item: MediaItemEntity, onClick: () -> Unit) {
                 .size(64.dp, 92.dp)
                 .clip(VaultShapes.card)
         ) {
-            if (item.posterUrl != null) {
-                AsyncImage(
-                    model = item.posterUrl,
+            val imageModel = item.posterUrl ?: item.localFileUri
+            if (imageModel != null) {
+                SubcomposeAsyncImage(
+                    model = imageModel,
                     contentDescription = item.title,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize(),
+                    loading = { FallbackPoster(title = item.title) },
+                    error = { FallbackPoster(title = item.title) },
                 )
             } else {
                 FallbackPoster(title = item.title)

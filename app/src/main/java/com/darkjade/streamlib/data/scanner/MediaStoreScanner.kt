@@ -87,6 +87,7 @@ class MediaStoreScanner(private val context: Context) {
                         sizeBytes = size,
                         pathSegments = pathSegments,
                         parsed = parsed,
+                        durationMs = durationMs,
                     )
                     emit(ScanEvent.FileFound(scanned))
                     processed++
