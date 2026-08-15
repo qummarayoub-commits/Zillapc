@@ -15,3 +15,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "LocalStreamingLibrary"
 include(":app")
+include(":decoder-ffmpeg")

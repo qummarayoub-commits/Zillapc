@@ -115,6 +115,17 @@ dependencies {
     implementation("androidx.media3:media3-common:1.4.1")
     implementation("androidx.media3:media3-session:1.4.1")
 
+    // FFmpeg audio decoder extension — built via a dedicated GitHub Actions
+    // workflow (ffmpeg-extension-build.yml), not a Maven dependency (Google
+    // doesn't publish this one due to codec licensing). Adds real AC3/E-AC3/
+    // DTS-Core playback via software decoding when the device's own hardware
+    // codec can't handle a track — DefaultRenderersFactory's
+    // EXTENSION_RENDERER_MODE_PREFER (already configured in PlayerViewModel)
+    // discovers androidx.media3.decoder.ffmpeg.FfmpegAudioRenderer via
+    // reflection automatically once it's on the classpath; no other app-side
+    // wiring is required for it to be picked up.
+    implementation(project(":decoder-ffmpeg"))
+
     // Internal comic reader — CBZ (zip) via java.util.zip (built-in), CBR (rar) via junrar
     implementation("com.github.junrar:junrar:7.5.2")
 
