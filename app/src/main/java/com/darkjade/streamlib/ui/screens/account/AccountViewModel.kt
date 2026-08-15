@@ -42,7 +42,11 @@ class AccountViewModel(private val profileRepository: ProfileRepository) : ViewM
     fun setAvatar(uriString: String) = updateActiveProfile { it.copy(avatarRes = uriString) }
 
     /** Sets the profile's cover/banner image to a picked content URI. */
-    fun setBanner(uriString: String) = updateActiveProfile { it.copy(bannerRes = uriString) }
+    fun setBanner(uriString: String) = updateActiveProfile { it.copy(bannerRes = uriString, bannerOffsetX = 0f, bannerOffsetY = 0f, bannerScale = 1f) }
+
+    /** Called when the user finishes pinch/drag-adjusting the banner position. */
+    fun setBannerAdjustment(scale: Float, offsetX: Float, offsetY: Float) =
+        updateActiveProfile { it.copy(bannerScale = scale, bannerOffsetX = offsetX, bannerOffsetY = offsetY) }
 
     fun setUsername(name: String) {
         if (name.isBlank()) return

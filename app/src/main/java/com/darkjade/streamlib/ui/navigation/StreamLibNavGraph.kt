@@ -47,7 +47,7 @@ import com.darkjade.streamlib.ui.screens.settings.SettingsViewModel
 import com.darkjade.streamlib.ui.util.SimpleViewModelFactory
 import kotlinx.coroutines.launch
 
-private val topLevelRoutes = setOf(Routes.HOME, Routes.MY_LISTS, Routes.BROWSE, Routes.SEARCH, Routes.ACCOUNT)
+private val topLevelRoutes = setOf(Routes.HOME, Routes.MY_LISTS, Routes.BROWSE, Routes.NEWS, Routes.SEARCH, Routes.ACCOUNT)
 
 @Composable
 fun StreamLibNavGraph(container: AppContainer) {

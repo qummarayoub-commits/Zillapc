@@ -89,7 +89,7 @@ fun DetailsScreen(
                 val media = state.media!!
                 LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = VaultSpacing.xl)) {
                     item {
-                        Box(modifier = Modifier.fillMaxWidth().height(200.dp)) {
+                        Box(modifier = Modifier.fillMaxWidth().height(150.dp)) {
                             if (media.backdropUrl != null) {
                                 AsyncImage(
                                     model = media.backdropUrl,
@@ -105,7 +105,7 @@ fun DetailsScreen(
                                     // Concentrate the fade near the bottom edge only — spreading it
                                     // across the whole backdrop made a large chunk look like dead
                                     // black space above the poster row instead of visible artwork.
-                                    Brush.verticalGradient(0.55f to Color.Transparent, 1f to VaultColors.Background)
+                                    Brush.verticalGradient(0.7f to Color.Transparent, 1f to VaultColors.Background)
                                 )
                             )
                             IconButton(onClick = onBack, modifier = Modifier.align(Alignment.TopStart).padding(VaultSpacing.xs)) {
@@ -136,7 +136,7 @@ fun DetailsScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = VaultSpacing.md)
-                                .padding(top = VaultSpacing.sm),
+                                .padding(top = VaultSpacing.xxs),
                         ) {
                             Box(
                                 modifier = Modifier

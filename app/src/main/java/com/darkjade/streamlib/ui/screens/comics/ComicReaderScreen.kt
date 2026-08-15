@@ -3,8 +3,11 @@ package com.darkjade.streamlib.ui.screens.comics
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -120,10 +123,32 @@ fun ComicReaderScreen(
                                 detectTapGestures { controlsVisible = !controlsVisible }
                             }
                             .pointerInput(page) {
-                                detectTransformGestures { _, pan, zoom, _ ->
-                                    scale = (scale * zoom).coerceIn(1f, 4f)
-                                    offsetX = if (scale > 1f) offsetX + pan.x else 0f
-                                    offsetY = if (scale > 1f) offsetY + pan.y else 0f
+                                // Only genuine multi-touch (2+ fingers) is treated as
+                                // pinch-zoom/pan here — a plain single-finger drag is
+                                // left completely unconsumed so HorizontalPager still
+                                // sees it and can swipe to the next/previous page.
+                                // (detectTransformGestures consumes ALL pointer moves,
+                                // including single-finger ones, which was silently
+                                // blocking page-turning entirely.)
+                                awaitEachGesture {
+                                    awaitFirstDown(requireUnconsumed = false)
+                                    do {
+                                        val event = awaitPointerEvent()
+                                        if (event.changes.size >= 2) {
+                                            val zoomChange = event.calculateZoom()
+                                            val panChange = event.calculatePan()
+                                            val newScale = (scale * zoomChange).coerceIn(1f, 4f)
+                                            scale = newScale
+                                            if (newScale > 1f) {
+                                                offsetX += panChange.x
+                                                offsetY += panChange.y
+                                            } else {
+                                                offsetX = 0f
+                                                offsetY = 0f
+                                            }
+                                            event.changes.forEach { it.consume() }
+                                        }
+                                    } while (event.changes.any { it.pressed })
                                 }
                             }
                     ) {
