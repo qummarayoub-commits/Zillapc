@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -85,7 +86,7 @@ fun DetailsScreen(
                 val media = state.media!!
                 LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = VaultSpacing.xl)) {
                     item {
-                        Box(modifier = Modifier.fillMaxWidth().height(320.dp)) {
+                        Box(modifier = Modifier.fillMaxWidth().height(260.dp)) {
                             if (media.backdropUrl != null) {
                                 AsyncImage(
                                     model = media.backdropUrl,
@@ -117,6 +118,38 @@ fun DetailsScreen(
                                             showRemoveDialog = true
                                         }
                                     )
+                                }
+                            }
+                        }
+                    }
+
+                    // Smaller poster overlapping the bottom of the big backdrop — same
+                    // "big background image + centered poster" pattern used by most
+                    // streaming apps for the details page.
+                    item {
+                        Box(
+                            modifier = Modifier.fillMaxWidth().height(150.dp),
+                            contentAlignment = Alignment.TopCenter,
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .offset(y = (-70).dp)
+                                    .size(130.dp, 195.dp)
+                                    .clip(VaultShapes.card)
+                                    .background(VaultColors.SurfaceVariant)
+                            ) {
+                                val posterModel = com.darkjade.streamlib.ui.util.PosterRotationCache.posterFor(media) ?: media.localFileUri
+                                if (posterModel != null) {
+                                    SubcomposeAsyncImage(
+                                        model = posterModel,
+                                        contentDescription = media.title,
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize(),
+                                        loading = { FallbackPoster(title = media.title) },
+                                        error = { FallbackPoster(title = media.title) },
+                                    )
+                                } else {
+                                    FallbackPoster(title = media.title)
                                 }
                             }
                         }

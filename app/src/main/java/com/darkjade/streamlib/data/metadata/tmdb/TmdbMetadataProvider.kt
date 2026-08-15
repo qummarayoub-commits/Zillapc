@@ -51,6 +51,9 @@ class TmdbMetadataProvider : MetadataProvider {
     private fun extractCast(credits: TmdbCreditsDto?, limit: Int = 6): List<String> =
         credits?.cast.orEmpty().sortedBy { it.order }.take(limit).map { it.name }
 
+    private fun extractAlternatePosters(images: TmdbImagesDto?, limit: Int = 5): List<String> =
+        images?.posters.orEmpty().take(limit).map { TmdbConfig.IMAGE_BASE_URL + it.file_path }
+
     override suspend fun searchMovie(title: String, year: Int?): MetadataResult? {
         if (TmdbConfig.apiKey.isBlank()) return null
         return runCatching {
@@ -72,6 +75,7 @@ class TmdbMetadataProvider : MetadataProvider {
                 genres = full.genres?.map { it.name } ?: emptyList(),
                 director = extractDirector(full.credits),
                 cast = extractCast(full.credits),
+                alternatePosterUrls = extractAlternatePosters(full.images),
             )
         }.getOrNull()
     }
@@ -95,6 +99,7 @@ class TmdbMetadataProvider : MetadataProvider {
                 genres = full.genres?.map { it.name } ?: emptyList(),
                 director = extractDirector(full.credits),
                 cast = extractCast(full.credits),
+                alternatePosterUrls = extractAlternatePosters(full.images),
                 seasons = emptyList(), // fetched lazily via getSeasonDetails to save API calls
             )
         }.getOrNull()

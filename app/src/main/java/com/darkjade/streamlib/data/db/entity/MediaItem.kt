@@ -30,6 +30,7 @@ data class MediaItemEntity(
     val genres: String = "", // comma-separated, kept simple (avoids extra join tables)
     val director: String? = null,
     val cast: String = "", // comma-separated top cast names
+    val alternatePosterUrls: String = "", // comma-separated — TMDB has multiple posters per title
     val tmdbId: String? = null, // remote TMDB id, used to fetch per-episode metadata
     val localFileUri: String? = null, // set for MOVIE only; series use Episode entities
     val localFilePath: String? = null,

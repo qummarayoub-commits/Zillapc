@@ -102,7 +102,7 @@ private fun ListRow(item: MediaItemEntity, onClick: () -> Unit) {
                 .size(64.dp, 92.dp)
                 .clip(VaultShapes.card)
         ) {
-            val imageModel = item.posterUrl ?: item.localFileUri
+            val imageModel = com.darkjade.streamlib.ui.util.PosterRotationCache.posterFor(item) ?: item.localFileUri
             if (imageModel != null) {
                 SubcomposeAsyncImage(
                     model = imageModel,

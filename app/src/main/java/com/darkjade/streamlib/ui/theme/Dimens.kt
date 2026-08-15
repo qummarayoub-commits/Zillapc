@@ -25,7 +25,7 @@ object VaultSizes {
     val posterHeight = 188.dp
     val posterWidthLarge = 160.dp
     val posterHeightLarge = 236.dp
-    val heroHeight = 520.dp
+    val heroHeight = 380.dp
     val episodeThumbWidth = 140.dp
     val episodeThumbHeight = 90.dp
     val bottomNavHeight = 64.dp

@@ -20,6 +20,7 @@ data class TmdbMovieDto(
     val release_date: String?,
     val genres: List<TmdbGenreDto>? = null,
     val credits: TmdbCreditsDto? = null,
+    val images: TmdbImagesDto? = null,
 )
 
 data class TmdbSeriesDto(
@@ -34,7 +35,11 @@ data class TmdbSeriesDto(
     val genres: List<TmdbGenreDto>? = null,
     val number_of_seasons: Int? = null,
     val credits: TmdbCreditsDto? = null,
+    val images: TmdbImagesDto? = null,
 )
+
+data class TmdbImagesDto(val posters: List<TmdbPosterDto> = emptyList())
+data class TmdbPosterDto(val file_path: String)
 
 data class TmdbGenreDto(val id: Int, val name: String)
 
@@ -73,7 +78,7 @@ interface TmdbApi {
     suspend fun getMovie(
         @Path("id") id: Int,
         @Query("api_key") apiKey: String,
-        @Query("append_to_response") append: String = "credits",
+        @Query("append_to_response") append: String = "credits,images",
     ): TmdbMovieDto
 
     @GET("search/tv")
@@ -87,7 +92,7 @@ interface TmdbApi {
     suspend fun getSeries(
         @Path("id") id: Int,
         @Query("api_key") apiKey: String,
-        @Query("append_to_response") append: String = "credits",
+        @Query("append_to_response") append: String = "credits,images",
     ): TmdbSeriesDto
 
     @GET("tv/{id}/season/{seasonNumber}")

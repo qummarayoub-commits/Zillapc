@@ -9,6 +9,9 @@ data class ProfileEntity(
     val name: String,
     val avatarRes: String? = null, // resource name or content uri
     val bannerRes: String? = null, // content uri of a user-picked cover/banner image
+    val bannerOffsetX: Float = 0f, // pan/zoom adjustment for how the banner is displayed
+    val bannerOffsetY: Float = 0f,
+    val bannerScale: Float = 1f,
     val pinHash: String? = null, // null = no PIN set
     val isDefault: Boolean = false,
     val contentRestriction: String = "None", // e.g. "16+", "None"

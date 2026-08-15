@@ -4,6 +4,8 @@ import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.media3.common.AudioAttributes
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
@@ -31,6 +33,9 @@ data class PlayerUiState(
     val title: String = "",
     val errorMessage: String? = null,
     val audioTracks: List<AudioTrackOption> = emptyList(),
+    val isPlaying: Boolean = false,
+    val durationMs: Long = 0,
+    val positionMs: Long = 0,
 )
 
 /**
@@ -38,6 +43,12 @@ data class PlayerUiState(
  * identifies media itself — it only resolves the existing URI from the
  * existing LibraryRepository by the existing movie/episode ID, exactly per
  * the "additive only" requirement.
+ *
+ * Controls are fully custom (see PlayerScreen) rather than relying on
+ * Media3's built-in PlayerView controller, whose visibility/touch-handling
+ * quirks were causing real bugs (seek bar and rewind/forward not
+ * responding, controls not hiding on tap). Owning the state directly here
+ * — position, duration, isPlaying — makes every control unambiguously wired.
  */
 class PlayerViewModel(
     private val mediaId: Long,
@@ -47,12 +58,27 @@ class PlayerViewModel(
     private val playbackRepository: PlaybackRepository,
 ) : ViewModel() {
 
-    val player: ExoPlayer = ExoPlayer.Builder(appContext).build()
+    val player: ExoPlayer = ExoPlayer.Builder(appContext)
+        // Explicit audio attributes + automatic audio-focus handling — the
+        // default builder should already do this, but being explicit rules
+        // out silent-audio caused by focus/routing not being requested.
+        .setAudioAttributes(
+            AudioAttributes.Builder()
+                .setUsage(C.USAGE_MEDIA)
+                .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
+                .build(),
+            /* handleAudioFocus = */ true
+        )
+        .setSeekBackIncrementMs(10_000)
+        .setSeekForwardIncrementMs(10_000)
+        .build()
+        .apply { volume = 1f }
 
     private val _uiState = MutableStateFlow(PlayerUiState())
     val uiState: StateFlow<PlayerUiState> = _uiState.asStateFlow()
 
     private var autoSaveJob: Job? = null
+    private var positionPollJob: Job? = null
     private var hasResumed = false
 
     init {
@@ -66,7 +92,10 @@ class PlayerViewModel(
 
             override fun onPlaybackStateChanged(playbackState: Int) {
                 if (playbackState == Player.STATE_READY) {
-                    _uiState.value = _uiState.value.copy(isLoading = false)
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        durationMs = player.duration.coerceAtLeast(0),
+                    )
                     if (!hasResumed) {
                         hasResumed = true
                         resumeSavedPosition()
@@ -77,10 +106,16 @@ class PlayerViewModel(
                 }
             }
 
+            override fun onIsPlayingChanged(isPlaying: Boolean) {
+                _uiState.value = _uiState.value.copy(isPlaying = isPlaying)
+            }
+
             override fun onTracksChanged(tracks: Tracks) {
                 _uiState.value = _uiState.value.copy(audioTracks = buildAudioTrackOptions(tracks))
             }
         })
+
+        startPositionPoll()
 
         viewModelScope.launch {
             try {
@@ -96,6 +131,20 @@ class PlayerViewModel(
                 startAutoSave()
             } catch (e: Exception) {
                 _uiState.value = PlayerUiState(isLoading = false, errorMessage = e.message ?: "Playback error")
+            }
+        }
+    }
+
+    /** Drives the seek bar — ExoPlayer doesn't push continuous position updates on its own. */
+    private fun startPositionPoll() {
+        positionPollJob?.cancel()
+        positionPollJob = viewModelScope.launch {
+            while (true) {
+                delay(500)
+                _uiState.value = _uiState.value.copy(
+                    positionMs = player.currentPosition.coerceAtLeast(0),
+                    durationMs = player.duration.coerceAtLeast(0),
+                )
             }
         }
     }
@@ -146,17 +195,25 @@ class PlayerViewModel(
     }
 
     fun togglePlayPause() {
-        if (player.isPlaying) player.pause() else player.play()
-        if (!player.isPlaying) saveProgressNow()
+        if (player.isPlaying) {
+            player.pause()
+            saveProgressNow()
+        } else {
+            player.play()
+        }
     }
 
     fun seekBy(deltaMs: Long) {
         val target = (player.currentPosition + deltaMs).coerceIn(0, player.duration.coerceAtLeast(0))
         player.seekTo(target)
+        _uiState.value = _uiState.value.copy(positionMs = target)
     }
 
+    /** Used directly by the custom seek bar's drag gesture. */
     fun seekTo(positionMs: Long) {
-        player.seekTo(positionMs.coerceIn(0, player.duration.coerceAtLeast(0)))
+        val target = positionMs.coerceIn(0, player.duration.coerceAtLeast(0))
+        player.seekTo(target)
+        _uiState.value = _uiState.value.copy(positionMs = target)
     }
 
     fun setPlaybackSpeed(speed: Float) {
@@ -173,7 +230,7 @@ class PlayerViewModel(
     private fun buildAudioTrackOptions(tracks: Tracks): List<AudioTrackOption> {
         val options = mutableListOf<AudioTrackOption>()
         for (group in tracks.groups) {
-            if (group.type != androidx.media3.common.C.TRACK_TYPE_AUDIO) continue
+            if (group.type != C.TRACK_TYPE_AUDIO) continue
             for (i in 0 until group.length) {
                 val format = group.getTrackFormat(i)
                 val label = format.language?.uppercase() ?: format.label ?: "Track ${i + 1}"
@@ -192,6 +249,7 @@ class PlayerViewModel(
 
     override fun onCleared() {
         autoSaveJob?.cancel()
+        positionPollJob?.cancel()
         saveProgressNow()
         player.release()
         super.onCleared()

@@ -316,14 +316,41 @@ fun SettingsScreen(
                         )
                     }
                 } else {
-                    Button(
-                        onClick = { viewModel.scanDeviceForComics() },
-                        shape = VaultShapes.button,
-                        colors = ButtonDefaults.buttonColors(containerColor = VaultColors.Orange, contentColor = Color.White),
-                        modifier = Modifier.fillMaxWidth().padding(vertical = VaultSpacing.xs)
-                    ) {
-                        Icon(Icons.Filled.MenuBook, contentDescription = null)
-                        Text(" Scan Device for Comics", modifier = Modifier.padding(start = 4.dp))
+                    val hasAllFilesAccess = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R)
+                        android.os.Environment.isExternalStorageManager()
+                    else true
+
+                    if (!hasAllFilesAccess) {
+                        Text(
+                            "Comics live all over your device (not just Photos/Videos), so scanning needs \"All files access\" — MediaStore alone can't reliably find .cbz/.cbr/.pdf files. Grant it once below.",
+                            color = VaultColors.TextSecondary,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(bottom = VaultSpacing.xs)
+                        )
+                        Button(
+                            onClick = {
+                                val intent = Intent(
+                                    android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                                    Uri.parse("package:${context.packageName}")
+                                )
+                                context.startActivity(intent)
+                            },
+                            shape = VaultShapes.button,
+                            colors = ButtonDefaults.buttonColors(containerColor = VaultColors.Orange, contentColor = Color.White),
+                            modifier = Modifier.fillMaxWidth().padding(vertical = VaultSpacing.xs)
+                        ) {
+                            Text("Grant All Files Access")
+                        }
+                    } else {
+                        Button(
+                            onClick = { viewModel.scanDeviceForComics() },
+                            shape = VaultShapes.button,
+                            colors = ButtonDefaults.buttonColors(containerColor = VaultColors.Orange, contentColor = Color.White),
+                            modifier = Modifier.fillMaxWidth().padding(vertical = VaultSpacing.xs)
+                        ) {
+                            Icon(Icons.Filled.MenuBook, contentDescription = null)
+                            Text(" Scan Device for Comics", modifier = Modifier.padding(start = 4.dp))
+                        }
                     }
                     if (comicStatus?.state == ScanState.COMPLETED) {
                         Text(

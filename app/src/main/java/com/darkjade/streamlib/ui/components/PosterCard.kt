@@ -69,10 +69,11 @@ fun PosterCard(
                 .clip(VaultShapes.card)
                 .background(VaultColors.SurfaceVariant)
         ) {
-            // Prefer TMDB poster; fall back to decoding a frame directly from the
-            // local video file (movies only — series have no single file) so a
-            // title never looks completely blank just because it lacks metadata.
-            val imageModel = item.posterUrl ?: item.localFileUri
+            // Prefer TMDB poster (rotated per app-session across TMDB's multiple
+            // available posters for this title); fall back to decoding a frame
+            // directly from the local video file (movies only) so a title never
+            // looks completely blank just because it lacks metadata.
+            val imageModel = com.darkjade.streamlib.ui.util.PosterRotationCache.posterFor(item) ?: item.localFileUri
             if (imageModel != null) {
                 SubcomposeAsyncImage(
                     model = imageModel,

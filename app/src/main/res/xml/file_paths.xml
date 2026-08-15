@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Covers the whole external storage root since comics can be anywhere the
+         user has them, not just inside this app's own sandboxed directories. -->
+    <external-path name="external_files" path="." />
+    <root-path name="root" path="." />
+</paths>

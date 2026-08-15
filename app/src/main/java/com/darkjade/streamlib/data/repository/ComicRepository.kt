@@ -7,7 +7,7 @@ import com.darkjade.streamlib.data.db.entity.ComicEntity
 import com.darkjade.streamlib.data.db.entity.ScanState
 import com.darkjade.streamlib.data.db.entity.ScanStatusEntity
 import com.darkjade.streamlib.data.metadata.comicvine.ComicVineMetadataProvider
-import com.darkjade.streamlib.data.scanner.ComicMediaStoreScanner
+import com.darkjade.streamlib.data.scanner.ComicFileSystemScanner
 import com.darkjade.streamlib.data.scanner.ComicScanEvent
 import com.darkjade.streamlib.data.scanner.ComicScanner
 import com.darkjade.streamlib.data.scanner.ScannedComic
@@ -22,7 +22,7 @@ class ComicRepository(
 ) {
     private val db = StreamLibDatabase.getInstance(context)
     private val folderScanner = ComicScanner(context)
-    private val deviceScanner = ComicMediaStoreScanner(context)
+    private val deviceScanner = ComicFileSystemScanner(context)
     private val comicDao = db.comicDao()
     private val scanStatusDao = db.scanStatusDao()
 

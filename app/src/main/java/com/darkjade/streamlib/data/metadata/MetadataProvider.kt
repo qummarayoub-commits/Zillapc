@@ -16,6 +16,7 @@ data class MetadataResult(
     val genres: List<String>,
     val director: String? = null,
     val cast: List<String> = emptyList(),
+    val alternatePosterUrls: List<String> = emptyList(),
     val seasons: List<SeasonMetadata> = emptyList(),
 )
 

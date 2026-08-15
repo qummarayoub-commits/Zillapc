@@ -24,12 +24,16 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Brightness6
+import androidx.compose.material.icons.filled.Forward10
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
+import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PictureInPicture
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Replay10
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.CircularProgressIndicator
@@ -63,6 +67,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.media3.ui.PlayerView
 import com.darkjade.streamlib.ui.theme.VaultColors
 import kotlinx.coroutines.delay
+import java.util.Locale
 
 @Composable
 fun PlayerScreen(
@@ -81,14 +86,21 @@ fun PlayerScreen(
     var showVolumeSlider by remember { mutableStateOf(false) }
     var showBrightnessSlider by remember { mutableStateOf(false) }
 
-    // Controls (the custom top overlay row) are shown/hidden together with
-    // PlayerView's own native seek-bar controller — tapping the video toggles
-    // both in sync, instead of the custom row staying glued on screen forever.
+    // Every control (top bar + bottom bar) shows/hides together, driven only
+    // by tapping the video — fully owned here instead of depending on
+    // PlayerView's built-in controller, which is what caused the previous
+    // bugs (seek bar/rewind/forward not responding, controls stuck visible).
     var controlsVisible by remember { mutableStateOf(true) }
-    // While locked, a brief tap reveals only the small unlock button, which
-    // then fades itself back out — it no longer sits permanently in the
-    // middle of the video.
     var unlockButtonVisible by remember { mutableStateOf(false) }
+
+    // Auto-hide controls after a few seconds while playing, same as any
+    // standard video player. Any tap toggles this back on/off immediately.
+    LaunchedEffect(controlsVisible, state.isPlaying) {
+        if (controlsVisible && state.isPlaying) {
+            delay(3500)
+            controlsVisible = false
+        }
+    }
 
     LaunchedEffect(unlockButtonVisible) {
         if (unlockButtonVisible) {
@@ -104,7 +116,11 @@ fun PlayerScreen(
         mutableStateOf(activity?.window?.attributes?.screenBrightness?.takeIf { it in 0f..1f } ?: 0.5f)
     }
 
-    // Save immediately on pause/exit/backgrounding — required save points per spec.
+    // While the user is actively dragging the seek bar, show the drag
+    // position instead of fighting with the live position updates.
+    var isDraggingSeek by remember { mutableStateOf(false) }
+    var dragPositionMs by remember { mutableStateOf(0L) }
+
     DisposableEffect(Unit) {
         onDispose {
             viewModel.saveProgressNow()
@@ -127,39 +143,20 @@ fun PlayerScreen(
             factory = { ctx ->
                 PlayerView(ctx).apply {
                     player = viewModel.player
-                    setShowFastForwardButton(true)
-                    setShowRewindButton(true)
-                    // Keep our custom overlay in sync with the native controller's
-                    // own show/hide timing — tapping the video toggles both together.
-                    setControllerVisibilityListener(
-                        PlayerView.ControllerVisibilityListener { visibility ->
-                            controlsVisible = visibility == android.view.View.VISIBLE
-                        }
-                    )
-                }
-            },
-            update = { playerView ->
-                // Guard against redundant reassignment — Compose calls this update
-                // block on every recomposition (e.g. toggling a slider), and
-                // reassigning useController even to the same value was resetting
-                // PlayerView's own auto-hide timer each time, making the controls
-                // look like they never hide. Only touch it when it actually changes.
-                val desired = !isLocked
-                if (playerView.useController != desired) {
-                    playerView.useController = desired
+                    useController = false // fully custom controls below
                 }
             },
             modifier = Modifier
                 .fillMaxSize()
-                .then(
-                    if (isLocked) {
-                        // Controller is disabled while locked, so we need our own
-                        // tap detector to reveal/hide the small unlock button.
-                        Modifier.pointerInput(Unit) {
-                            detectTapGestures { unlockButtonVisible = !unlockButtonVisible }
+                .pointerInput(isLocked) {
+                    detectTapGestures {
+                        if (isLocked) {
+                            unlockButtonVisible = !unlockButtonVisible
+                        } else {
+                            controlsVisible = !controlsVisible
                         }
-                    } else Modifier
-                )
+                    }
+                }
         )
 
         when {
@@ -200,7 +197,7 @@ fun PlayerScreen(
                     Icon(Icons.Filled.LockOpen, contentDescription = "Unlock", tint = Color.White)
                 }
             }
-        } else if (controlsVisible) {
+        } else if (controlsVisible && state.errorMessage == null) {
             // Top overlay: back, title, lock, audio, speed, volume, brightness, fullscreen, PiP.
             Row(
                 modifier = Modifier
@@ -224,7 +221,7 @@ fun PlayerScreen(
                     )
                 }
 
-                IconButton(onClick = { isLocked = true }) {
+                IconButton(onClick = { isLocked = true; controlsVisible = false }) {
                     Icon(Icons.Filled.Lock, contentDescription = "Lock", tint = Color.White)
                 }
 
@@ -345,8 +342,78 @@ fun PlayerScreen(
                     )
                 }
             }
+
+            // Bottom: play/pause, rewind/forward 10s, seek bar, time.
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .background(Color.Black.copy(alpha = 0.45f))
+                    .padding(horizontal = 12.dp, vertical = 4.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    IconButton(onClick = { viewModel.seekBy(-10_000) }) {
+                        Icon(Icons.Filled.Replay10, contentDescription = "Rewind 10 seconds", tint = Color.White)
+                    }
+                    IconButton(
+                        onClick = { viewModel.togglePlayPause() },
+                        modifier = Modifier.padding(horizontal = 24.dp).size(56.dp)
+                    ) {
+                        Icon(
+                            if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                            contentDescription = if (state.isPlaying) "Pause" else "Play",
+                            tint = Color.White,
+                            modifier = Modifier.size(40.dp)
+                        )
+                    }
+                    IconButton(onClick = { viewModel.seekBy(10_000) }) {
+                        Icon(Icons.Filled.Forward10, contentDescription = "Forward 10 seconds", tint = Color.White)
+                    }
+                }
+
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                    val displayPosition = if (isDraggingSeek) dragPositionMs else state.positionMs
+                    Text(
+                        formatTime(displayPosition),
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelSmall,
+                    )
+                    Slider(
+                        value = displayPosition.toFloat().coerceIn(0f, state.durationMs.toFloat().coerceAtLeast(1f)),
+                        valueRange = 0f..state.durationMs.toFloat().coerceAtLeast(1f),
+                        onValueChange = {
+                            isDraggingSeek = true
+                            dragPositionMs = it.toLong()
+                        },
+                        onValueChangeFinished = {
+                            viewModel.seekTo(dragPositionMs)
+                            isDraggingSeek = false
+                        },
+                        colors = SliderDefaults.colors(thumbColor = VaultColors.Orange, activeTrackColor = VaultColors.Orange),
+                        modifier = Modifier.weight(1f).padding(horizontal = 8.dp)
+                    )
+                    Text(
+                        formatTime(state.durationMs),
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelSmall,
+                    )
+                }
+            }
         }
     }
+}
+
+private fun formatTime(ms: Long): String {
+    val totalSeconds = (ms / 1000).coerceAtLeast(0)
+    val h = totalSeconds / 3600
+    val m = (totalSeconds % 3600) / 60
+    val s = totalSeconds % 60
+    return if (h > 0) String.format(Locale.US, "%d:%02d:%02d", h, m, s)
+    else String.format(Locale.US, "%d:%02d", m, s)
 }
 
 private fun enterPip(activity: Activity) {
