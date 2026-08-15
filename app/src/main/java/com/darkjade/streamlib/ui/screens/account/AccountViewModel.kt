@@ -41,6 +41,14 @@ class AccountViewModel(private val profileRepository: ProfileRepository) : ViewM
     /** Sets the profile's picture to a picked content URI (persisted as a string). */
     fun setAvatar(uriString: String) = updateActiveProfile { it.copy(avatarRes = uriString) }
 
+    /** Sets the profile's cover/banner image to a picked content URI. */
+    fun setBanner(uriString: String) = updateActiveProfile { it.copy(bannerRes = uriString) }
+
+    fun setUsername(name: String) {
+        if (name.isBlank()) return
+        updateActiveProfile { it.copy(name = name.trim()) }
+    }
+
     private val restrictionOptions = listOf("None", "7+", "13+", "16+", "18+")
     private val languageOptions = listOf("English", "Urdu", "Spanish", "Hindi")
 

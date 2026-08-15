@@ -87,7 +87,7 @@ class SettingsViewModel(
                 withContext(Dispatchers.IO) {
                     libraryRepository.scanDeviceMediaStore { /* progress observed via DB flow */ }
                 }
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 // Defense in depth — the repository already catches internally
                 // and reports a FAILED scan status, this just guarantees the
                 // app itself can never crash from a scan trigger.
@@ -103,7 +103,7 @@ class SettingsViewModel(
                 withContext(Dispatchers.IO) {
                     libraryRepository.scanAndImport(treeUri, folderSourceId) { }
                 }
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 // Never crash — the repository already reports FAILED status internally.
             }
         }
@@ -116,7 +116,7 @@ class SettingsViewModel(
                     withContext(Dispatchers.IO) {
                         libraryRepository.scanAndImport(Uri.parse(source.treeUri), source.id) { }
                     }
-                } catch (e: Exception) {
+                } catch (e: Throwable) {
                     // Never crash.
                 }
             }
@@ -131,7 +131,7 @@ class SettingsViewModel(
                 withContext(Dispatchers.IO) {
                     comicRepository.scanFolder(treeUri, folderSourceId) { }
                 }
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 // Never crash.
             }
         }
@@ -144,7 +144,7 @@ class SettingsViewModel(
                     withContext(Dispatchers.IO) {
                         comicRepository.scanFolder(Uri.parse(source.treeUri), source.id) { }
                     }
-                } catch (e: Exception) {
+                } catch (e: Throwable) {
                     // Never crash.
                 }
             }
@@ -165,15 +165,19 @@ class SettingsViewModel(
     private fun queryInstalledPlayers(): List<InstalledPlayerApp> {
         return try {
             val pm = appContext.packageManager
+            // Using just ACTION_VIEW + type="video/*" (no data URI) is the
+            // standard way to enumerate video-capable apps — a query with a
+            // synthetic content:// URI can silently exclude real players
+            // whose intent-filters don't happen to match that fake scheme.
             val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
-                setDataAndType(android.net.Uri.parse("content://media/external/video/media/1"), "video/*")
+                type = "video/*"
             }
             val resolveInfos = pm.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY)
             resolveInfos
                 .map { InstalledPlayerApp(it.activityInfo.packageName, it.loadLabel(pm).toString()) }
                 .distinctBy { it.packageName }
                 .sortedBy { it.label }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             emptyList()
         }
     }

@@ -28,6 +28,8 @@ import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.VideoLibrary
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Divider
@@ -69,6 +71,7 @@ fun SettingsScreen(
     val context = LocalContext.current
     var permissionDenied by remember { mutableStateOf(false) }
     var comicVineKeyField by remember(state.comicVineApiKey) { mutableStateOf(state.comicVineApiKey) }
+    var comicVineKeyVisible by remember { mutableStateOf(false) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -252,6 +255,16 @@ fun SettingsScreen(
                     onValueChange = { comicVineKeyField = it },
                     label = { Text("Comic Vine API key") },
                     singleLine = true,
+                    visualTransformation = if (comicVineKeyVisible) androidx.compose.ui.text.input.VisualTransformation.None
+                        else androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                    trailingIcon = {
+                        Icon(
+                            imageVector = if (comicVineKeyVisible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                            contentDescription = if (comicVineKeyVisible) "Hide key" else "Show key",
+                            tint = VaultColors.TextSecondary,
+                            modifier = Modifier.clickable { comicVineKeyVisible = !comicVineKeyVisible }
+                        )
+                    },
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = VaultColors.Orange,
                         unfocusedBorderColor = VaultColors.Divider,

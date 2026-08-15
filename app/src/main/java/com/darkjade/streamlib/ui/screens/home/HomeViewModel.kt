@@ -19,10 +19,10 @@ import kotlinx.coroutines.launch
 
 data class HomeUiState(
     val isLoading: Boolean = true,
-    val hero: HeroCandidate? = null,
-    val movieBanner: MediaItemEntity? = null,
-    val seriesBanner: MediaItemEntity? = null,
-    val comicsBanner: ComicEntity? = null,
+    val heroItems: List<HeroCandidate> = emptyList(),
+    val movieBanners: List<MediaItemEntity> = emptyList(),
+    val seriesBanners: List<MediaItemEntity> = emptyList(),
+    val comicsBanners: List<ComicEntity> = emptyList(),
     val continueWatching: List<MediaItemEntity> = emptyList(),
     val recentlyAdded: List<MediaItemEntity> = emptyList(),
     val movies: List<MediaItemEntity> = emptyList(),
@@ -42,6 +42,9 @@ private data class MediaFlows(
     val continueWatching: List<MediaItemEntity>,
 )
 
+private const val HERO_CAROUSEL_SIZE = 5
+private const val SECONDARY_BANNER_SIZE = 3
+
 class HomeViewModel(
     private val libraryRepository: LibraryRepository,
     private val watchRepository: WatchRepository,
@@ -52,15 +55,13 @@ class HomeViewModel(
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
-    // Each banner slot (main hero + the three category banners) remembers its
-    // own pick for the lifetime of this screen/app session, so it doesn't jump
-    // around on every recomposition — but a fresh app open always re-rolls,
-    // so the banner is never stuck showing the same poster every single time.
-    private var pinnedHeroId: Long? = null
-    private var pinnedHeroIsComic: Boolean = false
-    private var pinnedMovieBannerId: Long? = null
-    private var pinnedSeriesBannerId: Long? = null
-    private var pinnedComicsBannerId: Long? = null
+    // Each carousel remembers its picks for the lifetime of this screen/app
+    // session so items don't shuffle around on every recomposition — but a
+    // fresh app open always re-rolls, so it's never the same lineup forever.
+    private val pinnedHeroKeys = mutableListOf<Pair<Long, Boolean>>() // id to isComic
+    private val pinnedMovieBannerIds = mutableListOf<Long>()
+    private val pinnedSeriesBannerIds = mutableListOf<Long>()
+    private val pinnedComicsBannerIds = mutableListOf<Long>()
 
     init {
         viewModelScope.launch {
@@ -77,35 +78,24 @@ class HomeViewModel(
             }
 
             mediaFlows.combine(comicRepository.observeRecentlyAdded(20)) { flows, comics ->
-                val pool = buildList {
+                val heroPool = buildList {
                     addAll(flows.recentlyAdded.map { HeroCandidate.Media(it) })
                     addAll(flows.movies.map { HeroCandidate.Media(it) })
                     addAll(flows.series.map { HeroCandidate.Media(it) })
                     addAll(comics.map { HeroCandidate.Comic(it) })
                 }.distinctBy { it.id to (it is HeroCandidate.Comic) }
 
-                val hero = if (pool.isEmpty()) {
-                    null
-                } else {
-                    val stillValid = pool.firstOrNull {
-                        it.id == pinnedHeroId && (it is HeroCandidate.Comic) == pinnedHeroIsComic
-                    }
-                    stillValid ?: pool.random().also {
-                        pinnedHeroId = it.id
-                        pinnedHeroIsComic = it is HeroCandidate.Comic
-                    }
-                }
-
-                val movieBanner = pickPinned(flows.movies, pinnedMovieBannerId) { pinnedMovieBannerId = it }
-                val seriesBanner = pickPinned(flows.series, pinnedSeriesBannerId) { pinnedSeriesBannerId = it }
-                val comicsBanner = pickPinned(comics, pinnedComicsBannerId) { pinnedComicsBannerId = it }
+                val heroItems = pickPinnedHero(heroPool)
+                val movieBanners = pickPinnedHomogeneous(flows.movies, pinnedMovieBannerIds) { it.id }
+                val seriesBanners = pickPinnedHomogeneous(flows.series, pinnedSeriesBannerIds) { it.id }
+                val comicsBanners = pickPinnedHomogeneous(comics, pinnedComicsBannerIds) { it.id }
 
                 HomeUiState(
                     isLoading = false,
-                    hero = hero,
-                    movieBanner = movieBanner,
-                    seriesBanner = seriesBanner,
-                    comicsBanner = comicsBanner,
+                    heroItems = heroItems,
+                    movieBanners = movieBanners,
+                    seriesBanners = seriesBanners,
+                    comicsBanners = comicsBanners,
                     continueWatching = flows.continueWatching,
                     recentlyAdded = flows.recentlyAdded,
                     movies = flows.movies,
@@ -119,16 +109,29 @@ class HomeViewModel(
         }
     }
 
-    private fun <T> pickPinned(pool: List<T>, pinnedId: Long?, setPinned: (Long) -> Unit): T? where T : Any {
-        if (pool.isEmpty()) return null
-        val idOf: (T) -> Long = { item ->
-            when (item) {
-                is MediaItemEntity -> item.id
-                is ComicEntity -> item.id
-                else -> 0L
-            }
+    private fun pickPinnedHero(pool: List<HeroCandidate>): List<HeroCandidate> {
+        if (pool.isEmpty()) return emptyList()
+        val target = minOf(HERO_CAROUSEL_SIZE, pool.size)
+        val stillValid = pinnedHeroKeys.mapNotNull { (id, isComic) ->
+            pool.firstOrNull { it.id == id && (it is HeroCandidate.Comic) == isComic }
         }
-        val stillValid = pool.firstOrNull { idOf(it) == pinnedId }
-        return stillValid ?: pool.random().also { setPinned(idOf(it)) }
+        if (stillValid.size >= target) return stillValid.take(target)
+
+        val picked = pool.shuffled().take(target)
+        pinnedHeroKeys.clear()
+        pinnedHeroKeys.addAll(picked.map { it.id to (it is HeroCandidate.Comic) })
+        return picked
+    }
+
+    private fun <T> pickPinnedHomogeneous(pool: List<T>, pinnedIds: MutableList<Long>, idOf: (T) -> Long): List<T> {
+        if (pool.isEmpty()) return emptyList()
+        val target = minOf(SECONDARY_BANNER_SIZE, pool.size)
+        val stillValid = pinnedIds.mapNotNull { pid -> pool.firstOrNull { idOf(it) == pid } }
+        if (stillValid.size >= target) return stillValid.take(target)
+
+        val picked = pool.shuffled().take(target)
+        pinnedIds.clear()
+        pinnedIds.addAll(picked.map(idOf))
+        return picked
     }
 }

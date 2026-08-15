@@ -36,7 +36,7 @@ import com.darkjade.streamlib.data.db.entity.WatchlistEntity
         ScanStatusEntity::class,
         ComicEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = true
 )
 @TypeConverters(Converters::class)

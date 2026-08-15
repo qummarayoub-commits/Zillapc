@@ -8,6 +8,7 @@ data class ProfileEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String,
     val avatarRes: String? = null, // resource name or content uri
+    val bannerRes: String? = null, // content uri of a user-picked cover/banner image
     val pinHash: String? = null, // null = no PIN set
     val isDefault: Boolean = false,
     val contentRestriction: String = "None", // e.g. "16+", "None"

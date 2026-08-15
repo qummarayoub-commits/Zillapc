@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -14,17 +15,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.darkjade.streamlib.ui.components.EmptyState
+import com.darkjade.streamlib.ui.components.MediaRail
 import com.darkjade.streamlib.ui.components.PosterCard
 import com.darkjade.streamlib.ui.theme.VaultColors
 import com.darkjade.streamlib.ui.theme.VaultSpacing
@@ -36,7 +36,7 @@ fun SearchScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
 
-    Column(modifier = Modifier.fillMaxSize().background(VaultColors.Background).padding(VaultSpacing.md)) {
+    Column(modifier = Modifier.fillMaxSize().background(VaultColors.Background)) {
         OutlinedTextField(
             value = state.query,
             onValueChange = viewModel::onQueryChange,
@@ -50,7 +50,7 @@ fun SearchScreen(
                 unfocusedTextColor = VaultColors.TextPrimary,
                 cursorColor = VaultColors.Orange,
             ),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth().padding(VaultSpacing.md)
         )
 
         when {
@@ -65,9 +65,9 @@ fun SearchScreen(
             state.results.isNotEmpty() -> {
                 LazyVerticalGrid(
                     columns = GridCells.Adaptive(minSize = 110.dp),
-                    contentPadding = PaddingValues(vertical = VaultSpacing.md),
-                    verticalArrangement = Arrangement.spacedBy(VaultSpacing.sm),
-                    horizontalArrangement = Arrangement.spacedBy(VaultSpacing.sm),
+                    contentPadding = PaddingValues(horizontal = VaultSpacing.md, vertical = VaultSpacing.md),
+                    verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(VaultSpacing.sm),
+                    horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(VaultSpacing.sm),
                     modifier = Modifier.fillMaxSize(),
                 ) {
                     items(state.results, key = { it.id }) { item ->
@@ -75,18 +75,25 @@ fun SearchScreen(
                     }
                 }
             }
+            state.todaysTopPicks.isEmpty() && state.weeklyPicks.isEmpty() && state.recentlyAdded.isEmpty() -> {
+                EmptyState(
+                    title = "Search your local library",
+                    message = "Movies, series, anime, and episodes will show up here once scanned.",
+                )
+            }
             else -> {
-                // Idle state before any query is typed.
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
-                ) {
-                    Text(
-                        "Search your local library",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = VaultColors.TextTertiary,
-                    )
+                // Idle state before any query is typed — browse-style default content
+                // instead of a blank screen.
+                LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = VaultSpacing.xxl)) {
+                    item {
+                        MediaRail("Today's Top Picks", state.todaysTopPicks, onItemClick = { onOpenDetails(it.id) })
+                    }
+                    item {
+                        MediaRail("Weekly Picks", state.weeklyPicks, onItemClick = { onOpenDetails(it.id) })
+                    }
+                    item {
+                        MediaRail("Recently Added", state.recentlyAdded, onItemClick = { onOpenDetails(it.id) })
+                    }
                 }
             }
         }

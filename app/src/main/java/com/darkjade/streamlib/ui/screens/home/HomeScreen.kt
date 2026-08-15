@@ -1,5 +1,6 @@
 package com.darkjade.streamlib.ui.screens.home
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -11,7 +12,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.PlayArrow
@@ -25,6 +30,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -34,6 +40,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil.compose.SubcomposeAsyncImage
 import com.darkjade.streamlib.data.db.entity.ComicEntity
@@ -45,6 +52,7 @@ import com.darkjade.streamlib.ui.theme.VaultColors
 import com.darkjade.streamlib.ui.theme.VaultShapes
 import com.darkjade.streamlib.ui.theme.VaultSizes
 import com.darkjade.streamlib.ui.theme.VaultSpacing
+import kotlinx.coroutines.delay
 
 @Composable
 fun HomeScreen(
@@ -84,17 +92,18 @@ fun HomeScreen(
                     item {
                         HomeTopBar(onOpenSearch = onOpenSearch, onOpenSettings = onOpenSettings)
                     }
-                    // Top: main rotating banner across everything (movies, series, comics).
-                    state.hero?.let { hero ->
+
+                    // Top: main auto-rotating carousel across everything (up to 5: movies, series, comics).
+                    if (state.heroItems.isNotEmpty()) {
                         item {
-                            HeroSection(
-                                hero = hero,
-                                height = VaultSizes.heroHeight,
-                                onWatch = { openHero(hero, onOpenDetails, onOpenComicDetails) },
-                                onOpenDetails = { openHero(hero, onOpenDetails, onOpenComicDetails) },
+                            MainHeroCarousel(
+                                items = state.heroItems,
+                                onWatch = { openHero(it, onOpenDetails, onOpenComicDetails) },
+                                onOpenDetails = { openHero(it, onOpenDetails, onOpenComicDetails) },
                             )
                         }
                     }
+
                     item {
                         MediaRail("Continue Watching", state.continueWatching, onItemClick = { onOpenDetails(it.id) })
                     }
@@ -102,23 +111,35 @@ fun HomeScreen(
                         MediaRail("Recently Added", state.recentlyAdded, onItemClick = { onOpenDetails(it.id) })
                     }
 
-                    // Movies section, then a dedicated movie banner right below it.
+                    // Movies section, then an auto-rotating movie banner strip below it.
                     item {
                         MediaRail("Movies", state.movies, onItemClick = { onOpenDetails(it.id) })
                     }
-                    state.movieBanner?.let { movie ->
+                    if (state.movieBanners.isNotEmpty()) {
                         item {
-                            SecondaryMediaBanner(item = movie, onClick = { onOpenDetails(movie.id) })
+                            SecondaryBannerCarousel(
+                                items = state.movieBanners,
+                                categoryLabel = "Movie",
+                                imageUrl = { it.backdropUrl ?: it.posterUrl ?: it.localFileUri },
+                                title = { it.title },
+                                onClick = { onOpenDetails(it.id) },
+                            )
                         }
                     }
 
-                    // Series section, then a dedicated series banner.
+                    // Series section, then an auto-rotating series banner strip.
                     item {
                         MediaRail("Series", state.series, onItemClick = { onOpenDetails(it.id) })
                     }
-                    state.seriesBanner?.let { series ->
+                    if (state.seriesBanners.isNotEmpty()) {
                         item {
-                            SecondaryMediaBanner(item = series, onClick = { onOpenDetails(series.id) })
+                            SecondaryBannerCarousel(
+                                items = state.seriesBanners,
+                                categoryLabel = "Series",
+                                imageUrl = { it.backdropUrl ?: it.posterUrl },
+                                title = { it.title },
+                                onClick = { onOpenDetails(it.id) },
+                            )
                         }
                     }
 
@@ -126,13 +147,19 @@ fun HomeScreen(
                         MediaRail("Anime", state.anime, onItemClick = { onOpenDetails(it.id) })
                     }
 
-                    // Comics section, then a dedicated comics banner.
+                    // Comics section, then an auto-rotating comics banner strip.
                     item {
                         ComicRail("Comics", state.comics, onItemClick = { onOpenComicDetails(it.id) })
                     }
-                    state.comicsBanner?.let { comic ->
+                    if (state.comicsBanners.isNotEmpty()) {
                         item {
-                            SecondaryComicBanner(comic = comic, onClick = { onOpenComicDetails(comic.id) })
+                            SecondaryBannerCarousel(
+                                items = state.comicsBanners,
+                                categoryLabel = "Comic",
+                                imageUrl = { it.coverUrl },
+                                title = { it.title },
+                                onClick = { onOpenComicDetails(it.id) },
+                            )
                         }
                     }
                 }
@@ -170,162 +197,214 @@ private fun HomeTopBar(onOpenSearch: () -> Unit, onOpenSettings: () -> Unit) {
     }
 }
 
+/** Main top-of-Home banner: up to 5 items, auto-advancing, with page dots — Crunchyroll-style. */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun HeroSection(
-    hero: HeroCandidate,
-    height: androidx.compose.ui.unit.Dp,
-    onWatch: () -> Unit,
-    onOpenDetails: () -> Unit,
+private fun MainHeroCarousel(
+    items: List<HeroCandidate>,
+    onWatch: (HeroCandidate) -> Unit,
+    onOpenDetails: (HeroCandidate) -> Unit,
 ) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(height)
-    ) {
-        if (hero.backdropUrl != null) {
-            SubcomposeAsyncImage(
-                model = hero.backdropUrl,
-                contentDescription = hero.title,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-                loading = { Box(modifier = Modifier.fillMaxSize().background(VaultColors.SurfaceVariant)) },
-                error = { Box(modifier = Modifier.fillMaxSize().background(VaultColors.SurfaceVariant)) },
-            )
-        } else {
-            Box(modifier = Modifier.fillMaxSize().background(VaultColors.SurfaceVariant))
+    val pagerState = rememberPagerState(pageCount = { items.size })
+
+    LaunchedEffect(items.size) {
+        if (items.size <= 1) return@LaunchedEffect
+        while (true) {
+            delay(5000)
+            val next = (pagerState.currentPage + 1) % items.size
+            pagerState.animateScrollToPage(next)
         }
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(Color.Transparent, VaultColors.Background),
-                        startY = 0f,
+    }
+
+    Box(modifier = Modifier.fillMaxWidth().height(VaultSizes.heroHeight)) {
+        HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
+            val hero = items[page]
+            Box(modifier = Modifier.fillMaxSize()) {
+                if (hero.backdropUrl != null) {
+                    SubcomposeAsyncImage(
+                        model = hero.backdropUrl,
+                        contentDescription = hero.title,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                        loading = { Box(Modifier.fillMaxSize().background(VaultColors.SurfaceVariant)) },
+                        error = { Box(Modifier.fillMaxSize().background(VaultColors.SurfaceVariant)) },
                     )
+                } else {
+                    Box(modifier = Modifier.fillMaxSize().background(VaultColors.SurfaceVariant))
+                }
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(Color.Transparent, VaultColors.Background),
+                                startY = 0f,
+                            )
+                        )
                 )
-        )
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(VaultSpacing.md)
-        ) {
-            Text(
-                text = hero.title,
-                style = MaterialTheme.typography.headlineLarge,
-                color = VaultColors.TextPrimary,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(VaultSpacing.md)
+                        .padding(bottom = VaultSpacing.md)
+                ) {
+                    Text(
+                        text = hero.title,
+                        style = MaterialTheme.typography.headlineLarge,
+                        color = VaultColors.TextPrimary,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    hero.overview?.let {
+                        Text(
+                            text = it,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = VaultColors.TextSecondary,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(top = VaultSpacing.xxs)
+                        )
+                    }
+                    Row(modifier = Modifier.padding(top = VaultSpacing.sm)) {
+                        Button(
+                            onClick = { onWatch(hero) },
+                            shape = VaultShapes.button,
+                            colors = ButtonDefaults.buttonColors(containerColor = VaultColors.Orange, contentColor = Color.White),
+                        ) {
+                            Icon(Icons.Filled.PlayArrow, contentDescription = null)
+                            Text(text = if (hero is HeroCandidate.Comic) " Read" else " Watch", modifier = Modifier.padding(start = 2.dp))
+                        }
+                        OutlinedButton(
+                            onClick = { onOpenDetails(hero) },
+                            shape = VaultShapes.button,
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = VaultColors.TextPrimary),
+                            modifier = Modifier.padding(start = VaultSpacing.sm)
+                        ) {
+                            Icon(Icons.Filled.Add, contentDescription = null)
+                            Text(text = " My List", modifier = Modifier.padding(start = 2.dp))
+                        }
+                    }
+                }
+            }
+        }
+        if (items.size > 1) {
+            DotIndicators(
+                count = items.size,
+                currentPage = pagerState.currentPage,
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = VaultSpacing.xs)
             )
-            hero.overview?.let {
-                Text(
-                    text = it,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = VaultColors.TextSecondary,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(top = VaultSpacing.xxs)
-                )
-            }
-            Row(modifier = Modifier.padding(top = VaultSpacing.sm)) {
-                Button(
-                    onClick = onWatch,
-                    shape = VaultShapes.button,
-                    colors = ButtonDefaults.buttonColors(containerColor = VaultColors.Orange, contentColor = Color.White),
-                ) {
-                    Icon(Icons.Filled.PlayArrow, contentDescription = null)
-                    Text(text = if (hero is HeroCandidate.Comic) " Read" else " Watch", modifier = Modifier.padding(start = 2.dp))
-                }
-                OutlinedButton(
-                    onClick = onOpenDetails,
-                    shape = VaultShapes.button,
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = VaultColors.TextPrimary),
-                    modifier = Modifier.padding(start = VaultSpacing.sm)
-                ) {
-                    Icon(Icons.Filled.Add, contentDescription = null)
-                    Text(text = " My List", modifier = Modifier.padding(start = 2.dp))
-                }
-            }
         }
     }
 }
 
 /**
- * Smaller, compact banner used between sections (e.g. below "Movies", below
- * "Series") — deliberately lower height than the main hero and with no
- * buttons, so the page reads as one movie/series highlighted per section
- * rather than looking cluttered with repeated full-size heroes.
+ * Compact auto-rotating strip used between sections (below "Movies", below
+ * "Series", below "Comics") — smaller than the main hero, with a small
+ * category chip + title overlaid directly on the image (Netflix-style),
+ * and its own page dots. Cycles through a small set of items on its own,
+ * independent of the main hero carousel.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun SecondaryMediaBanner(item: MediaItemEntity, onClick: () -> Unit) {
+private fun <T> SecondaryBannerCarousel(
+    items: List<T>,
+    categoryLabel: String,
+    imageUrl: (T) -> String?,
+    title: (T) -> String,
+    onClick: (T) -> Unit,
+) {
+    val pagerState = rememberPagerState(pageCount = { items.size })
+
+    LaunchedEffect(items.size) {
+        if (items.size <= 1) return@LaunchedEffect
+        while (true) {
+            delay(4000)
+            val next = (pagerState.currentPage + 1) % items.size
+            pagerState.animateScrollToPage(next)
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(160.dp)
+            .height(170.dp)
             .padding(horizontal = VaultSpacing.md, vertical = VaultSpacing.xs)
-            .clip(VaultShapes.card)
-            .background(VaultColors.SurfaceVariant)
-            .clickable(onClick = onClick)
     ) {
-        if (item.backdropUrl != null || item.posterUrl != null) {
-            SubcomposeAsyncImage(
-                model = item.backdropUrl ?: item.posterUrl,
-                contentDescription = item.title,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-                loading = {},
-                error = {},
-            )
-        }
-        Box(
+        HorizontalPager(
+            state = pagerState,
             modifier = Modifier
                 .fillMaxSize()
-                .background(Brush.horizontalGradient(listOf(VaultColors.Background, Color.Transparent)))
-        )
-        Text(
-            text = item.title,
-            style = MaterialTheme.typography.titleMedium,
-            color = VaultColors.TextPrimary,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.align(Alignment.BottomStart).padding(VaultSpacing.sm)
-        )
+                .clip(VaultShapes.card)
+        ) { page ->
+            val item = items[page]
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(VaultColors.SurfaceVariant)
+                    .clickable { onClick(item) }
+            ) {
+                val model = imageUrl(item)
+                if (model != null) {
+                    SubcomposeAsyncImage(
+                        model = model,
+                        contentDescription = title(item),
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                        loading = {},
+                        error = {},
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(Color.Transparent, VaultColors.Background.copy(alpha = 0.9f)),
+                                startY = 60f,
+                            )
+                        )
+                )
+                Column(modifier = Modifier.align(Alignment.BottomStart).padding(VaultSpacing.sm)) {
+                    Box(
+                        modifier = Modifier
+                            .clip(VaultShapes.chip)
+                            .background(VaultColors.Orange)
+                            .padding(horizontal = VaultSpacing.xs, vertical = 2.dp)
+                    ) {
+                        Text(categoryLabel, style = MaterialTheme.typography.labelSmall, color = Color.White)
+                    }
+                    Text(
+                        text = title(item),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = VaultColors.TextPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(top = VaultSpacing.xxs)
+                    )
+                }
+            }
+        }
+        if (items.size > 1) {
+            DotIndicators(
+                count = items.size,
+                currentPage = pagerState.currentPage,
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = VaultSpacing.xxs)
+            )
+        }
     }
 }
 
 @Composable
-private fun SecondaryComicBanner(comic: ComicEntity, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(160.dp)
-            .padding(horizontal = VaultSpacing.md, vertical = VaultSpacing.xs)
-            .clip(VaultShapes.card)
-            .background(VaultColors.SurfaceVariant)
-            .clickable(onClick = onClick)
-    ) {
-        if (comic.coverUrl != null) {
-            SubcomposeAsyncImage(
-                model = comic.coverUrl,
-                contentDescription = comic.title,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-                loading = {},
-                error = {},
+private fun DotIndicators(count: Int, currentPage: Int, modifier: Modifier = Modifier) {
+    Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        repeat(count) { index ->
+            val selected = index == currentPage
+            Box(
+                modifier = Modifier
+                    .size(if (selected) 7.dp else 5.dp)
+                    .clip(CircleShape)
+                    .background(if (selected) VaultColors.Orange else Color.White.copy(alpha = 0.4f))
             )
         }
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Brush.horizontalGradient(listOf(VaultColors.Background, Color.Transparent)))
-        )
-        Text(
-            text = comic.title,
-            style = MaterialTheme.typography.titleMedium,
-            color = VaultColors.TextPrimary,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.align(Alignment.BottomStart).padding(VaultSpacing.sm)
-        )
     }
 }
-

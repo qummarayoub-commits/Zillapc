@@ -48,7 +48,7 @@ class ComicRepository(
                         found++
                         try {
                             importScannedComic(event.file, folderSourceId)
-                        } catch (e: Exception) {
+                        } catch (e: Throwable) {
                             // One bad comic file must never abort the whole scan.
                         }
                     }
@@ -87,7 +87,7 @@ class ComicRepository(
                 }
                 onEvent(event)
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             scanStatusDao.upsert(
                 ScanStatusEntity(
                     id = COMIC_SCAN_STATUS_ID,

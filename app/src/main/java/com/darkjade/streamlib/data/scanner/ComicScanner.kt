@@ -8,6 +8,7 @@ import com.darkjade.streamlib.data.parser.ParsedComic
 import com.darkjade.streamlib.data.parser.SupportedComicExtensions
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import java.util.ArrayDeque
 
 data class ScannedComic(
     val uri: Uri,
@@ -31,8 +32,15 @@ sealed class ComicScanEvent {
  * vice versa. Comics aren't part of MediaStore's video/audio/image
  * collections, so unlike videos there's no device-wide index to query;
  * the user points this at their comics folder once.
+ *
+ * Uses an explicit stack instead of recursion for the directory walk —
+ * a very deeply nested folder tree could otherwise risk a StackOverflowError,
+ * which (unlike a regular Exception) isn't caught by a plain try/catch and
+ * would crash the app.
  */
 class ComicScanner(private val context: Context) {
+
+    private data class PendingDir(val doc: DocumentFile, val pathSegments: List<String>)
 
     fun scanTree(
         treeUri: Uri,
@@ -47,44 +55,47 @@ class ComicScanner(private val context: Context) {
         var found = 0
         var processed = 0
 
-        suspend fun walk(dir: DocumentFile, pathSegments: List<String>) {
-            val children = try {
-                dir.listFiles()
-            } catch (e: Exception) {
-                emptyArray()
-            }
+        try {
+            val stack = ArrayDeque<PendingDir>()
+            stack.push(PendingDir(root, listOf(root.name.orEmpty())))
 
-            for (child in children) {
-                if (child.isDirectory) {
-                    walk(child, pathSegments + child.name.orEmpty())
-                } else if (child.isFile) {
-                    val name = child.name.orEmpty()
-                    val ext = name.substringAfterLast('.', "").lowercase()
-                    if (ext in supportedExtensions) {
-                        found++
-                        val parsed = ComicFilenameParser.parse(name, pathSegments)
-                        emit(
-                            ComicScanEvent.FileFound(
-                                ScannedComic(
-                                    uri = child.uri,
-                                    displayName = name,
-                                    sizeBytes = child.length(),
-                                    pathSegments = pathSegments,
-                                    parsed = parsed,
+            while (stack.isNotEmpty()) {
+                val (dir, pathSegments) = stack.pop()
+
+                val children = try {
+                    dir.listFiles()
+                } catch (e: Throwable) {
+                    emptyArray()
+                }
+
+                for (child in children) {
+                    if (child.isDirectory) {
+                        stack.push(PendingDir(child, pathSegments + child.name.orEmpty()))
+                    } else if (child.isFile) {
+                        val name = child.name.orEmpty()
+                        val ext = name.substringAfterLast('.', "").lowercase()
+                        if (ext in supportedExtensions) {
+                            found++
+                            val parsed = ComicFilenameParser.parse(name, pathSegments)
+                            emit(
+                                ComicScanEvent.FileFound(
+                                    ScannedComic(
+                                        uri = child.uri,
+                                        displayName = name,
+                                        sizeBytes = child.length(),
+                                        pathSegments = pathSegments,
+                                        parsed = parsed,
+                                    )
                                 )
                             )
-                        )
-                        processed++
-                        emit(ComicScanEvent.Progress(found, processed, name))
+                            processed++
+                            emit(ComicScanEvent.Progress(found, processed, name))
+                        }
                     }
                 }
             }
-        }
-
-        try {
-            walk(root, listOf(root.name.orEmpty()))
             emit(ComicScanEvent.Completed(found))
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             emit(ComicScanEvent.Failed(e.message ?: "Unknown error while scanning comics folder"))
         }
     }
