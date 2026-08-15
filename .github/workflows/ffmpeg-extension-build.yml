@@ -1,0 +1,83 @@
+name: Build FFmpeg Audio Decoder Extension
+
+# Manually triggered, deliberately separate from the main app build workflow.
+# Goal: prove the Media3 1.4.1 FFmpeg extension actually compiles for
+# arm64-v8a with the specific decoders we need (ac3, eac3, dca/DTS-core,
+# flac, opus, vorbis, alac) BEFORE touching the app's player integration at
+# all. If this fails, the main app build is completely unaffected.
+on:
+  workflow_dispatch:
+
+jobs:
+  build-ffmpeg-extension:
+    runs-on: ubuntu-latest
+    # FFmpeg compiles from source — this genuinely takes a while even for a
+    # minimal decoder set, so give it real headroom instead of hitting a
+    # default timeout partway through.
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout androidx/media at the Media3 1.4.1 tag
+        uses: actions/checkout@v4
+        with:
+          repository: androidx/media
+          ref: "1.4.1"
+          path: media3-source
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Install Android NDK r26b
+        run: |
+          echo "y" | ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager --install "ndk;26.1.10909125" --sdk_root=${ANDROID_HOME}
+          echo "NDK_PATH=${ANDROID_HOME}/ndk/26.1.10909125" >> "$GITHUB_ENV"
+
+      - name: Install CMake and Ninja
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y cmake ninja-build git
+
+      - name: Fetch FFmpeg source (release/6.0, shallow)
+        run: |
+          FFMPEG_MODULE_PATH="${GITHUB_WORKSPACE}/media3-source/libraries/decoder_ffmpeg/src/main"
+          echo "FFMPEG_MODULE_PATH=${FFMPEG_MODULE_PATH}" >> "$GITHUB_ENV"
+          cd "${FFMPEG_MODULE_PATH}/jni"
+          git clone https://github.com/FFmpeg/FFmpeg.git --branch=release/6.0 --depth=1 ffmpeg
+
+      - name: Build FFmpeg for arm64-v8a with the required audio decoders only
+        run: |
+          cd "${FFMPEG_MODULE_PATH}/jni"
+          chmod +x build_ffmpeg.sh
+          # Minimal decoder set — audio-only, no video/muxer/network code —
+          # keeps the resulting .so small and avoids unnecessary APK bloat.
+          # ac3/eac3/dca (DTS Core) are the whole point of this phase;
+          # flac/opus/vorbis/alac round out broad local-file compatibility
+          # for devices/builds where the platform codec is missing.
+          ./build_ffmpeg.sh \
+            "${FFMPEG_MODULE_PATH}" \
+            "${NDK_PATH}" \
+            "linux-x86_64" \
+            26 \
+            ac3 eac3 dca flac opus vorbis alac
+
+      - name: Verify the FFmpeg decoder library was actually produced
+        run: |
+          echo "Looking for built FFmpeg static/shared libraries for arm64-v8a..."
+          find "${FFMPEG_MODULE_PATH}/jni/arm64-v8a" -maxdepth 2 -type f 2>/dev/null | tee ffmpeg_build_output.txt
+          if [ ! -s ffmpeg_build_output.txt ]; then
+            echo "FAILED: no FFmpeg build output found for arm64-v8a."
+            exit 1
+          fi
+          echo "FFmpeg build for arm64-v8a produced output — see list above."
+
+      - name: Upload built FFmpeg libraries as an artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ffmpeg-decoder-arm64-v8a
+          path: |
+            ${{ env.FFMPEG_MODULE_PATH }}/jni/arm64-v8a
+          retention-days: 14

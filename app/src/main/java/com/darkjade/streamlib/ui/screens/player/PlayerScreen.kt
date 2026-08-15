@@ -2,11 +2,14 @@ package com.darkjade.streamlib.ui.screens.player
 
 import android.app.Activity
 import android.app.PictureInPictureParams
+import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.media.AudioManager
 import android.os.Build
 import android.util.Rational
 import android.view.WindowManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -22,8 +25,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Brightness6
+import androidx.compose.material.icons.filled.ClosedCaption
+import androidx.compose.material.icons.filled.ClosedCaptionOff
 import androidx.compose.material.icons.filled.Forward10
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.FullscreenExit
@@ -79,10 +85,23 @@ fun PlayerScreen(
     val activity = context as? Activity
     val view = LocalView.current
 
+    val subtitlePicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            try {
+                context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            } catch (e: SecurityException) { /* non-fatal — playback can still use the uri for this session */ }
+            val displayName = uri.lastPathSegment ?: "Subtitle"
+            viewModel.addExternalSubtitle(uri, displayName)
+        }
+    }
+
     var isLocked by remember { mutableStateOf(false) }
     var isFullscreen by remember { mutableStateOf(false) }
     var showSpeedMenu by remember { mutableStateOf(false) }
     var showAudioMenu by remember { mutableStateOf(false) }
+    var showSubtitleMenu by remember { mutableStateOf(false) }
     var showVolumeSlider by remember { mutableStateOf(false) }
     var showBrightnessSlider by remember { mutableStateOf(false) }
 
@@ -271,6 +290,52 @@ fun PlayerScreen(
                                 )
                             }
                         }
+                    }
+                }
+
+                Box {
+                    IconButton(onClick = { showSubtitleMenu = true }) {
+                        Icon(
+                            if (state.subtitlesEnabled && state.textTracks.any { it.isSelected }) Icons.Filled.ClosedCaption else Icons.Filled.ClosedCaptionOff,
+                            contentDescription = "Subtitles",
+                            tint = Color.White
+                        )
+                    }
+                    DropdownMenu(expanded = showSubtitleMenu, onDismissRequest = { showSubtitleMenu = false }) {
+                        DropdownMenuItem(
+                            text = { Text(if (!state.subtitlesEnabled) "Off \u2713" else "Off") },
+                            onClick = {
+                                viewModel.disableSubtitles()
+                                showSubtitleMenu = false
+                            }
+                        )
+                        state.textTracks.forEach { track ->
+                            DropdownMenuItem(
+                                text = {
+                                    val suffix = when {
+                                        state.subtitlesEnabled && track.isSelected -> " \u2713"
+                                        !track.isSupportedByDevice -> " (unsupported)"
+                                        else -> ""
+                                    }
+                                    Text(
+                                        "${track.label}$suffix",
+                                        color = if (track.isSupportedByDevice) Color.Unspecified else Color.Gray
+                                    )
+                                },
+                                onClick = {
+                                    viewModel.selectTextTrack(track)
+                                    showSubtitleMenu = false
+                                }
+                            )
+                        }
+                        DropdownMenuItem(
+                            text = { Text("Add subtitle file\u2026") },
+                            leadingIcon = { Icon(Icons.Filled.Add, contentDescription = null) },
+                            onClick = {
+                                showSubtitleMenu = false
+                                subtitlePicker.launch(arrayOf("*/*"))
+                            }
+                        )
                     }
                 }
 

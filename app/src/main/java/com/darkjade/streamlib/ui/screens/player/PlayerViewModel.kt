@@ -9,6 +9,7 @@ import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.Format
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.TrackSelectionOverride
@@ -24,10 +25,63 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.util.Locale
 
 private const val TAG = "DarkVaultPlayer"
 
+/**
+ * Human-readable codec name from a Format's MIME type — used for both audio
+ * and text (subtitle) tracks so the UI never shows a raw MIME string or,
+ * worse, confuses a language code for a codec name.
+ */
+private fun codecLabelFor(mimeType: String?): String = when (mimeType) {
+    MimeTypes.AUDIO_AAC -> "AAC"
+    MimeTypes.AUDIO_MPEG, MimeTypes.AUDIO_MPEG_L1, MimeTypes.AUDIO_MPEG_L2 -> "MP3"
+    MimeTypes.AUDIO_AC3 -> "AC3"
+    MimeTypes.AUDIO_E_AC3, MimeTypes.AUDIO_E_AC3_JOC -> "E-AC3"
+    MimeTypes.AUDIO_DTS, MimeTypes.AUDIO_DTS_HD, MimeTypes.AUDIO_DTS_EXPRESS -> "DTS"
+    MimeTypes.AUDIO_FLAC -> "FLAC"
+    MimeTypes.AUDIO_OPUS -> "Opus"
+    MimeTypes.AUDIO_VORBIS -> "Vorbis"
+    MimeTypes.AUDIO_RAW -> "PCM"
+    MimeTypes.AUDIO_ALAC -> "ALAC"
+    MimeTypes.AUDIO_AMR_NB, MimeTypes.AUDIO_AMR_WB -> "AMR"
+    MimeTypes.APPLICATION_SUBRIP -> "SRT"
+    MimeTypes.TEXT_VTT -> "WebVTT"
+    MimeTypes.APPLICATION_TTML -> "TTML"
+    MimeTypes.TEXT_SSA -> "ASS/SSA"
+    MimeTypes.APPLICATION_PGS -> "PGS (image)"
+    MimeTypes.APPLICATION_DVBSUBS -> "DVB"
+    null -> "Unknown"
+    else -> mimeType.substringAfterLast('/').uppercase()
+}
+
+/**
+ * Human-readable language name from an ISO language code using the
+ * platform's own Locale data — deliberately not a hardcoded language list,
+ * so any language present in the file's actual metadata (Hindi, Tamil,
+ * Telugu, Malayalam, Urdu, English, or anything else) resolves correctly.
+ */
+private fun languageLabelFor(languageCode: String?): String? {
+    if (languageCode.isNullOrBlank() || languageCode.equals("und", ignoreCase = true)) return null
+    return try {
+        val displayName = Locale(languageCode).displayName
+        // If Locale couldn't resolve it, displayName just echoes the code back — not useful.
+        if (displayName.equals(languageCode, ignoreCase = true)) null else displayName
+    } catch (e: Exception) {
+        null
+    }
+}
+
 data class AudioTrackOption(
+    val group: Tracks.Group,
+    val trackIndexInGroup: Int,
+    val label: String,
+    val isSelected: Boolean,
+    val isSupportedByDevice: Boolean,
+)
+
+data class TextTrackOption(
     val group: Tracks.Group,
     val trackIndexInGroup: Int,
     val label: String,
@@ -40,6 +94,8 @@ data class PlayerUiState(
     val title: String = "",
     val errorMessage: String? = null,
     val audioTracks: List<AudioTrackOption> = emptyList(),
+    val textTracks: List<TextTrackOption> = emptyList(),
+    val subtitlesEnabled: Boolean = true,
     val isPlaying: Boolean = false,
     val durationMs: Long = 0,
     val positionMs: Long = 0,
@@ -93,6 +149,8 @@ class PlayerViewModel(
     private var positionPollJob: Job? = null
     private var hasResumed = false
     private var alreadyRetriedWithoutAudio = false
+    private var currentMediaUriString: String? = null
+    private val externalSubtitles = mutableListOf<MediaItem.SubtitleConfiguration>()
 
     init {
         player.addListener(
@@ -137,7 +195,8 @@ class PlayerViewModel(
                     logAudioTrackDiagnostics(tracks)
 
                     _uiState.value = _uiState.value.copy(
-                        audioTracks = buildAudioTrackOptions(tracks)
+                        audioTracks = buildAudioTrackOptions(tracks),
+                        textTracks = buildTextTrackOptions(tracks),
                     )
                 }
             }
@@ -160,6 +219,8 @@ class PlayerViewModel(
                 _uiState.value = _uiState.value.copy(
                     title = title
                 )
+
+                currentMediaUriString = uriString
 
                 player.setMediaItem(
                     MediaItem.fromUri(
@@ -639,6 +700,69 @@ class PlayerViewModel(
             )
     }
 
+    fun selectTextTrack(option: TextTrackOption) {
+        val override = TrackSelectionOverride(option.group.mediaTrackGroup, option.trackIndexInGroup)
+        player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
+            .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)
+            .setOverrideForType(override)
+            .build()
+        _uiState.value = _uiState.value.copy(subtitlesEnabled = true)
+    }
+
+    /** Turns subtitles off entirely without forgetting which track was selected. */
+    fun disableSubtitles() {
+        player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
+            .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true)
+            .build()
+        _uiState.value = _uiState.value.copy(subtitlesEnabled = false)
+    }
+
+    fun enableSubtitles() {
+        player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
+            .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)
+            .build()
+        _uiState.value = _uiState.value.copy(subtitlesEnabled = true)
+    }
+
+    /**
+     * Attaches a user-picked external subtitle file (.srt/.vtt/.ass/.ssa) to
+     * the currently playing media and reloads it, resuming from the same
+     * position. The file's own extension determines its MIME type — no
+     * language is assumed or hardcoded; the track's displayed language
+     * comes from whatever the user names it or leaves as "Track N" until
+     * they pick a track (external files rarely carry language metadata
+     * themselves, unlike embedded MKV/MP4 tracks).
+     */
+    fun addExternalSubtitle(uri: Uri, displayName: String) {
+        val uriString = currentMediaUriString ?: return
+        val ext = displayName.substringAfterLast('.', "").lowercase()
+        val mimeType = when (ext) {
+            "srt" -> MimeTypes.APPLICATION_SUBRIP
+            "vtt" -> MimeTypes.TEXT_VTT
+            "ass", "ssa" -> MimeTypes.TEXT_SSA
+            "ttml", "xml" -> MimeTypes.APPLICATION_TTML
+            else -> MimeTypes.APPLICATION_SUBRIP // reasonable default for an unrecognized plain-text subtitle file
+        }
+
+        val label = displayName.substringBeforeLast('.', displayName)
+        val subtitleConfig = MediaItem.SubtitleConfiguration.Builder(uri)
+            .setMimeType(mimeType)
+            .setLabel(label)
+            .setSelectionFlags(C.SELECTION_FLAG_DEFAULT)
+            .build()
+        externalSubtitles.add(subtitleConfig)
+
+        val resumePosition = player.currentPosition
+        val mediaItem = MediaItem.Builder()
+            .setUri(Uri.parse(uriString))
+            .setSubtitleConfigurations(externalSubtitles.toList())
+            .build()
+        player.setMediaItem(mediaItem)
+        player.prepare()
+        player.seekTo(resumePosition)
+        player.playWhenReady = true
+    }
+
     private fun buildAudioTrackOptions(
         tracks: Tracks
     ): List<AudioTrackOption> {
@@ -657,10 +781,13 @@ class PlayerViewModel(
                 val format =
                     group.getTrackFormat(i)
 
-                val label =
-                    format.language?.uppercase()
-                        ?: format.label
-                        ?: "Track ${i + 1}"
+                // "English — AAC", "Hindi — AC3" — language is metadata
+                // (resolved via Locale, never hardcoded), codec comes from
+                // the actual sampleMimeType, never confused with each other.
+                val languageLabel = languageLabelFor(format.language)
+                val codecLabel = codecLabelFor(format.sampleMimeType)
+                val label = if (languageLabel != null) "$languageLabel \u2014 $codecLabel"
+                    else format.label ?: "Track ${i + 1} \u2014 $codecLabel"
 
                 options.add(
                     AudioTrackOption(
@@ -671,6 +798,42 @@ class PlayerViewModel(
                             group.isTrackSelected(i),
                         isSupportedByDevice =
                             group.isTrackSupported(i)
+                    )
+                )
+            }
+        }
+
+        return options
+    }
+
+    private fun buildTextTrackOptions(
+        tracks: Tracks
+    ): List<TextTrackOption> {
+
+        val options = mutableListOf<TextTrackOption>()
+
+        for (group in tracks.groups) {
+
+            if (group.type != C.TRACK_TYPE_TEXT) {
+                continue
+            }
+
+            for (i in 0 until group.length) {
+
+                val format = group.getTrackFormat(i)
+
+                val languageLabel = languageLabelFor(format.language)
+                val codecLabel = codecLabelFor(format.sampleMimeType)
+                val label = if (languageLabel != null) "$languageLabel \u2014 $codecLabel"
+                    else format.label ?: "Track ${i + 1} \u2014 $codecLabel"
+
+                options.add(
+                    TextTrackOption(
+                        group = group,
+                        trackIndexInGroup = i,
+                        label = label,
+                        isSelected = group.isTrackSelected(i),
+                        isSupportedByDevice = group.isTrackSupported(i),
                     )
                 )
             }
