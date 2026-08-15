@@ -34,6 +34,7 @@ class ComicRepository(
     fun observeById(id: Long) = comicDao.observeById(id)
     suspend fun search(query: String) = if (query.isBlank()) emptyList() else comicDao.search(query)
     suspend fun removeComic(id: Long) = comicDao.deleteById(id)
+    suspend fun updateLastReadPage(id: Long, page: Int) = comicDao.updateLastReadPage(id, page)
 
     /**
      * Primary scan path: indexes the device's MediaStore Files for comic

@@ -4,6 +4,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,6 +22,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -29,6 +31,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
@@ -91,22 +94,53 @@ fun ComicReaderScreen(
                 }
             }
             state.pages.isNotEmpty() -> {
-                val pagerState = rememberPagerState(pageCount = { state.pages.size })
+                val pagerState = rememberPagerState(
+                    initialPage = state.startPage,
+                    pageCount = { state.pages.size }
+                )
+
+                // Persist reading position as the user moves through pages —
+                // "remember where I left off" for next time this comic is opened.
+                LaunchedEffect(pagerState.currentPage) {
+                    viewModel.onPageChanged(pagerState.currentPage)
+                }
 
                 HorizontalPager(
                     state = pagerState,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .pointerInput(Unit) {
-                            detectTapGestures { controlsVisible = !controlsVisible }
-                        }
+                    modifier = Modifier.fillMaxSize()
                 ) { page ->
-                    AsyncImage(
-                        model = state.pages[page],
-                        contentDescription = "Page ${page + 1}",
-                        contentScale = ContentScale.Fit,
-                        modifier = Modifier.fillMaxSize()
-                    )
+                    var scale by remember(page) { mutableStateOf(1f) }
+                    var offsetX by remember(page) { mutableStateOf(0f) }
+                    var offsetY by remember(page) { mutableStateOf(0f) }
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .pointerInput(page) {
+                                detectTapGestures { controlsVisible = !controlsVisible }
+                            }
+                            .pointerInput(page) {
+                                detectTransformGestures { _, pan, zoom, _ ->
+                                    scale = (scale * zoom).coerceIn(1f, 4f)
+                                    offsetX = if (scale > 1f) offsetX + pan.x else 0f
+                                    offsetY = if (scale > 1f) offsetY + pan.y else 0f
+                                }
+                            }
+                    ) {
+                        AsyncImage(
+                            model = state.pages[page],
+                            contentDescription = "Page ${page + 1}",
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .graphicsLayer(
+                                    scaleX = scale,
+                                    scaleY = scale,
+                                    translationX = offsetX,
+                                    translationY = offsetY,
+                                )
+                        )
+                    }
                 }
 
                 if (controlsVisible) {

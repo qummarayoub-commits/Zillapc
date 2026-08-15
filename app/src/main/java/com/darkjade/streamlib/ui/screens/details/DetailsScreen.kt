@@ -57,6 +57,7 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.compose.SubcomposeAsyncImage
 import com.darkjade.streamlib.data.db.entity.EpisodeEntity
+import com.darkjade.streamlib.data.metadata.isSeriesLike
 import com.darkjade.streamlib.ui.components.EmptyState
 import com.darkjade.streamlib.ui.components.FallbackPoster
 import com.darkjade.streamlib.ui.theme.VaultColors
@@ -101,7 +102,10 @@ fun DetailsScreen(
                             }
                             Box(
                                 modifier = Modifier.fillMaxSize().background(
-                                    Brush.verticalGradient(listOf(Color.Transparent, VaultColors.Background))
+                                    // Concentrate the fade near the bottom edge only — spreading it
+                                    // across the whole backdrop made a large chunk look like dead
+                                    // black space above the poster row instead of visible artwork.
+                                    Brush.verticalGradient(0.55f to Color.Transparent, 1f to VaultColors.Background)
                                 )
                             )
                             IconButton(onClick = onBack, modifier = Modifier.align(Alignment.TopStart).padding(VaultSpacing.xs)) {
@@ -203,6 +207,15 @@ fun DetailsScreen(
                                             Text(" ${state.nextUpLabel}", modifier = Modifier.padding(start = 4.dp))
                                         }
                                     }
+                                }
+
+                                if (state.hasResumeProgress && !media.type.isSeriesLike()) {
+                                    Text(
+                                        formatWatchedProgress(state.resumePositionMs, media.runtimeMinutes),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = VaultColors.Orange,
+                                        modifier = Modifier.padding(top = VaultSpacing.xxs)
+                                    )
                                 }
 
                                 IconButton(onClick = { viewModel.toggleWatchlist() }, modifier = Modifier.padding(top = VaultSpacing.xxs)) {
@@ -364,6 +377,14 @@ private fun formatWatchedTime(ms: Long): String {
     val h = totalMinutes / 60
     val m = totalMinutes % 60
     return if (h > 0) "${h}h ${m}m watched" else "${m}m watched"
+}
+
+private fun formatWatchedProgress(watchedMs: Long, totalMinutes: Int?): String {
+    val watchedLabel = formatWatchedTime(watchedMs)
+    if (totalMinutes == null || totalMinutes <= 0) return watchedLabel
+    val totalMs = totalMinutes.toLong() * 60000
+    val pct = ((watchedMs.toFloat() / totalMs.toFloat()) * 100).toInt().coerceIn(0, 100)
+    return "$watchedLabel of ${totalMinutes}m ($pct%)"
 }
 
 @Composable

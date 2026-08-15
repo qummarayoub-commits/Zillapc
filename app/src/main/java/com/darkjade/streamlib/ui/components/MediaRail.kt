@@ -21,6 +21,8 @@ fun MediaRail(
     items: List<MediaItemEntity>,
     modifier: Modifier = Modifier,
     onItemClick: (MediaItemEntity) -> Unit,
+    onAddToList: ((MediaItemEntity) -> Unit)? = null,
+    onRemoveFromLibrary: ((MediaItemEntity) -> Unit)? = null,
 ) {
     if (items.isEmpty()) return
     Column(modifier = modifier.padding(top = VaultSpacing.md)) {
@@ -35,7 +37,13 @@ fun MediaRail(
             contentPadding = PaddingValues(horizontal = VaultSpacing.md)
         ) {
             items(items, key = { it.id }) { item ->
-                PosterCard(item = item, onClick = { onItemClick(item) })
+                PosterCard(
+                    item = item,
+                    onClick = { onItemClick(item) },
+                    showMenu = onAddToList != null || onRemoveFromLibrary != null,
+                    onAddToList = onAddToList?.let { { it(item) } },
+                    onRemoveFromLibrary = onRemoveFromLibrary?.let { { it(item) } },
+                )
             }
         }
     }

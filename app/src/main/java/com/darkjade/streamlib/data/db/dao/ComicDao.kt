@@ -43,4 +43,7 @@ interface ComicDao {
 
     @Query("DELETE FROM comics WHERE id = :id")
     suspend fun deleteById(id: Long)
+
+    @Query("UPDATE comics SET lastReadPage = :page WHERE id = :id")
+    suspend fun updateLastReadPage(id: Long, page: Int)
 }

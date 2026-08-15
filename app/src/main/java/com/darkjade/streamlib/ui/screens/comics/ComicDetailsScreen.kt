@@ -34,6 +34,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -70,13 +71,24 @@ fun ComicDetailsScreen(
                     item {
                         Box(modifier = Modifier.fillMaxWidth().height(320.dp)) {
                             if (comic.coverUrl != null) {
+                                // Blurred cover fills the frame, real cover stays undistorted —
+                                // portrait comic covers looked stretched/oddly cropped when
+                                // forced into this wide box with plain Crop.
+                                SubcomposeAsyncImage(
+                                    model = comic.coverUrl,
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize().blur(30.dp),
+                                    loading = { Box(Modifier.fillMaxSize().background(VaultColors.SurfaceVariant)) },
+                                    error = { Box(Modifier.fillMaxSize().background(VaultColors.SurfaceVariant)) },
+                                )
                                 SubcomposeAsyncImage(
                                     model = comic.coverUrl,
                                     contentDescription = comic.title,
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.fillMaxSize(),
-                                    loading = { Box(Modifier.fillMaxSize().background(VaultColors.SurfaceVariant)) },
-                                    error = { Box(Modifier.fillMaxSize().background(VaultColors.SurfaceVariant)) },
+                                    contentScale = ContentScale.Fit,
+                                    modifier = Modifier.fillMaxSize().padding(vertical = VaultSpacing.md),
+                                    loading = {},
+                                    error = {},
                                 )
                             } else {
                                 Box(modifier = Modifier.fillMaxSize().background(VaultColors.SurfaceVariant)) {

@@ -23,7 +23,9 @@ import java.util.concurrent.TimeUnit
 object TmdbConfig {
     const val BASE_URL = "https://api.themoviedb.org/3/"
     const val IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w780"
-    const val BACKDROP_BASE_URL = "https://image.tmdb.org/t/p/w1280"
+    // "original" for backdrops — hero banners/details backgrounds are shown
+    // large, and w1280 was noticeably softer than Crunchyroll-style HD art.
+    const val BACKDROP_BASE_URL = "https://image.tmdb.org/t/p/original"
 
     /** Set this at app startup (e.g. from Settings > Metadata) once you have a key. */
     var apiKey: String = ""

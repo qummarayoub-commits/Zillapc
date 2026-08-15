@@ -134,4 +134,15 @@ class HomeViewModel(
         pinnedIds.addAll(picked.map(idOf))
         return picked
     }
+
+    fun addToWatchlist(item: MediaItemEntity) {
+        viewModelScope.launch {
+            val profile = profileRepository.ensureDefaultProfile()
+            watchRepository.addToWatchlist(profile.id, item.id)
+        }
+    }
+
+    fun removeFromLibrary(item: MediaItemEntity) {
+        viewModelScope.launch { libraryRepository.removeMediaItem(item.id) }
+    }
 }

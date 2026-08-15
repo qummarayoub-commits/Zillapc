@@ -92,13 +92,13 @@ fun SearchScreen(
                 // instead of a blank screen.
                 LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = VaultSpacing.xxl)) {
                     item {
-                        MediaRail("Today's Top Picks", state.todaysTopPicks, onItemClick = { onOpenDetails(it.id) })
+                        MediaRail("Today's Top Picks", state.todaysTopPicks, onItemClick = { onOpenDetails(it.id) }, onAddToList = viewModel::addToWatchlist, onRemoveFromLibrary = viewModel::removeFromLibrary)
                     }
                     item {
-                        MediaRail("Weekly Picks", state.weeklyPicks, onItemClick = { onOpenDetails(it.id) })
+                        MediaRail("Weekly Picks", state.weeklyPicks, onItemClick = { onOpenDetails(it.id) }, onAddToList = viewModel::addToWatchlist, onRemoveFromLibrary = viewModel::removeFromLibrary)
                     }
                     item {
-                        MediaRail("Recently Added", state.recentlyAdded, onItemClick = { onOpenDetails(it.id) })
+                        MediaRail("Recently Added", state.recentlyAdded, onItemClick = { onOpenDetails(it.id) }, onAddToList = viewModel::addToWatchlist, onRemoveFromLibrary = viewModel::removeFromLibrary)
                     }
                 }
             }

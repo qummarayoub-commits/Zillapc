@@ -17,6 +17,7 @@ data class ComicReaderUiState(
     val isLoading: Boolean = true,
     val title: String = "",
     val pages: List<File> = emptyList(),
+    val startPage: Int = 0, // resume from wherever the user left off last time
     val errorMessage: String? = null,
     /** Set when the format (e.g. cb7) isn't supported by the internal reader — caller falls back to an external app. */
     val unsupportedFormat: Boolean = false,
@@ -38,12 +39,13 @@ class ComicReaderViewModel(
                 _uiState.value = ComicReaderUiState(isLoading = false, errorMessage = "This comic is no longer in your library.")
                 return@launch
             }
-            _uiState.value = _uiState.value.copy(title = comic.title)
+            _uiState.value = _uiState.value.copy(title = comic.title, startPage = comic.lastReadPage)
 
             val comicUri = Uri.parse(comic.localFileUri)
             when (val result = ComicExtractor.extractPages(appContext, comicId, comicUri, comic.fileExtension)) {
                 is ComicExtractionResult.Success -> {
-                    _uiState.value = _uiState.value.copy(isLoading = false, pages = result.pages)
+                    val startPage = comic.lastReadPage.coerceIn(0, (result.pages.size - 1).coerceAtLeast(0))
+                    _uiState.value = _uiState.value.copy(isLoading = false, pages = result.pages, startPage = startPage)
                 }
                 is ComicExtractionResult.Failed -> {
                     _uiState.value = _uiState.value.copy(isLoading = false, errorMessage = result.message)
@@ -52,6 +54,13 @@ class ComicReaderViewModel(
                     _uiState.value = _uiState.value.copy(isLoading = false, unsupportedFormat = true)
                 }
             }
+        }
+    }
+
+    /** Called whenever the current page changes so reopening resumes from here. */
+    fun onPageChanged(page: Int) {
+        viewModelScope.launch {
+            comicRepository.updateLastReadPage(comicId, page)
         }
     }
 }

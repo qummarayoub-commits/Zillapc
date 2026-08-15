@@ -69,7 +69,13 @@ class PlayerViewModel(
         // a simple dependency (Google doesn't publish prebuilt AC-3/DTS
         // decoders due to codec licensing — apps like VLC ship their own
         // build of FFmpeg specifically to work around this).
-        DefaultRenderersFactory(appContext).setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
+        DefaultRenderersFactory(appContext)
+            .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
+            // If the platform's "best match" decoder for a track fails to
+            // initialize (happens with some oddly-encoded audio streams),
+            // let ExoPlayer retry with an alternative decoder instead of
+            // just failing playback outright.
+            .setEnableDecoderFallback(true)
     )
         // Explicit audio attributes + automatic audio-focus handling — the
         // default builder should already do this, but being explicit rules

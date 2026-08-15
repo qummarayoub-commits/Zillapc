@@ -24,6 +24,7 @@ data class ComicEntity(
     val localFilePath: String? = null,
     val fileSizeBytes: Long = 0,
     val fileExtension: String = "", // cbz/cbr/cb7 — stored explicitly at scan time, not parsed from the URI later
+    val lastReadPage: Int = 0, // remembers where the user left off
     val metadataFetched: Boolean = false,
     val metadataMissing: Boolean = false,
     val dateAdded: Long = System.currentTimeMillis(),

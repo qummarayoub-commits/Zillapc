@@ -72,7 +72,9 @@ class ComicVineMetadataProvider {
                 issueNumber = match.issue_number ?: issueNumber,
                 publisher = match.volume?.publisher?.name,
                 overview = match.description?.let { stripHtml(it) },
-                coverUrl = match.image?.medium_url ?: match.image?.small_url,
+                // Prefer the highest-resolution cover ComicVine offers —
+                // medium_url was noticeably soft compared to the rest of the app's HD artwork.
+                coverUrl = match.image?.super_url ?: match.image?.original_url ?: match.image?.medium_url ?: match.image?.small_url,
                 releaseDate = match.cover_date,
             )
         }.getOrNull()

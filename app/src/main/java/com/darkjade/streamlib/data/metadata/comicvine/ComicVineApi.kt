@@ -20,6 +20,8 @@ data class ComicVineIssueDto(
 )
 
 data class ComicVineImageDto(
+    val super_url: String? = null,
+    val original_url: String? = null,
     val medium_url: String? = null,
     val small_url: String? = null,
 )

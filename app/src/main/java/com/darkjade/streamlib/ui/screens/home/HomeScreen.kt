@@ -35,6 +35,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -105,15 +106,15 @@ fun HomeScreen(
                     }
 
                     item {
-                        MediaRail("Continue Watching", state.continueWatching, onItemClick = { onOpenDetails(it.id) })
+                        MediaRail("Continue Watching", state.continueWatching, onItemClick = { onOpenDetails(it.id) }, onAddToList = viewModel::addToWatchlist, onRemoveFromLibrary = viewModel::removeFromLibrary)
                     }
                     item {
-                        MediaRail("Recently Added", state.recentlyAdded, onItemClick = { onOpenDetails(it.id) })
+                        MediaRail("Recently Added", state.recentlyAdded, onItemClick = { onOpenDetails(it.id) }, onAddToList = viewModel::addToWatchlist, onRemoveFromLibrary = viewModel::removeFromLibrary)
                     }
 
                     // Movies section, then an auto-rotating movie banner strip below it.
                     item {
-                        MediaRail("Movies", state.movies, onItemClick = { onOpenDetails(it.id) })
+                        MediaRail("Movies", state.movies, onItemClick = { onOpenDetails(it.id) }, onAddToList = viewModel::addToWatchlist, onRemoveFromLibrary = viewModel::removeFromLibrary)
                     }
                     if (state.movieBanners.isNotEmpty()) {
                         item {
@@ -129,7 +130,7 @@ fun HomeScreen(
 
                     // Series section, then an auto-rotating series banner strip.
                     item {
-                        MediaRail("Series", state.series, onItemClick = { onOpenDetails(it.id) })
+                        MediaRail("Series", state.series, onItemClick = { onOpenDetails(it.id) }, onAddToList = viewModel::addToWatchlist, onRemoveFromLibrary = viewModel::removeFromLibrary)
                     }
                     if (state.seriesBanners.isNotEmpty()) {
                         item {
@@ -144,7 +145,7 @@ fun HomeScreen(
                     }
 
                     item {
-                        MediaRail("Anime", state.anime, onItemClick = { onOpenDetails(it.id) })
+                        MediaRail("Anime", state.anime, onItemClick = { onOpenDetails(it.id) }, onAddToList = viewModel::addToWatchlist, onRemoveFromLibrary = viewModel::removeFromLibrary)
                     }
 
                     // Comics section, then an auto-rotating comics banner strip.
@@ -159,6 +160,10 @@ fun HomeScreen(
                                 imageUrl = { it.coverUrl },
                                 title = { it.title },
                                 onClick = { onOpenComicDetails(it.id) },
+                                // Comic covers are portrait — cropping them into a wide
+                                // landscape strip like movie/series backdrops butchered
+                                // the artwork. Fit them centered on a blurred backdrop instead.
+                                isPortraitContent = true,
                             )
                         }
                     }
@@ -312,6 +317,7 @@ private fun <T> SecondaryBannerCarousel(
     imageUrl: (T) -> String?,
     title: (T) -> String,
     onClick: (T) -> Unit,
+    isPortraitContent: Boolean = false,
 ) {
     val pagerState = rememberPagerState(pageCount = { items.size })
 
@@ -327,7 +333,7 @@ private fun <T> SecondaryBannerCarousel(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(170.dp)
+            .height(if (isPortraitContent) 220.dp else 170.dp)
             .padding(horizontal = VaultSpacing.md, vertical = VaultSpacing.xs)
     ) {
         HorizontalPager(
@@ -345,14 +351,36 @@ private fun <T> SecondaryBannerCarousel(
             ) {
                 val model = imageUrl(item)
                 if (model != null) {
-                    SubcomposeAsyncImage(
-                        model = model,
-                        contentDescription = title(item),
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize(),
-                        loading = {},
-                        error = {},
-                    )
+                    if (isPortraitContent) {
+                        // Blurred cover fills the frame behind, real cover stays
+                        // undistorted centered on top — same idea Spotify/Crunchyroll
+                        // use for portrait art inside a wide banner slot.
+                        SubcomposeAsyncImage(
+                            model = model,
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize().blur(24.dp),
+                            loading = {},
+                            error = {},
+                        )
+                        SubcomposeAsyncImage(
+                            model = model,
+                            contentDescription = title(item),
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier.fillMaxSize().padding(vertical = VaultSpacing.xs),
+                            loading = {},
+                            error = {},
+                        )
+                    } else {
+                        SubcomposeAsyncImage(
+                            model = model,
+                            contentDescription = title(item),
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize(),
+                            loading = {},
+                            error = {},
+                        )
+                    }
                 }
                 Box(
                     modifier = Modifier
