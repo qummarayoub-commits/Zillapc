@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -23,7 +24,9 @@ import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material3.AlertDialog
@@ -45,6 +48,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -52,11 +56,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.compose.SubcomposeAsyncImage
 import com.darkjade.streamlib.data.db.entity.EpisodeEntity
+import com.darkjade.streamlib.data.db.entity.MediaItemEntity
 import com.darkjade.streamlib.data.metadata.isSeriesLike
 import com.darkjade.streamlib.ui.components.EmptyState
 import com.darkjade.streamlib.ui.components.FallbackPoster
@@ -64,6 +72,22 @@ import com.darkjade.streamlib.ui.theme.VaultColors
 import com.darkjade.streamlib.ui.theme.VaultShapes
 import com.darkjade.streamlib.ui.theme.VaultSizes
 import com.darkjade.streamlib.ui.theme.VaultSpacing
+import com.darkjade.streamlib.ui.util.ArtworkTintExtractor
+
+private data class ParsedCastMember(val name: String, val character: String?, val photoUrl: String?)
+
+private fun parseCastMembers(raw: String): List<ParsedCastMember> {
+    if (raw.isBlank()) return emptyList()
+    return raw.split(";;").mapNotNull { entry ->
+        val parts = entry.split("|")
+        val name = parts.getOrNull(0)?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+        ParsedCastMember(
+            name = name,
+            character = parts.getOrNull(1)?.takeIf { it.isNotBlank() },
+            photoUrl = parts.getOrNull(2)?.takeIf { it.isNotBlank() },
+        )
+    }
+}
 
 @Composable
 fun DetailsScreen(
@@ -72,10 +96,28 @@ fun DetailsScreen(
     onPlay: (fileUriString: String, episodeId: Long?) -> Unit,
 ) {
     val state by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
     var showRemoveDialog by remember { mutableStateOf(false) }
     var showOverflowMenu by remember { mutableStateOf(false) }
+    var showTrailer by remember { mutableStateOf(false) }
 
-    Box(modifier = Modifier.fillMaxSize().background(VaultColors.Background)) {
+    // Dark/subtle tint pulled from this title's own artwork — cached per
+    // image URL, recomputed only when the artwork actually changes.
+    val tintColor by produceState<Color?>(initialValue = null, state.media?.backdropUrl, state.media?.posterUrl) {
+        value = ArtworkTintExtractor.extractTint(context, state.media?.backdropUrl ?: state.media?.posterUrl)
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    0f to (tintColor?.copy(alpha = 0.6f) ?: VaultColors.Background),
+                    0.45f to VaultColors.Background,
+                    1f to VaultColors.Background,
+                )
+            )
+    ) {
         when {
             state.isLoading -> CircularProgressIndicator(
                 color = VaultColors.Orange,
@@ -87,9 +129,13 @@ fun DetailsScreen(
             )
             else -> {
                 val media = state.media!!
+                val castMembers = remember(media.castMembers) { parseCastMembers(media.castMembers) }
+
                 LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = VaultSpacing.xl)) {
+                    // Large cinematic hero — substantially bigger than a thumbnail strip,
+                    // fading naturally into the tinted page background below it.
                     item {
-                        Box(modifier = Modifier.fillMaxWidth().height(150.dp)) {
+                        Box(modifier = Modifier.fillMaxWidth().height(300.dp)) {
                             if (media.backdropUrl != null) {
                                 AsyncImage(
                                     model = media.backdropUrl,
@@ -102,10 +148,7 @@ fun DetailsScreen(
                             }
                             Box(
                                 modifier = Modifier.fillMaxSize().background(
-                                    // Concentrate the fade near the bottom edge only — spreading it
-                                    // across the whole backdrop made a large chunk look like dead
-                                    // black space above the poster row instead of visible artwork.
-                                    Brush.verticalGradient(0.7f to Color.Transparent, 1f to VaultColors.Background)
+                                    Brush.verticalGradient(0.35f to Color.Transparent, 1f to VaultColors.Background)
                                 )
                             )
                             IconButton(onClick = onBack, modifier = Modifier.align(Alignment.TopStart).padding(VaultSpacing.xs)) {
@@ -129,8 +172,7 @@ fun DetailsScreen(
                         }
                     }
 
-                    // Poster on the left, title + play actions on the right — matches
-                    // the layout requested over the previous centered-overlap style.
+                    // Poster on the left, title + play actions on the right.
                     item {
                         Row(
                             modifier = Modifier
@@ -166,7 +208,6 @@ fun DetailsScreen(
 
                                 if (state.nextUpLabel != null && state.nextUpUri != null) {
                                     if (state.hasResumeProgress) {
-                                        // Two explicit choices: start over, or pick up where you left off.
                                         Button(
                                             onClick = {
                                                 viewModel.recordOpened(state.nextUpEpisodeId)
@@ -229,28 +270,18 @@ fun DetailsScreen(
                         }
                     }
 
+                    // Breathing room below the poster, then Duration / IMDb / Rotten Tomatoes —
+                    // only the ratings that actually exist; never invented.
                     item {
-                        Column(modifier = Modifier.padding(horizontal = VaultSpacing.md)) {
-                            val metaParts = buildList {
-                                media.ageRating?.let { add(it) }
-                                media.year?.let { add(it.toString()) }
-                                media.runtimeMinutes?.let { add("${it}m") }
-                                if (media.genres.isNotBlank()) add(media.genres.replace(",", ", "))
-                            }
-                            if (metaParts.isNotEmpty()) {
-                                Text(
-                                    metaParts.joinToString("  •  "),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = VaultColors.TextSecondary,
-                                )
-                            }
+                        Column(modifier = Modifier.padding(horizontal = VaultSpacing.md).padding(top = VaultSpacing.lg)) {
+                            RatingsBlock(media)
 
-                            media.rating?.let {
+                            if (media.genres.isNotBlank()) {
                                 Text(
-                                    "IMDb/TMDB Rating: ${"%.1f".format(it)}",
+                                    media.genres.replace(",", ", "),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = VaultColors.TextSecondary,
-                                    modifier = Modifier.padding(top = VaultSpacing.xxs)
+                                    modifier = Modifier.padding(top = VaultSpacing.sm)
                                 )
                             }
 
@@ -271,24 +302,76 @@ fun DetailsScreen(
                                     modifier = Modifier.padding(top = VaultSpacing.sm)
                                 )
                             }
+                        }
+                    }
 
-                            if (!media.director.isNullOrBlank()) {
-                                Text(
-                                    "Director: ${media.director}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = VaultColors.TextSecondary,
-                                    modifier = Modifier.padding(top = VaultSpacing.sm)
-                                )
-                            }
-                            if (media.cast.isNotBlank()) {
-                                Text(
-                                    "Cast: ${media.cast.replace(",", ", ")}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = VaultColors.TextSecondary,
-                                    modifier = Modifier.padding(top = VaultSpacing.xxs)
-                                )
+                    // Trailer — plays INSIDE this screen via an embedded player, never
+                    // an external browser/YouTube app. Nothing shown if none is available.
+                    if (!media.trailerYoutubeKey.isNullOrBlank()) {
+                        item {
+                            Column(modifier = Modifier.padding(horizontal = VaultSpacing.md).padding(top = VaultSpacing.lg)) {
+                                Text("Trailer", style = MaterialTheme.typography.titleMedium, color = VaultColors.TextPrimary)
+                                Spacer(Modifier.height(VaultSpacing.xs))
+                                if (showTrailer) {
+                                    EmbeddedYoutubePlayer(
+                                        youtubeKey = media.trailerYoutubeKey,
+                                        modifier = Modifier.fillMaxWidth().height(200.dp).clip(VaultShapes.card)
+                                    )
+                                } else {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(200.dp)
+                                            .clip(VaultShapes.card)
+                                            .background(VaultColors.SurfaceVariant)
+                                            .clickable { showTrailer = true },
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        if (media.backdropUrl != null) {
+                                            AsyncImage(
+                                                model = media.backdropUrl,
+                                                contentDescription = null,
+                                                contentScale = ContentScale.Crop,
+                                                modifier = Modifier.fillMaxSize(),
+                                            )
+                                            Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.35f)))
+                                        }
+                                        Icon(
+                                            Icons.Filled.PlayCircle,
+                                            contentDescription = "Play trailer",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(56.dp)
+                                        )
+                                    }
+                                }
                             }
                         }
+                    }
+
+                    // Cast — main cast only, horizontally scrollable, circular photos.
+                    if (castMembers.isNotEmpty()) {
+                        item {
+                            Column(modifier = Modifier.padding(top = VaultSpacing.lg)) {
+                                Text(
+                                    "Cast",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = VaultColors.TextPrimary,
+                                    modifier = Modifier.padding(horizontal = VaultSpacing.md)
+                                )
+                                Spacer(Modifier.height(VaultSpacing.xs))
+                                LazyRow(
+                                    horizontalArrangement = Arrangement.spacedBy(VaultSpacing.sm),
+                                    contentPadding = PaddingValues(horizontal = VaultSpacing.md),
+                                ) {
+                                    items(castMembers) { member -> CastMemberCard(member) }
+                                }
+                            }
+                        }
+                    }
+
+                    // Detailed information section.
+                    item {
+                        InfoSection(media, state.seasons.size)
                     }
 
                     if (state.seasons.isNotEmpty()) {
@@ -372,6 +455,131 @@ fun DetailsScreen(
     }
 }
 
+/** "Duration: 2h 14m / IMDb: 8.1 / Rotten Tomatoes: 92%" — only fields that actually exist, never invented. */
+@Composable
+private fun RatingsBlock(media: MediaItemEntity) {
+    val lines = buildList {
+        formatRuntimeLong(media.runtimeMinutes)?.let { add("Duration: $it") }
+        media.imdbRating?.let { add("IMDb: ${"%.1f".format(it)}") }
+        media.rottenTomatoesPercent?.let { add("Rotten Tomatoes: $it%") }
+        // TMDB's own score is a different thing from IMDb — labeled distinctly, only shown if IMDb wasn't found.
+        if (media.imdbRating == null) {
+            media.rating?.let { add("TMDB Rating: ${"%.1f".format(it)}") }
+        }
+    }
+    if (lines.isEmpty()) return
+    Column {
+        lines.forEach {
+            Text(it, style = MaterialTheme.typography.bodyMedium, color = VaultColors.TextSecondary)
+        }
+    }
+}
+
+private fun formatRuntimeLong(minutes: Int?): String? {
+    if (minutes == null || minutes <= 0) return null
+    val h = minutes / 60
+    val m = minutes % 60
+    return if (h > 0) "${h}h ${m}m" else "${m}m"
+}
+
+@Composable
+private fun CastMemberCard(member: ParsedCastMember) {
+    Column(
+        modifier = Modifier.width(80.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(64.dp)
+                .clip(CircleShape)
+                .background(VaultColors.SurfaceVariant)
+        ) {
+            if (member.photoUrl != null) {
+                SubcomposeAsyncImage(
+                    model = member.photoUrl,
+                    contentDescription = member.name,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                    loading = { CastFallbackIcon() },
+                    error = { CastFallbackIcon() },
+                )
+            } else {
+                CastFallbackIcon()
+            }
+        }
+        Text(
+            member.name,
+            style = MaterialTheme.typography.labelSmall,
+            color = VaultColors.TextPrimary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(top = VaultSpacing.xxs)
+        )
+        member.character?.let {
+            Text(
+                it,
+                style = MaterialTheme.typography.labelSmall,
+                color = VaultColors.TextTertiary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+@Composable
+private fun CastFallbackIcon() {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Icon(Icons.Filled.Person, contentDescription = null, tint = VaultColors.TextTertiary)
+    }
+}
+
+/** Movies vs Series/Anime get different fields — only ones with real data are shown. */
+@Composable
+private fun InfoSection(media: MediaItemEntity, seasonCountFromDb: Int) {
+    Column(modifier = Modifier.padding(horizontal = VaultSpacing.md).padding(top = VaultSpacing.lg)) {
+        Text("Information", style = MaterialTheme.typography.titleMedium, color = VaultColors.TextPrimary)
+        Spacer(Modifier.height(VaultSpacing.xs))
+
+        InfoRow("Title", media.title)
+        media.year?.let { InfoRow("Year", it.toString()) }
+        if (media.genres.isNotBlank()) InfoRow("Genres", media.genres.replace(",", ", "))
+
+        if (media.type.isSeriesLike()) {
+            (media.seasonCount ?: seasonCountFromDb.takeIf { it > 0 })?.let { InfoRow("Seasons", it.toString()) }
+            media.episodeCount?.let { InfoRow("Episodes", it.toString()) }
+            media.status?.let { InfoRow("Status", it) }
+        } else {
+            formatRuntimeLong(media.runtimeMinutes)?.let { InfoRow("Duration", it) }
+        }
+
+        media.imdbRating?.let { InfoRow("IMDb Rating", "%.1f / 10".format(it)) }
+        media.rottenTomatoesPercent?.let { InfoRow("Rotten Tomatoes", "$it%") }
+        if (media.imdbRating == null) media.rating?.let { InfoRow("TMDB Rating", "%.1f / 10".format(it)) }
+
+        if (!media.director.isNullOrBlank()) InfoRow("Director", media.director)
+        if (media.cast.isNotBlank()) InfoRow("Main Cast", media.cast.replace(",", ", "))
+    }
+}
+
+@Composable
+private fun InfoRow(label: String, value: String) {
+    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelMedium,
+            color = VaultColors.TextTertiary,
+            modifier = Modifier.width(120.dp)
+        )
+        Text(
+            value,
+            style = MaterialTheme.typography.bodyMedium,
+            color = VaultColors.TextSecondary,
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
 private fun formatWatchedTime(ms: Long): String {
     val totalMinutes = (ms / 60000).toInt()
     val h = totalMinutes / 60
@@ -410,9 +618,6 @@ private fun EpisodeRow(
                 .clip(VaultShapes.card)
                 .background(VaultColors.SurfaceVariant)
         ) {
-            // Prefer TMDB episode thumbnail; fall back to a decoded frame from
-            // the episode's own local video file (always available, unlike
-            // series posters), so episode rows are never left blank.
             SubcomposeAsyncImage(
                 model = episode.thumbnailUrl ?: episode.localFileUri,
                 contentDescription = episode.title,
@@ -431,8 +636,6 @@ private fun EpisodeRow(
                     .size(18.dp)
                     .clickable(onClick = onToggleWatched)
             )
-            // Thin progress bar along the bottom of the thumbnail when there's
-            // real playback progress for this episode — the "5m watched" fix.
             if (watchedMs != null && watchedMs > 0 && episode.durationMinutes != null) {
                 val totalMs = episode.durationMinutes.toLong() * 60000
                 if (totalMs > 0) {

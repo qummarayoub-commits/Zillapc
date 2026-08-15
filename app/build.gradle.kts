@@ -112,6 +112,9 @@ dependencies {
     // Image loading
     implementation("io.coil-kt:coil-compose:2.6.0")
     implementation("io.coil-kt:coil-video:2.6.0")
+    // For extracting a dominant color from poster/backdrop artwork to tint
+    // the details-page background — a well-known, stable AndroidX library.
+    implementation("androidx.palette:palette-ktx:1.0.0")
 
     // Media3 / ExoPlayer — internal video player
     implementation("androidx.media3:media3-exoplayer:1.4.1")
