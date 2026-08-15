@@ -25,6 +25,7 @@ object Routes {
     const val COMIC_DETAILS = "comic_details/{comicId}"
     const val COMIC_READER = "comic_reader/{comicId}"
     const val PLAYER = "player/{mediaId}/{episodeId}"
+    const val NEWS = "news"
     const val SWITCH_PROFILE = "switch_profile"
 
     fun details(mediaId: Long) = "details/$mediaId"

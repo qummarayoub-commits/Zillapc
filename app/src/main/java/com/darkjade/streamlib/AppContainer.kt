@@ -6,6 +6,7 @@ import com.darkjade.streamlib.data.metadata.comicvine.ComicVineMetadataProvider
 import com.darkjade.streamlib.data.metadata.tmdb.TmdbMetadataProvider
 import com.darkjade.streamlib.data.repository.ComicRepository
 import com.darkjade.streamlib.data.repository.LibraryRepository
+import com.darkjade.streamlib.data.repository.NewsRepository
 import com.darkjade.streamlib.data.repository.PlaybackRepository
 import com.darkjade.streamlib.data.repository.PreferencesRepository
 import com.darkjade.streamlib.data.repository.ProfileRepository
@@ -25,4 +26,5 @@ class AppContainer(context: Context) {
     val comicVineMetadataProvider = ComicVineMetadataProvider()
     val comicRepository = ComicRepository(context, comicVineMetadataProvider)
     val playbackRepository = PlaybackRepository(context)
+    val newsRepository = NewsRepository(context)
 }

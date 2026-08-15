@@ -36,6 +36,8 @@ import com.darkjade.streamlib.ui.screens.home.HomeScreen
 import com.darkjade.streamlib.ui.screens.home.HomeViewModel
 import com.darkjade.streamlib.ui.screens.mylists.MyListsScreen
 import com.darkjade.streamlib.ui.screens.mylists.MyListsViewModel
+import com.darkjade.streamlib.ui.screens.news.NewsScreen
+import com.darkjade.streamlib.ui.screens.news.NewsViewModel
 import com.darkjade.streamlib.ui.screens.player.PlayerScreen
 import com.darkjade.streamlib.ui.screens.player.PlayerViewModel
 import com.darkjade.streamlib.ui.screens.search.SearchScreen
@@ -102,6 +104,7 @@ fun StreamLibNavGraph(container: AppContainer) {
                     onOpenComicDetails = { navController.navigate(Routes.comicDetails(it)) },
                     onOpenSettings = { navController.navigate(Routes.SETTINGS) },
                     onOpenSearch = { navController.navigate(Routes.SEARCH) },
+                    onOpenNews = { navController.navigate(Routes.NEWS) },
                 )
             }
 
@@ -147,6 +150,13 @@ fun StreamLibNavGraph(container: AppContainer) {
                     )
                 })
                 SettingsScreen(viewModel = vm, onBack = { navController.popBackStack() })
+            }
+
+            composable(Routes.NEWS) {
+                val vm: NewsViewModel = viewModel(factory = SimpleViewModelFactory {
+                    NewsViewModel(container.newsRepository)
+                })
+                NewsScreen(viewModel = vm, onBack = { navController.popBackStack() })
             }
 
             composable(

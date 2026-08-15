@@ -19,6 +19,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Article
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
@@ -62,6 +63,7 @@ fun HomeScreen(
     onOpenComicDetails: (Long) -> Unit,
     onOpenSettings: () -> Unit,
     onOpenSearch: () -> Unit,
+    onOpenNews: () -> Unit,
 ) {
     val state by viewModel.uiState.collectAsState()
 
@@ -91,7 +93,7 @@ fun HomeScreen(
                     contentPadding = PaddingValues(bottom = VaultSpacing.xxl)
                 ) {
                     item {
-                        HomeTopBar(onOpenSearch = onOpenSearch, onOpenSettings = onOpenSettings)
+                        HomeTopBar(onOpenSearch = onOpenSearch, onOpenSettings = onOpenSettings, onOpenNews = onOpenNews)
                     }
 
                     // Top: main auto-rotating carousel across everything (up to 5: movies, series, comics).
@@ -181,7 +183,7 @@ private fun openHero(hero: HeroCandidate, onOpenDetails: (Long) -> Unit, onOpenC
 }
 
 @Composable
-private fun HomeTopBar(onOpenSearch: () -> Unit, onOpenSettings: () -> Unit) {
+private fun HomeTopBar(onOpenSearch: () -> Unit, onOpenSettings: () -> Unit, onOpenNews: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -195,6 +197,9 @@ private fun HomeTopBar(onOpenSearch: () -> Unit, onOpenSettings: () -> Unit) {
             color = VaultColors.Orange,
         )
         Row {
+            IconButton(onClick = onOpenNews) {
+                Icon(Icons.Filled.Article, contentDescription = "News", tint = VaultColors.TextPrimary)
+            }
             IconButton(onClick = onOpenSearch) {
                 Icon(Icons.Filled.Search, contentDescription = "Search", tint = VaultColors.TextPrimary)
             }

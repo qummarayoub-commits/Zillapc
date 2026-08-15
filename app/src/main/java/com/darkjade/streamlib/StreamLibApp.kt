@@ -43,5 +43,22 @@ class StreamLibApp : Application() {
                 .components { add(VideoFrameDecoder.Factory()) }
                 .build()
         )
+
+        // News: periodic background refresh so the feed is already current
+        // when the user opens it, without hammering the network — WorkManager
+        // handles battery/connectivity constraints and won't run more often
+        // than this interval.
+        val newsWorkRequest = androidx.work.PeriodicWorkRequestBuilder<com.darkjade.streamlib.work.NewsFetchWorker>(
+            6, java.util.concurrent.TimeUnit.HOURS
+        ).setConstraints(
+            androidx.work.Constraints.Builder()
+                .setRequiredNetworkType(androidx.work.NetworkType.CONNECTED)
+                .build()
+        ).build()
+        androidx.work.WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            com.darkjade.streamlib.work.NewsFetchWorker.UNIQUE_WORK_NAME,
+            androidx.work.ExistingPeriodicWorkPolicy.KEEP,
+            newsWorkRequest,
+        )
     }
 }
