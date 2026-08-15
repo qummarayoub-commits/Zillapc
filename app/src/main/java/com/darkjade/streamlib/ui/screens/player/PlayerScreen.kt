@@ -9,6 +9,7 @@ import android.util.Rational
 import android.view.WindowManager
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -42,6 +43,7 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -50,6 +52,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
@@ -59,6 +62,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.media3.ui.PlayerView
 import com.darkjade.streamlib.ui.theme.VaultColors
+import kotlinx.coroutines.delay
 
 @Composable
 fun PlayerScreen(
@@ -76,6 +80,22 @@ fun PlayerScreen(
     var showAudioMenu by remember { mutableStateOf(false) }
     var showVolumeSlider by remember { mutableStateOf(false) }
     var showBrightnessSlider by remember { mutableStateOf(false) }
+
+    // Controls (the custom top overlay row) are shown/hidden together with
+    // PlayerView's own native seek-bar controller — tapping the video toggles
+    // both in sync, instead of the custom row staying glued on screen forever.
+    var controlsVisible by remember { mutableStateOf(true) }
+    // While locked, a brief tap reveals only the small unlock button, which
+    // then fades itself back out — it no longer sits permanently in the
+    // middle of the video.
+    var unlockButtonVisible by remember { mutableStateOf(false) }
+
+    LaunchedEffect(unlockButtonVisible) {
+        if (unlockButtonVisible) {
+            delay(3000)
+            unlockButtonVisible = false
+        }
+    }
 
     val audioManager = remember { context.getSystemService(android.content.Context.AUDIO_SERVICE) as AudioManager }
     val maxVolume = remember { audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1) }
@@ -107,15 +127,39 @@ fun PlayerScreen(
             factory = { ctx ->
                 PlayerView(ctx).apply {
                     player = viewModel.player
-                    useController = !isLocked
                     setShowFastForwardButton(true)
                     setShowRewindButton(true)
+                    // Keep our custom overlay in sync with the native controller's
+                    // own show/hide timing — tapping the video toggles both together.
+                    setControllerVisibilityListener(
+                        PlayerView.ControllerVisibilityListener { visibility ->
+                            controlsVisible = visibility == android.view.View.VISIBLE
+                        }
+                    )
                 }
             },
             update = { playerView ->
-                playerView.useController = !isLocked
+                // Guard against redundant reassignment — Compose calls this update
+                // block on every recomposition (e.g. toggling a slider), and
+                // reassigning useController even to the same value was resetting
+                // PlayerView's own auto-hide timer each time, making the controls
+                // look like they never hide. Only touch it when it actually changes.
+                val desired = !isLocked
+                if (playerView.useController != desired) {
+                    playerView.useController = desired
+                }
             },
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
+                .then(
+                    if (isLocked) {
+                        // Controller is disabled while locked, so we need our own
+                        // tap detector to reveal/hide the small unlock button.
+                        Modifier.pointerInput(Unit) {
+                            detectTapGestures { unlockButtonVisible = !unlockButtonVisible }
+                        }
+                    } else Modifier
+                )
         )
 
         when {
@@ -144,15 +188,19 @@ fun PlayerScreen(
         }
 
         if (isLocked) {
-            IconButton(
-                onClick = { isLocked = false },
-                modifier = Modifier.align(Alignment.Center)
-                    .size(56.dp)
-                    .background(Color.Black.copy(alpha = 0.5f), CircleShape)
-            ) {
-                Icon(Icons.Filled.LockOpen, contentDescription = "Unlock", tint = Color.White)
+            if (unlockButtonVisible) {
+                IconButton(
+                    onClick = { isLocked = false; unlockButtonVisible = false },
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(16.dp)
+                        .size(44.dp)
+                        .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                ) {
+                    Icon(Icons.Filled.LockOpen, contentDescription = "Unlock", tint = Color.White)
+                }
             }
-        } else {
+        } else if (controlsVisible) {
             // Top overlay: back, title, lock, audio, speed, volume, brightness, fullscreen, PiP.
             Row(
                 modifier = Modifier

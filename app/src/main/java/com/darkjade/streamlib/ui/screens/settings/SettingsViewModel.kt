@@ -123,6 +123,19 @@ class SettingsViewModel(
         }
     }
 
+    /** Primary comics scan: device-wide via MediaStore, same reliable pattern as videos. */
+    fun scanDeviceForComics() {
+        viewModelScope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    comicRepository.scanDevice { }
+                }
+            } catch (e: Throwable) {
+                // Never crash — repository already reports FAILED status internally.
+            }
+        }
+    }
+
     /** Comics folder — scoped SAF pick, scans only comic files (.cbz/.cbr/.cb7/.pdf). */
     fun onComicFolderSelected(treeUri: Uri, displayName: String) {
         viewModelScope.launch {

@@ -316,14 +316,30 @@ fun SettingsScreen(
                         )
                     }
                 } else {
+                    Button(
+                        onClick = { viewModel.scanDeviceForComics() },
+                        shape = VaultShapes.button,
+                        colors = ButtonDefaults.buttonColors(containerColor = VaultColors.Orange, contentColor = Color.White),
+                        modifier = Modifier.fillMaxWidth().padding(vertical = VaultSpacing.xs)
+                    ) {
+                        Icon(Icons.Filled.MenuBook, contentDescription = null)
+                        Text(" Scan Device for Comics", modifier = Modifier.padding(start = 4.dp))
+                    }
+                    if (comicStatus?.state == ScanState.COMPLETED) {
+                        Text(
+                            "Last scan found ${comicStatus.filesFound} comic file(s).",
+                            color = VaultColors.TextSecondary,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
                     OutlinedButton(
                         onClick = { comicFolderPicker.launch(null) },
                         shape = VaultShapes.button,
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = VaultColors.TextPrimary),
-                        modifier = Modifier.fillMaxWidth().padding(vertical = VaultSpacing.xs)
+                        modifier = Modifier.fillMaxWidth().padding(top = VaultSpacing.xs)
                     ) {
                         Icon(Icons.Filled.CreateNewFolder, contentDescription = null)
-                        Text(" Add Comics Folder", modifier = Modifier.padding(start = 4.dp))
+                        Text(" Add Specific Comics Folder (optional)", modifier = Modifier.padding(start = 4.dp))
                     }
                     if (state.comicFolderSources.isNotEmpty()) {
                         OutlinedButton(
@@ -333,7 +349,7 @@ fun SettingsScreen(
                             modifier = Modifier.fillMaxWidth().padding(top = VaultSpacing.xs)
                         ) {
                             Icon(Icons.Filled.Refresh, contentDescription = null)
-                            Text(" Rescan Comics", modifier = Modifier.padding(start = 4.dp))
+                            Text(" Rescan Folders", modifier = Modifier.padding(start = 4.dp))
                         }
                     }
                     comicStatus?.errorMessage?.let {

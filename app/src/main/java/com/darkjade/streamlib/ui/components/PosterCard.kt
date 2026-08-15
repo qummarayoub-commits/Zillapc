@@ -4,16 +4,27 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -27,16 +38,29 @@ import com.darkjade.streamlib.ui.theme.VaultShapes
 import com.darkjade.streamlib.ui.theme.VaultSizes
 import com.darkjade.streamlib.ui.theme.VaultSpacing
 
+/** Formats runtime like "1h 42m" / "46m" — same style used in Details. */
+fun formatRuntime(minutes: Int?): String? {
+    if (minutes == null || minutes <= 0) return null
+    val h = minutes / 60
+    val m = minutes % 60
+    return if (h > 0) "${h}h ${m}m" else "${m}m"
+}
+
 @Composable
 fun PosterCard(
     item: MediaItemEntity,
     modifier: Modifier = Modifier,
     showTitle: Boolean = true,
+    showMenu: Boolean = false,
     onClick: () -> Unit,
+    onAddToList: (() -> Unit)? = null,
+    onRemoveFromLibrary: (() -> Unit)? = null,
 ) {
+    var showDropdown by remember { mutableStateOf(false) }
+
     Column(
         modifier = modifier
-            .size(VaultSizes.posterWidth, VaultSizes.posterHeight + if (showTitle) 40.dp else 0.dp)
+            .size(VaultSizes.posterWidth, VaultSizes.posterHeight + if (showTitle) 56.dp else 0.dp)
             .clickable(onClick = onClick)
     ) {
         Box(
@@ -63,14 +87,61 @@ fun PosterCard(
             }
         }
         if (showTitle) {
-            Text(
-                text = item.title,
-                style = MaterialTheme.typography.bodySmall,
-                color = VaultColors.TextPrimary,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(top = VaultSpacing.xxs)
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = VaultSpacing.xxs),
+                verticalAlignment = Alignment.Top,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = item.title,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = VaultColors.TextPrimary,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    formatRuntime(item.runtimeMinutes)?.let {
+                        Text(
+                            text = it,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = VaultColors.TextTertiary,
+                        )
+                    }
+                }
+                if (showMenu && (onAddToList != null || onRemoveFromLibrary != null)) {
+                    Box {
+                        IconButton(onClick = { showDropdown = true }, modifier = Modifier.size(20.dp)) {
+                            Icon(
+                                Icons.Filled.MoreVert,
+                                contentDescription = "More options",
+                                tint = VaultColors.TextTertiary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                        DropdownMenu(expanded = showDropdown, onDismissRequest = { showDropdown = false }) {
+                            onAddToList?.let { action ->
+                                DropdownMenuItem(
+                                    text = { Text("Add to List") },
+                                    leadingIcon = { Icon(Icons.Filled.Bookmark, contentDescription = null) },
+                                    onClick = {
+                                        showDropdown = false
+                                        action()
+                                    }
+                                )
+                            }
+                            onRemoveFromLibrary?.let { action ->
+                                DropdownMenuItem(
+                                    text = { Text("Remove from Library") },
+                                    leadingIcon = { Icon(Icons.Filled.Delete, contentDescription = null) },
+                                    onClick = {
+                                        showDropdown = false
+                                        action()
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

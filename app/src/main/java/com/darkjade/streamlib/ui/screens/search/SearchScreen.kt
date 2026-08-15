@@ -71,7 +71,13 @@ fun SearchScreen(
                     modifier = Modifier.fillMaxSize(),
                 ) {
                     items(state.results, key = { it.id }) { item ->
-                        PosterCard(item = item, onClick = { onOpenDetails(item.id) })
+                        PosterCard(
+                            item = item,
+                            onClick = { onOpenDetails(item.id) },
+                            showMenu = true,
+                            onAddToList = { viewModel.addToWatchlist(item) },
+                            onRemoveFromLibrary = { viewModel.removeFromLibrary(item) },
+                        )
                     }
                 }
             }

@@ -141,7 +141,13 @@ fun BrowseScreen(
                     modifier = Modifier.fillMaxSize(),
                 ) {
                     gridItems(state.displayedItems, key = { it.id }) { item ->
-                        PosterCard(item = item, onClick = { onOpenDetails(item.id) })
+                        PosterCard(
+                            item = item,
+                            onClick = { onOpenDetails(item.id) },
+                            showMenu = true,
+                            onAddToList = { viewModel.addToWatchlist(item) },
+                            onRemoveFromLibrary = { viewModel.removeFromLibrary(item) },
+                        )
                     }
                 }
             }

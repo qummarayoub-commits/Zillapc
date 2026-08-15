@@ -109,7 +109,7 @@ fun StreamLibNavGraph(container: AppContainer) {
 
             composable(Routes.BROWSE) {
                 val vm: BrowseViewModel = viewModel(factory = SimpleViewModelFactory {
-                    BrowseViewModel(container.libraryRepository, container.comicRepository)
+                    BrowseViewModel(container.libraryRepository, container.comicRepository, container.watchRepository, container.profileRepository)
                 })
                 BrowseScreen(
                     viewModel = vm,
@@ -120,7 +120,7 @@ fun StreamLibNavGraph(container: AppContainer) {
 
             composable(Routes.SEARCH) {
                 val vm: SearchViewModel = viewModel(factory = SimpleViewModelFactory {
-                    SearchViewModel(container.libraryRepository)
+                    SearchViewModel(container.libraryRepository, container.watchRepository, container.profileRepository)
                 })
                 SearchScreen(viewModel = vm, onOpenDetails = { navController.navigate(Routes.details(it)) })
             }

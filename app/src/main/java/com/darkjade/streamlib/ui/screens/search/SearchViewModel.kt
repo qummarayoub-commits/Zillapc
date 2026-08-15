@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.darkjade.streamlib.data.db.entity.MediaItemEntity
 import com.darkjade.streamlib.data.repository.LibraryRepository
+import com.darkjade.streamlib.data.repository.ProfileRepository
+import com.darkjade.streamlib.data.repository.WatchRepository
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,7 +27,11 @@ data class SearchUiState(
     val recentlyAdded: List<MediaItemEntity> = emptyList(),
 )
 
-class SearchViewModel(private val libraryRepository: LibraryRepository) : ViewModel() {
+class SearchViewModel(
+    private val libraryRepository: LibraryRepository,
+    private val watchRepository: WatchRepository,
+    private val profileRepository: ProfileRepository,
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SearchUiState())
     val uiState: StateFlow<SearchUiState> = _uiState.asStateFlow()
@@ -69,5 +75,16 @@ class SearchViewModel(private val libraryRepository: LibraryRepository) : ViewMo
                 results = result.mediaItems,
             )
         }
+    }
+
+    fun addToWatchlist(item: MediaItemEntity) {
+        viewModelScope.launch {
+            val profile = profileRepository.ensureDefaultProfile()
+            watchRepository.addToWatchlist(profile.id, item.id)
+        }
+    }
+
+    fun removeFromLibrary(item: MediaItemEntity) {
+        viewModelScope.launch { libraryRepository.removeMediaItem(item.id) }
     }
 }

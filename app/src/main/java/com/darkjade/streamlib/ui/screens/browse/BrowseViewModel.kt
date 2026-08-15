@@ -7,6 +7,8 @@ import com.darkjade.streamlib.data.db.entity.MediaItemEntity
 import com.darkjade.streamlib.data.db.entity.MediaType
 import com.darkjade.streamlib.data.repository.ComicRepository
 import com.darkjade.streamlib.data.repository.LibraryRepository
+import com.darkjade.streamlib.data.repository.ProfileRepository
+import com.darkjade.streamlib.data.repository.WatchRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -31,6 +33,8 @@ data class BrowseUiState(
 class BrowseViewModel(
     private val libraryRepository: LibraryRepository,
     private val comicRepository: ComicRepository,
+    private val watchRepository: WatchRepository,
+    private val profileRepository: ProfileRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(BrowseUiState())
@@ -70,6 +74,17 @@ class BrowseViewModel(
     fun setGenre(genre: String?) {
         _uiState.value = _uiState.value.copy(selectedGenre = genre)
         applyFilters()
+    }
+
+    fun addToWatchlist(item: MediaItemEntity) {
+        viewModelScope.launch {
+            val profile = profileRepository.ensureDefaultProfile()
+            watchRepository.addToWatchlist(profile.id, item.id)
+        }
+    }
+
+    fun removeFromLibrary(item: MediaItemEntity) {
+        viewModelScope.launch { libraryRepository.removeMediaItem(item.id) }
     }
 
     private fun applyFilters() {
