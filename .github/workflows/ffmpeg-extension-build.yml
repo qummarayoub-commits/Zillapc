@@ -63,21 +63,45 @@ jobs:
             26 \
             ac3 eac3 dca flac opus vorbis alac
 
+      - name: Diagnose FFmpeg build output location
+        if: always()
+        run: |
+          {
+            echo "### FFmpeg build diagnostic"
+            echo ""
+            echo "Full tree under decoder_ffmpeg/src/main/jni (first 200 entries):"
+            echo '```'
+            find "${FFMPEG_MODULE_PATH}/jni" -maxdepth 4 | head -200
+            echo '```'
+            echo ""
+            echo "Any .a static libraries anywhere under the module:"
+            echo '```'
+            find "${FFMPEG_MODULE_PATH}" -name "*.a" 2>/dev/null | head -100
+            echo '```'
+            echo ""
+            echo "Any .so shared libraries anywhere under the module:"
+            echo '```'
+            find "${FFMPEG_MODULE_PATH}" -name "*.so" 2>/dev/null | head -100
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Verify the FFmpeg decoder library was actually produced
         run: |
-          echo "Looking for built FFmpeg static/shared libraries for arm64-v8a..."
-          find "${FFMPEG_MODULE_PATH}/jni/arm64-v8a" -maxdepth 2 -type f 2>/dev/null | tee ffmpeg_build_output.txt
-          if [ ! -s ffmpeg_build_output.txt ]; then
-            echo "FAILED: no FFmpeg build output found for arm64-v8a."
+          echo "Looking for any built FFmpeg static library output..."
+          FOUND=$(find "${FFMPEG_MODULE_PATH}" \( -name "*.a" -o -name "*.so" \) 2>/dev/null | head -20)
+          if [ -z "$FOUND" ]; then
+            echo "FAILED: no FFmpeg .a/.so build output found anywhere under the module. See the 'Diagnose FFmpeg build output location' step summary for the full directory tree."
             exit 1
           fi
-          echo "FFmpeg build for arm64-v8a produced output — see list above."
+          echo "Found build output:"
+          echo "$FOUND"
 
-      - name: Upload built FFmpeg libraries as an artifact
-        if: success()
+      - name: Upload built FFmpeg module directory as an artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ffmpeg-decoder-arm64-v8a
+          name: ffmpeg-decoder-build-output
           path: |
-            ${{ env.FFMPEG_MODULE_PATH }}/jni/arm64-v8a
+            ${{ env.FFMPEG_MODULE_PATH }}/jni
           retention-days: 14
+          if-no-files-found: warn
