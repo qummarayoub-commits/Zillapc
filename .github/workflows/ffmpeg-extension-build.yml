@@ -123,37 +123,47 @@ jobs:
 
       - name: Package and commit only the compiled output (not the raw FFmpeg source tree)
         run: |
-          DEST="${GITHUB_WORKSPACE}/app-repo/native/decoder_ffmpeg"
-          rm -rf "$DEST"
-          mkdir -p "$DEST"
+          # Write directly into the app's actual module layout
+          # (decoder-ffmpeg/src/main/jni/ffmpeg/...) so no manual
+          # restructuring is needed after this workflow runs.
+          MODULE_JNI="${GITHUB_WORKSPACE}/app-repo/decoder-ffmpeg/src/main/jni"
+          rm -rf "$MODULE_JNI/ffmpeg"
+          mkdir -p "$MODULE_JNI/ffmpeg/android-libs"
 
-          # Module source needed to build the JNI wrapper (small — a handful of .cc/.h files).
-          cp -r "${GITHUB_WORKSPACE}/media3-source/libraries/decoder_ffmpeg/src" "$DEST/src-module"
-          # The compiled FFmpeg source tree itself is huge (hundreds of MB) and we do NOT
-          # want it in the repo — only the compiled static libraries it produced.
-          rm -rf "$DEST/src-module/main/jni/ffmpeg"
-
-          # Copy every compiled static library, preserving its relative path so the
-          # CMake build can find it the same way it would in a full local checkout.
-          mkdir -p "$DEST/prebuilt-libs"
+          # 1) Compiled static libraries, one subfolder per ABI — this is
+          #    what CMakeLists.txt actually links against.
           cd "${FFMPEG_MODULE_PATH}/jni/ffmpeg"
           while IFS= read -r -d '' f; do
-            rel="${f#./}"
-            mkdir -p "$DEST/prebuilt-libs/$(dirname "$rel")"
-            cp "$f" "$DEST/prebuilt-libs/$rel"
-          done < <(find . -name "*.a" -print0)
+            rel="${f#./android-libs/}"
+            mkdir -p "$MODULE_JNI/ffmpeg/android-libs/$(dirname "$rel")"
+            cp "$f" "$MODULE_JNI/ffmpeg/android-libs/$rel"
+          done < <(find ./android-libs -name "*.a" -print0)
+
+          # 2) Real FFmpeg headers (libavcodec/avcodec.h etc.) that
+          #    ffmpeg_jni.cc #includes to compile against — small text
+          #    files only, NOT the compiled/object-file source tree.
+          for libdir in libavcodec libavutil libswresample; do
+            if [ -d "$libdir" ]; then
+              find "$libdir" -name "*.h" -exec bash -c '
+                for f; do
+                  mkdir -p "'"$MODULE_JNI"'/ffmpeg/$(dirname "$f")"
+                  cp "$f" "'"$MODULE_JNI"'/ffmpeg/$f"
+                done
+              ' bash {} +
+            fi
+          done
           cd "${GITHUB_WORKSPACE}"
 
-          echo "Committing this diagnostic manifest so I can inspect exactly what was captured:"
-          find "$DEST" -maxdepth 5 | tee "$DEST/MANIFEST.txt"
+          echo "Captured module tree:"
+          find "$MODULE_JNI/ffmpeg" -maxdepth 3 | tee "$MODULE_JNI/ffmpeg/../MANIFEST.txt"
 
           cd "${GITHUB_WORKSPACE}/app-repo"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add native/decoder_ffmpeg
+          git add decoder-ffmpeg/src/main/jni/ffmpeg decoder-ffmpeg/src/main/jni/MANIFEST.txt
           if git diff --cached --quiet; then
             echo "Nothing changed — skipping commit."
           else
-            git commit -m "Add compiled FFmpeg audio decoder module (ac3/eac3/dca/flac/opus/vorbis/alac, arm64-v8a) — built by the ffmpeg-extension-build workflow"
+            git commit -m "FFmpeg decoder: add compiled static libs + real headers (ac3/eac3/dca/flac/opus/vorbis/alac, all ABIs) — built by the ffmpeg-extension-build workflow"
             git push origin HEAD:main
           fi
