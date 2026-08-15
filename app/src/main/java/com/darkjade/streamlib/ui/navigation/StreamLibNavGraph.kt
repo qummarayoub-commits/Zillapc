@@ -7,11 +7,11 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavBackStackEntry
-import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -26,6 +26,8 @@ import com.darkjade.streamlib.ui.screens.account.AccountScreen
 import com.darkjade.streamlib.ui.screens.account.AccountViewModel
 import com.darkjade.streamlib.ui.screens.browse.BrowseScreen
 import com.darkjade.streamlib.ui.screens.browse.BrowseViewModel
+import com.darkjade.streamlib.ui.screens.comics.ComicDetailsScreen
+import com.darkjade.streamlib.ui.screens.comics.ComicDetailsViewModel
 import com.darkjade.streamlib.ui.screens.details.DetailsScreen
 import com.darkjade.streamlib.ui.screens.details.DetailsViewModel
 import com.darkjade.streamlib.ui.screens.home.HomeScreen
@@ -37,6 +39,7 @@ import com.darkjade.streamlib.ui.screens.search.SearchViewModel
 import com.darkjade.streamlib.ui.screens.settings.SettingsScreen
 import com.darkjade.streamlib.ui.screens.settings.SettingsViewModel
 import com.darkjade.streamlib.ui.util.SimpleViewModelFactory
+import kotlinx.coroutines.launch
 
 private val topLevelRoutes = setOf(Routes.HOME, Routes.MY_LISTS, Routes.BROWSE, Routes.SEARCH, Routes.ACCOUNT)
 
@@ -44,8 +47,30 @@ private val topLevelRoutes = setOf(Routes.HOME, Routes.MY_LISTS, Routes.BROWSE, 
 fun StreamLibNavGraph(container: AppContainer) {
     val navController = rememberNavController()
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
+
+    fun playVideo(uriString: String) {
+        coroutineScope.launch {
+            val preferred = container.preferencesRepository.getPreferredPlayerPackage()
+            val result = ExternalPlayerLauncher.play(context, Uri.parse(uriString), preferredPackage = preferred)
+            if (result is PlaybackLaunchResult.NoPlayerFound) {
+                Toast.makeText(context, "No video player app found. Please install one.", Toast.LENGTH_LONG).show()
+            } else if (result is PlaybackLaunchResult.Failed) {
+                Toast.makeText(context, "Couldn't open file: ${result.message}", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    fun openComic(uriString: String) {
+        val result = ExternalPlayerLauncher.openComic(context, Uri.parse(uriString))
+        if (result is PlaybackLaunchResult.NoPlayerFound) {
+            Toast.makeText(context, "No comic reader app found. Please install one.", Toast.LENGTH_LONG).show()
+        } else if (result is PlaybackLaunchResult.Failed) {
+            Toast.makeText(context, "Couldn't open file: ${result.message}", Toast.LENGTH_LONG).show()
+        }
+    }
 
     Scaffold(
         bottomBar = {
@@ -72,11 +97,17 @@ fun StreamLibNavGraph(container: AppContainer) {
         ) {
             composable(Routes.HOME) {
                 val vm: HomeViewModel = viewModel(factory = SimpleViewModelFactory {
-                    HomeViewModel(container.libraryRepository, container.watchRepository, container.profileRepository)
+                    HomeViewModel(
+                        container.libraryRepository,
+                        container.watchRepository,
+                        container.profileRepository,
+                        container.comicRepository,
+                    )
                 })
                 HomeScreen(
                     viewModel = vm,
                     onOpenDetails = { navController.navigate(Routes.details(it)) },
+                    onOpenComicDetails = { navController.navigate(Routes.comicDetails(it)) },
                     onOpenSettings = { navController.navigate(Routes.SETTINGS) },
                     onOpenSearch = { navController.navigate(Routes.SEARCH) },
                 )
@@ -91,9 +122,13 @@ fun StreamLibNavGraph(container: AppContainer) {
 
             composable(Routes.BROWSE) {
                 val vm: BrowseViewModel = viewModel(factory = SimpleViewModelFactory {
-                    BrowseViewModel(container.libraryRepository)
+                    BrowseViewModel(container.libraryRepository, container.comicRepository)
                 })
-                BrowseScreen(viewModel = vm, onOpenDetails = { navController.navigate(Routes.details(it)) })
+                BrowseScreen(
+                    viewModel = vm,
+                    onOpenDetails = { navController.navigate(Routes.details(it)) },
+                    onOpenComicDetails = { navController.navigate(Routes.comicDetails(it)) },
+                )
             }
 
             composable(Routes.SEARCH) {
@@ -112,7 +147,12 @@ fun StreamLibNavGraph(container: AppContainer) {
 
             composable(Routes.SETTINGS) {
                 val vm: SettingsViewModel = viewModel(factory = SimpleViewModelFactory {
-                    SettingsViewModel(context.applicationContext, container.libraryRepository)
+                    SettingsViewModel(
+                        context.applicationContext,
+                        container.libraryRepository,
+                        container.comicRepository,
+                        container.preferencesRepository,
+                    )
                 })
                 SettingsScreen(viewModel = vm, onBack = { navController.popBackStack() })
             }
@@ -131,14 +171,25 @@ fun StreamLibNavGraph(container: AppContainer) {
                 DetailsScreen(
                     viewModel = vm,
                     onBack = { navController.popBackStack() },
-                    onPlay = { uriString, _ ->
-                        val result = ExternalPlayerLauncher.play(context, Uri.parse(uriString))
-                        if (result is PlaybackLaunchResult.NoPlayerFound) {
-                            Toast.makeText(context, "No video player app found. Please install one.", Toast.LENGTH_LONG).show()
-                        } else if (result is PlaybackLaunchResult.Failed) {
-                            Toast.makeText(context, "Couldn't open file: ${result.message}", Toast.LENGTH_LONG).show()
-                        }
+                    onPlay = { uriString, _ -> playVideo(uriString) }
+                )
+            }
+
+            composable(
+                route = Routes.COMIC_DETAILS,
+                arguments = listOf(navArgument("comicId") { type = NavType.LongType })
+            ) { entry: NavBackStackEntry ->
+                val comicId = entry.arguments?.getLong("comicId") ?: -1L
+                val vm: ComicDetailsViewModel = viewModel(
+                    key = "comic_details_$comicId",
+                    factory = SimpleViewModelFactory {
+                        ComicDetailsViewModel(comicId, container.comicRepository)
                     }
+                )
+                ComicDetailsScreen(
+                    viewModel = vm,
+                    onBack = { navController.popBackStack() },
+                    onOpen = { uriString -> openComic(uriString) }
                 )
             }
         }

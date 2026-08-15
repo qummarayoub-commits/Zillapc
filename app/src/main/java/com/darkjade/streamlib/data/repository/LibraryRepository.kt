@@ -77,13 +77,14 @@ class LibraryRepository(
     /** "Remove from here" — removes an entire movie/show (and its seasons/episodes) from the library. */
     suspend fun removeMediaItem(mediaItemId: Long) = mediaDao.deleteById(mediaItemId)
 
-    suspend fun addFolderSource(treeUri: String, displayName: String): Long {
+    suspend fun addFolderSource(treeUri: String, displayName: String, isComicSource: Boolean = false): Long {
         val existing = folderSourceDao.findByUri(treeUri)
         if (existing != null) return existing.id
         return folderSourceDao.insert(
             com.darkjade.streamlib.data.db.entity.FolderSourceEntity(
                 treeUri = treeUri,
                 displayName = displayName,
+                isComicSource = isComicSource,
             )
         )
     }
@@ -226,6 +227,10 @@ class LibraryRepository(
                 )
                 val id = mediaDao.insert(entity)
                 enrichMovieMetadata(id, entity)
+            } else if (existing.runtimeMinutes == null && file.durationMs > 0) {
+                // Backfill: this movie was scanned before duration tracking existed —
+                // a rescan should fill in what's missing instead of silently skipping it.
+                mediaDao.update(existing.copy(runtimeMinutes = (file.durationMs / 60000).toInt()))
             }
         } else {
             // Series or Anime: find-or-create the parent MediaItem, then the season, then episode.
@@ -278,6 +283,10 @@ class LibraryRepository(
                         quality = parsed.quality,
                     )
                 )
+            } else if (existingEpisode.durationMinutes == null && file.durationMs > 0) {
+                // Same backfill logic as movies — a rescan should fill in duration
+                // for episodes that were indexed before this feature existed.
+                episodeDao.update(existingEpisode.copy(durationMinutes = (file.durationMs / 60000).toInt()))
             }
         }
     }

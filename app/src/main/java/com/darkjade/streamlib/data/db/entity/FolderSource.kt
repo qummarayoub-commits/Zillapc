@@ -11,4 +11,7 @@ data class FolderSourceEntity(
     val addedAt: Long = System.currentTimeMillis(),
     val lastScannedAt: Long? = null,
     val itemCount: Int = 0,
+    // Persisted so video vs comics folder sources stay correctly separated
+    // across app restarts (not just in-memory for the current session).
+    val isComicSource: Boolean = false,
 )

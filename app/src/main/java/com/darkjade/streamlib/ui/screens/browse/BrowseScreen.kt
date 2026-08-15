@@ -35,6 +35,7 @@ import com.darkjade.streamlib.ui.theme.VaultSpacing
 fun BrowseScreen(
     viewModel: BrowseViewModel,
     onOpenDetails: (Long) -> Unit,
+    onOpenComicDetails: (Long) -> Unit,
 ) {
     val state by viewModel.uiState.collectAsState()
 
@@ -107,6 +108,26 @@ fun BrowseScreen(
                 color = VaultColors.Orange,
                 modifier = Modifier.padding(VaultSpacing.xl)
             )
+            state.category == BrowseCategory.COMICS -> {
+                if (state.comics.isEmpty()) {
+                    EmptyState(
+                        title = "No comics found",
+                        message = "Add a comics folder from Settings to get started.",
+                    )
+                } else {
+                    LazyVerticalGrid(
+                        columns = GridCells.Adaptive(minSize = 110.dp),
+                        contentPadding = PaddingValues(VaultSpacing.md),
+                        verticalArrangement = Arrangement.spacedBy(VaultSpacing.sm),
+                        horizontalArrangement = Arrangement.spacedBy(VaultSpacing.sm),
+                        modifier = Modifier.fillMaxSize(),
+                    ) {
+                        gridItems(state.comics, key = { it.id }) { comic ->
+                            com.darkjade.streamlib.ui.components.ComicCard(comic = comic, onClick = { onOpenComicDetails(comic.id) })
+                        }
+                    }
+                }
+            }
             state.displayedItems.isEmpty() -> EmptyState(
                 title = "No results found",
                 message = "Try a different category or filter.",
@@ -133,6 +154,7 @@ private fun BrowseCategory.label() = when (this) {
     BrowseCategory.MOVIES -> "Movies"
     BrowseCategory.SERIES -> "Series"
     BrowseCategory.ANIME -> "Anime"
+    BrowseCategory.COMICS -> "Comics"
 }
 
 private fun SortOrder.label() = when (this) {

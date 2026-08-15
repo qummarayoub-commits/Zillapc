@@ -1,6 +1,7 @@
 package com.darkjade.streamlib.ui.screens.home
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.PlayArrow
@@ -29,14 +29,16 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
+import coil.compose.SubcomposeAsyncImage
+import com.darkjade.streamlib.data.db.entity.ComicEntity
 import com.darkjade.streamlib.data.db.entity.MediaItemEntity
+import com.darkjade.streamlib.ui.components.ComicRail
 import com.darkjade.streamlib.ui.components.EmptyState
 import com.darkjade.streamlib.ui.components.MediaRail
 import com.darkjade.streamlib.ui.theme.VaultColors
@@ -48,6 +50,7 @@ import com.darkjade.streamlib.ui.theme.VaultSpacing
 fun HomeScreen(
     viewModel: HomeViewModel,
     onOpenDetails: (Long) -> Unit,
+    onOpenComicDetails: (Long) -> Unit,
     onOpenSettings: () -> Unit,
     onOpenSearch: () -> Unit,
 ) {
@@ -81,9 +84,15 @@ fun HomeScreen(
                     item {
                         HomeTopBar(onOpenSearch = onOpenSearch, onOpenSettings = onOpenSettings)
                     }
+                    // Top: main rotating banner across everything (movies, series, comics).
                     state.hero?.let { hero ->
                         item {
-                            HeroSection(item = hero, onWatch = { onOpenDetails(hero.id) }, onOpenDetails = { onOpenDetails(hero.id) })
+                            HeroSection(
+                                hero = hero,
+                                height = VaultSizes.heroHeight,
+                                onWatch = { openHero(hero, onOpenDetails, onOpenComicDetails) },
+                                onOpenDetails = { openHero(hero, onOpenDetails, onOpenComicDetails) },
+                            )
                         }
                     }
                     item {
@@ -92,18 +101,50 @@ fun HomeScreen(
                     item {
                         MediaRail("Recently Added", state.recentlyAdded, onItemClick = { onOpenDetails(it.id) })
                     }
+
+                    // Movies section, then a dedicated movie banner right below it.
                     item {
                         MediaRail("Movies", state.movies, onItemClick = { onOpenDetails(it.id) })
                     }
+                    state.movieBanner?.let { movie ->
+                        item {
+                            SecondaryMediaBanner(item = movie, onClick = { onOpenDetails(movie.id) })
+                        }
+                    }
+
+                    // Series section, then a dedicated series banner.
                     item {
                         MediaRail("Series", state.series, onItemClick = { onOpenDetails(it.id) })
                     }
+                    state.seriesBanner?.let { series ->
+                        item {
+                            SecondaryMediaBanner(item = series, onClick = { onOpenDetails(series.id) })
+                        }
+                    }
+
                     item {
                         MediaRail("Anime", state.anime, onItemClick = { onOpenDetails(it.id) })
+                    }
+
+                    // Comics section, then a dedicated comics banner.
+                    item {
+                        ComicRail("Comics", state.comics, onItemClick = { onOpenComicDetails(it.id) })
+                    }
+                    state.comicsBanner?.let { comic ->
+                        item {
+                            SecondaryComicBanner(comic = comic, onClick = { onOpenComicDetails(comic.id) })
+                        }
                     }
                 }
             }
         }
+    }
+}
+
+private fun openHero(hero: HeroCandidate, onOpenDetails: (Long) -> Unit, onOpenComicDetails: (Long) -> Unit) {
+    when (hero) {
+        is HeroCandidate.Media -> onOpenDetails(hero.id)
+        is HeroCandidate.Comic -> onOpenComicDetails(hero.id)
     }
 }
 
@@ -131,21 +172,24 @@ private fun HomeTopBar(onOpenSearch: () -> Unit, onOpenSettings: () -> Unit) {
 
 @Composable
 private fun HeroSection(
-    item: MediaItemEntity,
+    hero: HeroCandidate,
+    height: androidx.compose.ui.unit.Dp,
     onWatch: () -> Unit,
     onOpenDetails: () -> Unit,
 ) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(VaultSizes.heroHeight)
+            .height(height)
     ) {
-        if (item.backdropUrl != null) {
-            AsyncImage(
-                model = item.backdropUrl,
-                contentDescription = item.title,
+        if (hero.backdropUrl != null) {
+            SubcomposeAsyncImage(
+                model = hero.backdropUrl,
+                contentDescription = hero.title,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
+                loading = { Box(modifier = Modifier.fillMaxSize().background(VaultColors.SurfaceVariant)) },
+                error = { Box(modifier = Modifier.fillMaxSize().background(VaultColors.SurfaceVariant)) },
             )
         } else {
             Box(modifier = Modifier.fillMaxSize().background(VaultColors.SurfaceVariant))
@@ -166,13 +210,13 @@ private fun HeroSection(
                 .padding(VaultSpacing.md)
         ) {
             Text(
-                text = item.title,
+                text = hero.title,
                 style = MaterialTheme.typography.headlineLarge,
                 color = VaultColors.TextPrimary,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
-            item.overview?.let {
+            hero.overview?.let {
                 Text(
                     text = it,
                     style = MaterialTheme.typography.bodyMedium,
@@ -189,7 +233,7 @@ private fun HeroSection(
                     colors = ButtonDefaults.buttonColors(containerColor = VaultColors.Orange, contentColor = Color.White),
                 ) {
                     Icon(Icons.Filled.PlayArrow, contentDescription = null)
-                    Text(text = " Watch", modifier = Modifier.padding(start = 2.dp))
+                    Text(text = if (hero is HeroCandidate.Comic) " Read" else " Watch", modifier = Modifier.padding(start = 2.dp))
                 }
                 OutlinedButton(
                     onClick = onOpenDetails,
@@ -204,3 +248,84 @@ private fun HeroSection(
         }
     }
 }
+
+/**
+ * Smaller, compact banner used between sections (e.g. below "Movies", below
+ * "Series") — deliberately lower height than the main hero and with no
+ * buttons, so the page reads as one movie/series highlighted per section
+ * rather than looking cluttered with repeated full-size heroes.
+ */
+@Composable
+private fun SecondaryMediaBanner(item: MediaItemEntity, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(160.dp)
+            .padding(horizontal = VaultSpacing.md, vertical = VaultSpacing.xs)
+            .clip(VaultShapes.card)
+            .background(VaultColors.SurfaceVariant)
+            .clickable(onClick = onClick)
+    ) {
+        if (item.backdropUrl != null || item.posterUrl != null) {
+            SubcomposeAsyncImage(
+                model = item.backdropUrl ?: item.posterUrl,
+                contentDescription = item.title,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+                loading = {},
+                error = {},
+            )
+        }
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Brush.horizontalGradient(listOf(VaultColors.Background, Color.Transparent)))
+        )
+        Text(
+            text = item.title,
+            style = MaterialTheme.typography.titleMedium,
+            color = VaultColors.TextPrimary,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.align(Alignment.BottomStart).padding(VaultSpacing.sm)
+        )
+    }
+}
+
+@Composable
+private fun SecondaryComicBanner(comic: ComicEntity, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(160.dp)
+            .padding(horizontal = VaultSpacing.md, vertical = VaultSpacing.xs)
+            .clip(VaultShapes.card)
+            .background(VaultColors.SurfaceVariant)
+            .clickable(onClick = onClick)
+    ) {
+        if (comic.coverUrl != null) {
+            SubcomposeAsyncImage(
+                model = comic.coverUrl,
+                contentDescription = comic.title,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+                loading = {},
+                error = {},
+            )
+        }
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Brush.horizontalGradient(listOf(VaultColors.Background, Color.Transparent)))
+        )
+        Text(
+            text = comic.title,
+            style = MaterialTheme.typography.titleMedium,
+            color = VaultColors.TextPrimary,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.align(Alignment.BottomStart).padding(VaultSpacing.sm)
+        )
+    }
+}
+

@@ -5,6 +5,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import com.darkjade.streamlib.data.db.dao.ComicDao
 import com.darkjade.streamlib.data.db.dao.EpisodeDao
 import com.darkjade.streamlib.data.db.dao.FolderSourceDao
 import com.darkjade.streamlib.data.db.dao.MediaItemDao
@@ -13,6 +14,7 @@ import com.darkjade.streamlib.data.db.dao.ScanStatusDao
 import com.darkjade.streamlib.data.db.dao.SeasonDao
 import com.darkjade.streamlib.data.db.dao.WatchHistoryDao
 import com.darkjade.streamlib.data.db.dao.WatchlistDao
+import com.darkjade.streamlib.data.db.entity.ComicEntity
 import com.darkjade.streamlib.data.db.entity.EpisodeEntity
 import com.darkjade.streamlib.data.db.entity.FolderSourceEntity
 import com.darkjade.streamlib.data.db.entity.MediaItemEntity
@@ -32,8 +34,9 @@ import com.darkjade.streamlib.data.db.entity.WatchlistEntity
         WatchlistEntity::class,
         FolderSourceEntity::class,
         ScanStatusEntity::class,
+        ComicEntity::class,
     ],
-    version = 2,
+    version = 4,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -46,6 +49,7 @@ abstract class StreamLibDatabase : RoomDatabase() {
     abstract fun watchlistDao(): WatchlistDao
     abstract fun folderSourceDao(): FolderSourceDao
     abstract fun scanStatusDao(): ScanStatusDao
+    abstract fun comicDao(): ComicDao
 
     companion object {
         @Volatile private var INSTANCE: StreamLibDatabase? = null

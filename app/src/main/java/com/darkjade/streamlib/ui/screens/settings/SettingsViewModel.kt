@@ -1,12 +1,16 @@
 package com.darkjade.streamlib.ui.screens.settings
 
 import android.content.Context
+import android.content.pm.PackageManager
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.darkjade.streamlib.data.db.entity.FolderSourceEntity
 import com.darkjade.streamlib.data.db.entity.ScanStatusEntity
+import com.darkjade.streamlib.data.metadata.comicvine.ComicVineConfig
+import com.darkjade.streamlib.data.repository.ComicRepository
 import com.darkjade.streamlib.data.repository.LibraryRepository
+import com.darkjade.streamlib.data.repository.PreferencesRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -14,14 +18,23 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+data class InstalledPlayerApp(val packageName: String, val label: String)
+
 data class SettingsUiState(
     val folderSources: List<FolderSourceEntity> = emptyList(),
     val scanStatus: ScanStatusEntity? = null,
+    val comicFolderSources: List<FolderSourceEntity> = emptyList(),
+    val comicScanStatus: ScanStatusEntity? = null,
+    val comicVineApiKey: String = "",
+    val preferredPlayerPackage: String? = null,
+    val installedPlayers: List<InstalledPlayerApp> = emptyList(),
 )
 
 class SettingsViewModel(
     private val appContext: Context,
     private val libraryRepository: LibraryRepository,
+    private val comicRepository: ComicRepository,
+    private val preferencesRepository: PreferencesRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -31,7 +44,10 @@ class SettingsViewModel(
         viewModelScope.launch {
             launch {
                 libraryRepository.observeFolderSources().collect { sources ->
-                    _uiState.value = _uiState.value.copy(folderSources = sources)
+                    _uiState.value = _uiState.value.copy(
+                        folderSources = sources.filterNot { it.isComicSource },
+                        comicFolderSources = sources.filter { it.isComicSource },
+                    )
                 }
             }
             launch {
@@ -39,6 +55,23 @@ class SettingsViewModel(
                     _uiState.value = _uiState.value.copy(scanStatus = status)
                 }
             }
+            launch {
+                comicRepository.observeComicScanStatus().collect { status ->
+                    _uiState.value = _uiState.value.copy(comicScanStatus = status)
+                }
+            }
+            launch {
+                preferencesRepository.observeComicVineApiKey().collect { key ->
+                    _uiState.value = _uiState.value.copy(comicVineApiKey = key.orEmpty())
+                    ComicVineConfig.apiKey = key.orEmpty()
+                }
+            }
+            launch {
+                preferencesRepository.observePreferredPlayerPackage().collect { pkg ->
+                    _uiState.value = _uiState.value.copy(preferredPlayerPackage = pkg)
+                }
+            }
+            _uiState.value = _uiState.value.copy(installedPlayers = queryInstalledPlayers())
         }
     }
 
@@ -87,6 +120,61 @@ class SettingsViewModel(
                     // Never crash.
                 }
             }
+        }
+    }
+
+    /** Comics folder — scoped SAF pick, scans only comic files (.cbz/.cbr/.cb7/.pdf). */
+    fun onComicFolderSelected(treeUri: Uri, displayName: String) {
+        viewModelScope.launch {
+            try {
+                val folderSourceId = libraryRepository.addFolderSource(treeUri.toString(), displayName, isComicSource = true)
+                withContext(Dispatchers.IO) {
+                    comicRepository.scanFolder(treeUri, folderSourceId) { }
+                }
+            } catch (e: Exception) {
+                // Never crash.
+            }
+        }
+    }
+
+    fun rescanComics() {
+        viewModelScope.launch {
+            _uiState.value.comicFolderSources.forEach { source ->
+                try {
+                    withContext(Dispatchers.IO) {
+                        comicRepository.scanFolder(Uri.parse(source.treeUri), source.id) { }
+                    }
+                } catch (e: Exception) {
+                    // Never crash.
+                }
+            }
+        }
+    }
+
+    fun setComicVineApiKey(key: String) {
+        viewModelScope.launch {
+            preferencesRepository.setComicVineApiKey(key)
+            ComicVineConfig.apiKey = key
+        }
+    }
+
+    fun setPreferredPlayer(packageName: String?) {
+        viewModelScope.launch { preferencesRepository.setPreferredPlayerPackage(packageName) }
+    }
+
+    private fun queryInstalledPlayers(): List<InstalledPlayerApp> {
+        return try {
+            val pm = appContext.packageManager
+            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+                setDataAndType(android.net.Uri.parse("content://media/external/video/media/1"), "video/*")
+            }
+            val resolveInfos = pm.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY)
+            resolveInfos
+                .map { InstalledPlayerApp(it.activityInfo.packageName, it.loadLabel(pm).toString()) }
+                .distinctBy { it.packageName }
+                .sortedBy { it.label }
+        } catch (e: Exception) {
+            emptyList()
         }
     }
 }

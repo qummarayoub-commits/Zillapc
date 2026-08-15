@@ -2,8 +2,10 @@ package com.darkjade.streamlib.ui.screens.browse
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.darkjade.streamlib.data.db.entity.ComicEntity
 import com.darkjade.streamlib.data.db.entity.MediaItemEntity
 import com.darkjade.streamlib.data.db.entity.MediaType
+import com.darkjade.streamlib.data.repository.ComicRepository
 import com.darkjade.streamlib.data.repository.LibraryRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -12,7 +14,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 
-enum class BrowseCategory { ALL, MOVIES, SERIES, ANIME }
+enum class BrowseCategory { ALL, MOVIES, SERIES, ANIME, COMICS }
 enum class SortOrder { RECENTLY_ADDED, A_Z, YEAR }
 
 data class BrowseUiState(
@@ -21,11 +23,15 @@ data class BrowseUiState(
     val sortOrder: SortOrder = SortOrder.RECENTLY_ADDED,
     val allItems: List<MediaItemEntity> = emptyList(),
     val displayedItems: List<MediaItemEntity> = emptyList(),
+    val comics: List<ComicEntity> = emptyList(),
     val genres: List<String> = emptyList(),
     val selectedGenre: String? = null,
 )
 
-class BrowseViewModel(private val libraryRepository: LibraryRepository) : ViewModel() {
+class BrowseViewModel(
+    private val libraryRepository: LibraryRepository,
+    private val comicRepository: ComicRepository,
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(BrowseUiState())
     val uiState: StateFlow<BrowseUiState> = _uiState.asStateFlow()
@@ -41,6 +47,12 @@ class BrowseViewModel(private val libraryRepository: LibraryRepository) : ViewMo
                     genres = genres,
                 )
                 applyFilters()
+            }
+            .launchIn(viewModelScope)
+
+        comicRepository.observeAll()
+            .onEach { comics ->
+                _uiState.value = _uiState.value.copy(comics = comics)
             }
             .launchIn(viewModelScope)
     }
@@ -69,6 +81,7 @@ class BrowseViewModel(private val libraryRepository: LibraryRepository) : ViewMo
             BrowseCategory.MOVIES -> items.filter { it.type == MediaType.MOVIE }
             BrowseCategory.SERIES -> items.filter { it.type == MediaType.SERIES }
             BrowseCategory.ANIME -> items.filter { it.type == MediaType.ANIME }
+            BrowseCategory.COMICS -> emptyList() // comics render from state.comics separately
         }
 
         state.selectedGenre?.let { genre ->

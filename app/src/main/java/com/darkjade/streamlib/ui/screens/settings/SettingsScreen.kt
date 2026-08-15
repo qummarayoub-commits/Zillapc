@@ -8,6 +8,7 @@ import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -20,8 +21,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material3.Button
@@ -32,6 +36,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -62,6 +68,7 @@ fun SettingsScreen(
     val state by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     var permissionDenied by remember { mutableStateOf(false) }
+    var comicVineKeyField by remember(state.comicVineApiKey) { mutableStateOf(state.comicVineApiKey) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -102,6 +109,25 @@ fun SettingsScreen(
             }
             val name = uri.lastPathSegment ?: "Folder"
             viewModel.onFolderSelected(uri, name)
+        }
+    }
+
+    // Comics get their own folder picker — kept fully separate from the video
+    // folder picker above so picking a comics folder never touches video scanning.
+    val comicFolderPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocumentTree()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            try {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
+                )
+            } catch (e: SecurityException) {
+                // Non-fatal.
+            }
+            val name = uri.lastPathSegment ?: "Comics"
+            viewModel.onComicFolderSelected(uri, name)
         }
     }
 
@@ -212,6 +238,124 @@ fun SettingsScreen(
 
             item {
                 Divider(color = VaultColors.Divider, modifier = Modifier.padding(vertical = VaultSpacing.sm))
+                SectionHeader("Comics")
+                Text(
+                    "Comics are scanned completely separately from videos — only .cbz/.cbr/.cb7/.pdf files in the folder you pick below are added.",
+                    color = VaultColors.TextSecondary,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(bottom = VaultSpacing.sm)
+                )
+            }
+            item {
+                OutlinedTextField(
+                    value = comicVineKeyField,
+                    onValueChange = { comicVineKeyField = it },
+                    label = { Text("Comic Vine API key") },
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = VaultColors.Orange,
+                        unfocusedBorderColor = VaultColors.Divider,
+                        focusedTextColor = VaultColors.TextPrimary,
+                        unfocusedTextColor = VaultColors.TextPrimary,
+                        cursorColor = VaultColors.Orange,
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Button(
+                    onClick = { viewModel.setComicVineApiKey(comicVineKeyField.trim()) },
+                    shape = VaultShapes.button,
+                    colors = ButtonDefaults.buttonColors(containerColor = VaultColors.SurfaceVariant, contentColor = VaultColors.TextPrimary),
+                    modifier = Modifier.fillMaxWidth().padding(top = VaultSpacing.xs, bottom = VaultSpacing.sm)
+                ) {
+                    Text("Save Comic Vine Key")
+                }
+            }
+            items(state.comicFolderSources, key = { it.id }) { source ->
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = VaultSpacing.xs),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(Icons.Filled.MenuBook, contentDescription = null, tint = VaultColors.Orange)
+                    Column(modifier = Modifier.padding(start = VaultSpacing.sm).weight(1f)) {
+                        Text(source.displayName, color = VaultColors.TextPrimary, style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            "${source.itemCount} comics",
+                            color = VaultColors.TextSecondary,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                }
+            }
+            item {
+                val comicStatus = state.comicScanStatus
+                if (comicStatus != null && comicStatus.state == ScanState.SCANNING) {
+                    Column(modifier = Modifier.padding(vertical = VaultSpacing.sm)) {
+                        Text(
+                            "Scanning comics… ${comicStatus.filesProcessed}/${comicStatus.filesFound.coerceAtLeast(1)}",
+                            color = VaultColors.TextSecondary,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                        LinearProgressIndicator(
+                            progress = if (comicStatus.filesFound > 0) comicStatus.filesProcessed / comicStatus.filesFound.toFloat() else 0f,
+                            color = VaultColors.Orange,
+                            trackColor = VaultColors.SurfaceVariant,
+                            modifier = Modifier.fillMaxWidth().padding(top = VaultSpacing.xxs)
+                        )
+                    }
+                } else {
+                    OutlinedButton(
+                        onClick = { comicFolderPicker.launch(null) },
+                        shape = VaultShapes.button,
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = VaultColors.TextPrimary),
+                        modifier = Modifier.fillMaxWidth().padding(vertical = VaultSpacing.xs)
+                    ) {
+                        Icon(Icons.Filled.CreateNewFolder, contentDescription = null)
+                        Text(" Add Comics Folder", modifier = Modifier.padding(start = 4.dp))
+                    }
+                    if (state.comicFolderSources.isNotEmpty()) {
+                        OutlinedButton(
+                            onClick = { viewModel.rescanComics() },
+                            shape = VaultShapes.button,
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = VaultColors.TextPrimary),
+                            modifier = Modifier.fillMaxWidth().padding(top = VaultSpacing.xs)
+                        ) {
+                            Icon(Icons.Filled.Refresh, contentDescription = null)
+                            Text(" Rescan Comics", modifier = Modifier.padding(start = 4.dp))
+                        }
+                    }
+                    comicStatus?.errorMessage?.let {
+                        Text(it, color = VaultColors.Error, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = VaultSpacing.xxs))
+                    }
+                }
+            }
+
+            item {
+                Divider(color = VaultColors.Divider, modifier = Modifier.padding(vertical = VaultSpacing.sm))
+                SectionHeader("Default Player")
+                Text(
+                    "Choose an app to always open videos with, skipping the chooser every time.",
+                    color = VaultColors.TextSecondary,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(bottom = VaultSpacing.sm)
+                )
+            }
+            item {
+                PlayerOptionRow(
+                    label = "Always ask",
+                    selected = state.preferredPlayerPackage == null,
+                    onClick = { viewModel.setPreferredPlayer(null) },
+                )
+            }
+            items(state.installedPlayers, key = { it.packageName }) { app ->
+                PlayerOptionRow(
+                    label = app.label,
+                    selected = state.preferredPlayerPackage == app.packageName,
+                    onClick = { viewModel.setPreferredPlayer(app.packageName) },
+                )
+            }
+
+            item {
+                Divider(color = VaultColors.Divider, modifier = Modifier.padding(vertical = VaultSpacing.sm))
                 SectionHeader("Metadata")
                 val apiKeyConfigured = com.darkjade.streamlib.BuildConfig.TMDB_API_KEY.isNotBlank()
                 if (apiKeyConfigured) {
@@ -237,7 +381,7 @@ fun SettingsScreen(
                 Divider(color = VaultColors.Divider, modifier = Modifier.padding(vertical = VaultSpacing.sm))
                 SectionHeader("Playback")
                 Text(
-                    "Videos always open in your installed external player via Android's chooser. This app never plays video internally.",
+                    "Videos and comics always open in your installed external apps via Android's chooser (or your chosen default player above). This app never plays video or renders comics internally.",
                     color = VaultColors.TextSecondary,
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.padding(bottom = VaultSpacing.sm)
@@ -255,6 +399,24 @@ fun SettingsScreen(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun PlayerOptionRow(label: String, selected: Boolean, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = VaultSpacing.xs),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = if (selected) Icons.Filled.CheckCircle else Icons.Filled.RadioButtonUnchecked,
+            contentDescription = null,
+            tint = if (selected) VaultColors.Orange else VaultColors.TextTertiary,
+        )
+        Text(label, color = VaultColors.TextPrimary, modifier = Modifier.padding(start = VaultSpacing.sm))
     }
 }
 

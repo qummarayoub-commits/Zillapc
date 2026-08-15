@@ -38,6 +38,9 @@ class AccountViewModel(private val profileRepository: ProfileRepository) : ViewM
         _uiState.value = _uiState.value.copy(activeProfile = profile)
     }
 
+    /** Sets the profile's picture to a picked content URI (persisted as a string). */
+    fun setAvatar(uriString: String) = updateActiveProfile { it.copy(avatarRes = uriString) }
+
     private val restrictionOptions = listOf("None", "7+", "13+", "16+", "18+")
     private val languageOptions = listOf("English", "Urdu", "Spanish", "Hindi")
 

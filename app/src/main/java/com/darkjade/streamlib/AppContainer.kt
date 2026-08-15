@@ -2,8 +2,11 @@ package com.darkjade.streamlib
 
 import android.content.Context
 import com.darkjade.streamlib.data.metadata.MetadataProvider
+import com.darkjade.streamlib.data.metadata.comicvine.ComicVineMetadataProvider
 import com.darkjade.streamlib.data.metadata.tmdb.TmdbMetadataProvider
+import com.darkjade.streamlib.data.repository.ComicRepository
 import com.darkjade.streamlib.data.repository.LibraryRepository
+import com.darkjade.streamlib.data.repository.PreferencesRepository
 import com.darkjade.streamlib.data.repository.ProfileRepository
 import com.darkjade.streamlib.data.repository.WatchRepository
 
@@ -17,4 +20,7 @@ class AppContainer(context: Context) {
     val libraryRepository = LibraryRepository(context, metadataProvider)
     val profileRepository = ProfileRepository(context)
     val watchRepository = WatchRepository(context)
+    val preferencesRepository = PreferencesRepository(context)
+    val comicVineMetadataProvider = ComicVineMetadataProvider()
+    val comicRepository = ComicRepository(context, comicVineMetadataProvider)
 }

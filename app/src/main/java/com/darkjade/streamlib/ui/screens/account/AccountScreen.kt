@@ -1,8 +1,13 @@
 package com.darkjade.streamlib.ui.screens.account
 
+import android.content.Intent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -14,10 +19,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
@@ -37,7 +42,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import coil.compose.SubcomposeAsyncImage
+import com.darkjade.streamlib.R
 import com.darkjade.streamlib.data.db.entity.ProfileEntity
 import com.darkjade.streamlib.ui.theme.VaultColors
 import com.darkjade.streamlib.ui.theme.VaultSpacing
@@ -48,7 +58,25 @@ fun AccountScreen(
     onOpenSettings: () -> Unit,
 ) {
     val state by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
     var showSwitchDialog by remember { mutableStateOf(false) }
+
+    val avatarPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri != null) {
+            try {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            } catch (e: SecurityException) {
+                // Non-fatal — the photo picker still grants enough access for this session;
+                // worst case the picture needs to be re-picked after a device restart.
+            }
+            viewModel.setAvatar(uri.toString())
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -73,12 +101,39 @@ fun AccountScreen(
         Spacer(Modifier.height(VaultSpacing.lg))
 
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-            Icon(
-                Icons.Filled.AccountCircle,
-                contentDescription = null,
-                tint = VaultColors.Orange,
-                modifier = Modifier.size(88.dp).clip(CircleShape)
-            )
+            Box(modifier = Modifier.size(88.dp)) {
+                val avatarUri = state.activeProfile?.avatarRes
+                if (avatarUri != null) {
+                    SubcomposeAsyncImage(
+                        model = avatarUri,
+                        contentDescription = "Profile picture",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize().clip(CircleShape),
+                        loading = { DefaultAvatar() },
+                        error = { DefaultAvatar() },
+                    )
+                } else {
+                    DefaultAvatar()
+                }
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .size(28.dp)
+                        .clip(CircleShape)
+                        .background(VaultColors.Orange)
+                        .clickable {
+                            avatarPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                        },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        Icons.Filled.Edit,
+                        contentDescription = "Change picture",
+                        tint = androidx.compose.ui.graphics.Color.White,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
             Text(
                 state.activeProfile?.name ?: "Profile",
                 style = MaterialTheme.typography.titleLarge,
@@ -126,6 +181,17 @@ fun AccountScreen(
             onDismiss = { showSwitchDialog = false },
         )
     }
+}
+
+/** Shown until the user picks their own profile picture. */
+@Composable
+private fun DefaultAvatar() {
+    androidx.compose.foundation.Image(
+        painter = painterResource(R.drawable.default_avatar),
+        contentDescription = "Default profile picture",
+        contentScale = ContentScale.Crop,
+        modifier = Modifier.fillMaxSize().clip(CircleShape)
+    )
 }
 
 @Composable

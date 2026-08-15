@@ -38,4 +38,9 @@ interface ScanStatusDao {
 
     @Query("SELECT * FROM scan_status WHERE id = 0")
     fun observe(): Flow<ScanStatusEntity?>
+
+    // id = 1 is used for comic scans — kept separate from video scan status
+    // (id = 0) so scanning videos and comics never show each other's progress.
+    @Query("SELECT * FROM scan_status WHERE id = 1")
+    fun observeComicScan(): Flow<ScanStatusEntity?>
 }
