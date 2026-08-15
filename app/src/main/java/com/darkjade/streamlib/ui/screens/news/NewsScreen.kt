@@ -12,21 +12,17 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Article
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -59,42 +55,63 @@ fun NewsScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
 
-    Column(modifier = Modifier.fillMaxSize().background(VaultColors.Background)) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(VaultColors.Background)
+    ) {
         Text(
-            "News",
+            text = "News",
             style = MaterialTheme.typography.headlineSmall,
             color = VaultColors.TextPrimary,
-            modifier = Modifier.padding(horizontal = VaultSpacing.md, vertical = VaultSpacing.sm)
+            modifier = Modifier.padding(
+                horizontal = VaultSpacing.md,
+                vertical = VaultSpacing.sm
+            )
         )
 
         // Movie / Series / Comics shortcut banners — ABOVE the filters/feed.
-        if (state.movieBanner != null || state.seriesBanner != null || state.comicBanner != null) {
+        if (
+            state.movieBanner != null ||
+            state.seriesBanner != null ||
+            state.comicBanner != null
+        ) {
             Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = VaultSpacing.md),
-                horizontalArrangement = Arrangement.spacedBy(VaultSpacing.xs),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = VaultSpacing.md),
+                horizontalArrangement = Arrangement.spacedBy(VaultSpacing.xs)
             ) {
                 state.movieBanner?.let { movie ->
                     ShortcutBanner(
                         label = "Movies",
                         imageUrl = movie.posterUrl,
                         modifier = Modifier.weight(1f),
-                        onClick = { viewModel.setCategory(NewsCategory.MOVIES) }
+                        onClick = {
+                            viewModel.setCategory(NewsCategory.MOVIES)
+                        }
                     )
                 }
+
                 state.seriesBanner?.let { series ->
                     ShortcutBanner(
                         label = "Series",
                         imageUrl = series.posterUrl,
                         modifier = Modifier.weight(1f),
-                        onClick = { viewModel.setCategory(NewsCategory.SERIES) }
+                        onClick = {
+                            viewModel.setCategory(NewsCategory.SERIES)
+                        }
                     )
                 }
+
                 state.comicBanner?.let { comic ->
                     ShortcutBanner(
                         label = "Comics",
                         imageUrl = comic.coverUrl,
                         modifier = Modifier.weight(1f),
-                        onClick = { viewModel.setCategory(NewsCategory.COMICS) }
+                        onClick = {
+                            viewModel.setCategory(NewsCategory.COMICS)
+                        }
                     )
                 }
             }
@@ -103,77 +120,152 @@ fun NewsScreen(
         OutlinedTextField(
             value = state.query,
             onValueChange = viewModel::onQueryChange,
-            placeholder = { Text("Search a movie, series, anime, comic…") },
-            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null, tint = VaultColors.TextSecondary) },
+            placeholder = {
+                Text("Search a movie, series, anime, comic…")
+            },
+            leadingIcon = {
+                Icon(
+                    Icons.Filled.Search,
+                    contentDescription = null,
+                    tint = VaultColors.TextSecondary
+                )
+            },
             singleLine = true,
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = VaultColors.Orange,
                 unfocusedBorderColor = VaultColors.Divider,
                 focusedTextColor = VaultColors.TextPrimary,
                 unfocusedTextColor = VaultColors.TextPrimary,
-                cursorColor = VaultColors.Orange,
+                cursorColor = VaultColors.Orange
             ),
-            modifier = Modifier.fillMaxWidth().padding(horizontal = VaultSpacing.md, vertical = VaultSpacing.sm)
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(
+                    horizontal = VaultSpacing.md,
+                    vertical = VaultSpacing.sm
+                )
         )
 
         if (state.searchResults == null) {
             // Category filter chips — only relevant for the browse feed, not search results.
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(VaultSpacing.xs),
-                contentPadding = PaddingValues(horizontal = VaultSpacing.md, vertical = VaultSpacing.sm),
+                contentPadding = PaddingValues(
+                    horizontal = VaultSpacing.md,
+                    vertical = VaultSpacing.sm
+                )
             ) {
                 item {
-                    CategoryChip("All", state.selectedCategory == null) { viewModel.setCategory(null) }
+                    CategoryChip(
+                        label = "All",
+                        selected = state.selectedCategory == null
+                    ) {
+                        viewModel.setCategory(null)
+                    }
                 }
+
                 items(NewsCategory.entries.toList()) { category ->
-                    CategoryChip(category.label(), state.selectedCategory == category) { viewModel.setCategory(category) }
+                    CategoryChip(
+                        label = category.label(),
+                        selected = state.selectedCategory == category
+                    ) {
+                        viewModel.setCategory(category)
+                    }
                 }
             }
         }
 
         val allForCategory = state.searchResults ?: run {
             val cat = state.selectedCategory
-            if (cat == null) state.allArticles else state.allArticles.filter { it.category == cat }
+            if (cat == null) {
+                state.allArticles
+            } else {
+                state.allArticles.filter { it.category == cat }
+            }
         }
-        // Default feed stays capped to a reasonable number (10) instead of
-        // flooding the screen — "Load More" reveals more, matching the spec.
+
+        // Default feed stays capped to a reasonable number (10)
+        // instead of flooding the screen.
         val isSearching = state.searchResults != null
-        val displayedArticles = if (isSearching) allForCategory else allForCategory.take(state.visibleCount)
-        val hasMore = !isSearching && allForCategory.size > state.visibleCount
+
+        val displayedArticles =
+            if (isSearching) {
+                allForCategory
+            } else {
+                allForCategory.take(state.visibleCount)
+            }
+
+        val hasMore =
+            !isSearching && allForCategory.size > state.visibleCount
 
         when {
-            state.isLoading -> CircularProgressIndicator(color = VaultColors.Orange, modifier = Modifier.padding(VaultSpacing.xl))
-            state.isOffline && displayedArticles.isEmpty() -> EmptyState(
-                title = "You're offline",
-                message = "Connect to the internet to load the latest news.",
-                actionLabel = "Retry",
-                onAction = { viewModel.refresh() },
-            )
-            isSearching && displayedArticles.isEmpty() -> EmptyState(
-                title = "No results found.",
-                message = "Try a different title or keyword.",
-            )
-            displayedArticles.isEmpty() -> EmptyState(
-                title = "No news yet",
-                message = "Pull to refresh, or check back soon.",
-                actionLabel = "Refresh",
-                onAction = { viewModel.refresh() },
-            )
+            state.isLoading -> {
+                CircularProgressIndicator(
+                    color = VaultColors.Orange,
+                    modifier = Modifier.padding(VaultSpacing.xl)
+                )
+            }
+
+            state.isOffline && displayedArticles.isEmpty() -> {
+                EmptyState(
+                    title = "You're offline",
+                    message = "Connect to the internet to load the latest news.",
+                    actionLabel = "Retry",
+                    onAction = { viewModel.refresh() }
+                )
+            }
+
+            isSearching && displayedArticles.isEmpty() -> {
+                EmptyState(
+                    title = "No results found.",
+                    message = "Try a different title or keyword."
+                )
+            }
+
+            displayedArticles.isEmpty() -> {
+                EmptyState(
+                    title = "No news yet",
+                    message = "Pull to refresh, or check back soon.",
+                    actionLabel = "Refresh",
+                    onAction = { viewModel.refresh() }
+                )
+            }
+
             else -> {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = VaultSpacing.xl)
+                    contentPadding = PaddingValues(
+                        bottom = VaultSpacing.xl
+                    )
                 ) {
-                    items(displayedArticles, key = { it.id }) { article ->
-                        NewsArticleCard(article = article, onClick = { onOpenArticle(article.id) })
+                    items(
+                        displayedArticles,
+                        key = { it.id }
+                    ) { article ->
+                        NewsArticleCard(
+                            article = article,
+                            onClick = {
+                                onOpenArticle(article.id)
+                            }
+                        )
                     }
+
                     if (hasMore) {
                         item {
                             OutlinedButton(
-                                onClick = { viewModel.loadMore() },
+                                onClick = {
+                                    viewModel.loadMore()
+                                },
                                 shape = VaultShapes.button,
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = VaultColors.TextPrimary),
-                                modifier = Modifier.fillMaxWidth().padding(horizontal = VaultSpacing.md, vertical = VaultSpacing.sm)
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    contentColor = VaultColors.TextPrimary
+                                ),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(
+                                        horizontal = VaultSpacing.md,
+                                        vertical = VaultSpacing.sm
+                                    )
                             ) {
                                 Text("Load More")
                             }
@@ -186,7 +278,12 @@ fun NewsScreen(
 }
 
 @Composable
-private fun ShortcutBanner(label: String, imageUrl: String?, modifier: Modifier = Modifier, onClick: () -> Unit) {
+private fun ShortcutBanner(
+    label: String,
+    imageUrl: String?,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
     Box(
         modifier = modifier
             .height(64.dp)
@@ -201,12 +298,22 @@ private fun ShortcutBanner(label: String, imageUrl: String?, modifier: Modifier 
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
                 loading = {},
-                error = {},
+                error = {}
             )
-            Box(modifier = Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.35f)))
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        androidx.compose.ui.graphics.Color.Black.copy(
+                            alpha = 0.35f
+                        )
+                    )
+            )
         }
+
         Text(
-            label,
+            text = label,
             style = MaterialTheme.typography.labelLarge,
             color = androidx.compose.ui.graphics.Color.White,
             modifier = Modifier.align(Alignment.Center)
@@ -215,27 +322,39 @@ private fun ShortcutBanner(label: String, imageUrl: String?, modifier: Modifier 
 }
 
 @Composable
-private fun CategoryChip(label: String, selected: Boolean, onClick: () -> Unit) {
+private fun CategoryChip(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
     FilterChip(
         selected = selected,
         onClick = onClick,
-        label = { Text(label) },
+        label = {
+            Text(label)
+        },
         colors = FilterChipDefaults.filterChipColors(
             selectedContainerColor = VaultColors.Orange,
             selectedLabelColor = androidx.compose.ui.graphics.Color.White,
             containerColor = VaultColors.SurfaceVariant,
-            labelColor = VaultColors.TextSecondary,
+            labelColor = VaultColors.TextSecondary
         )
     )
 }
 
 @Composable
-private fun NewsArticleCard(article: NewsArticleEntity, onClick: () -> Unit) {
+private fun NewsArticleCard(
+    article: NewsArticleEntity,
+    onClick: () -> Unit
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = VaultSpacing.md, vertical = VaultSpacing.sm),
+            .padding(
+                horizontal = VaultSpacing.md,
+                vertical = VaultSpacing.sm
+            )
     ) {
         Box(
             modifier = Modifier
@@ -250,7 +369,7 @@ private fun NewsArticleCard(article: NewsArticleEntity, onClick: () -> Unit) {
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize(),
                     loading = {},
-                    error = {},
+                    error = {}
                 )
             } else {
                 Icon(
@@ -261,17 +380,23 @@ private fun NewsArticleCard(article: NewsArticleEntity, onClick: () -> Unit) {
                 )
             }
         }
-        Column(modifier = Modifier.padding(start = VaultSpacing.sm).weight(1f)) {
+
+        Column(
+            modifier = Modifier
+                .padding(start = VaultSpacing.sm)
+                .weight(1f)
+        ) {
             Text(
-                article.headline,
+                text = article.headline,
                 style = MaterialTheme.typography.titleSmall,
                 color = VaultColors.TextPrimary,
                 maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
+                overflow = TextOverflow.Ellipsis
             )
+
             article.excerpt?.let {
                 Text(
-                    it,
+                    text = it,
                     style = MaterialTheme.typography.bodySmall,
                     color = VaultColors.TextSecondary,
                     maxLines = 2,
@@ -279,8 +404,9 @@ private fun NewsArticleCard(article: NewsArticleEntity, onClick: () -> Unit) {
                     modifier = Modifier.padding(top = 2.dp)
                 )
             }
+
             Text(
-                "${article.category.label()} \u2022 ${article.sourceName} \u2022 ${relativeTime(article.publishedAt)}",
+                text = "${article.category.label()} • ${article.sourceName} • ${relativeTime(article.publishedAt)}",
                 style = MaterialTheme.typography.labelSmall,
                 color = VaultColors.Orange,
                 modifier = Modifier.padding(top = 4.dp)
@@ -299,12 +425,29 @@ private fun NewsCategory.label() = when (this) {
 
 private fun relativeTime(publishedAtMs: Long): String {
     val diffMs = System.currentTimeMillis() - publishedAtMs
-    if (diffMs < 0) return "just now"
+
+    if (diffMs < 0) {
+        return "just now"
+    }
+
     val hours = TimeUnit.MILLISECONDS.toHours(diffMs)
+
     return when {
-        hours < 1 -> "${TimeUnit.MILLISECONDS.toMinutes(diffMs).coerceAtLeast(1)}m ago"
-        hours < 24 -> "${hours}h ago"
-        hours < 24 * 7 -> "${hours / 24}d ago"
-        else -> SimpleDateFormat("MMM d", Locale.US).format(java.util.Date(publishedAtMs))
+        hours < 1 ->
+            "${TimeUnit.MILLISECONDS.toMinutes(diffMs).coerceAtLeast(1)}m ago"
+
+        hours < 24 ->
+            "${hours}h ago"
+
+        hours < 24 * 7 ->
+            "${hours / 24}d ago"
+
+        else ->
+            SimpleDateFormat(
+                "MMM d",
+                Locale.US
+            ).format(
+                java.util.Date(publishedAtMs)
+            )
     }
 }
