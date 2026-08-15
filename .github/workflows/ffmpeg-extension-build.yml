@@ -5,8 +5,18 @@ name: Build FFmpeg Audio Decoder Extension
 # arm64-v8a with the specific decoders we need (ac3, eac3, dca/DTS-core,
 # flac, opus, vorbis, alac) BEFORE touching the app's player integration at
 # all. If this fails, the main app build is completely unaffected.
+#
+# On success, the compiled module (source + the prebuilt FFmpeg static
+# libraries — NOT the raw multi-hundred-MB FFmpeg source tree) is committed
+# back into this repo under native/decoder_ffmpeg/, since this workflow's
+# own GITHUB_TOKEN can write to the repo directly — that's the only
+# practical way to get the build output out of a fresh CI runner and into
+# a form the main app build can actually use.
 on:
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build-ffmpeg-extension:
@@ -105,3 +115,45 @@ jobs:
             ${{ env.FFMPEG_MODULE_PATH }}/jni
           retention-days: 14
           if-no-files-found: warn
+
+      - name: Checkout this app's repo
+        uses: actions/checkout@v4
+        with:
+          path: app-repo
+
+      - name: Package and commit only the compiled output (not the raw FFmpeg source tree)
+        run: |
+          DEST="${GITHUB_WORKSPACE}/app-repo/native/decoder_ffmpeg"
+          rm -rf "$DEST"
+          mkdir -p "$DEST"
+
+          # Module source needed to build the JNI wrapper (small — a handful of .cc/.h files).
+          cp -r "${GITHUB_WORKSPACE}/media3-source/libraries/decoder_ffmpeg/src" "$DEST/src-module"
+          # The compiled FFmpeg source tree itself is huge (hundreds of MB) and we do NOT
+          # want it in the repo — only the compiled static libraries it produced.
+          rm -rf "$DEST/src-module/main/jni/ffmpeg"
+
+          # Copy every compiled static library, preserving its relative path so the
+          # CMake build can find it the same way it would in a full local checkout.
+          mkdir -p "$DEST/prebuilt-libs"
+          cd "${FFMPEG_MODULE_PATH}/jni/ffmpeg"
+          while IFS= read -r -d '' f; do
+            rel="${f#./}"
+            mkdir -p "$DEST/prebuilt-libs/$(dirname "$rel")"
+            cp "$f" "$DEST/prebuilt-libs/$rel"
+          done < <(find . -name "*.a" -print0)
+          cd "${GITHUB_WORKSPACE}"
+
+          echo "Committing this diagnostic manifest so I can inspect exactly what was captured:"
+          find "$DEST" -maxdepth 5 | tee "$DEST/MANIFEST.txt"
+
+          cd "${GITHUB_WORKSPACE}/app-repo"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add native/decoder_ffmpeg
+          if git diff --cached --quiet; then
+            echo "Nothing changed — skipping commit."
+          else
+            git commit -m "Add compiled FFmpeg audio decoder module (ac3/eac3/dca/flac/opus/vorbis/alac, arm64-v8a) — built by the ffmpeg-extension-build workflow"
+            git push origin HEAD:main
+          fi
