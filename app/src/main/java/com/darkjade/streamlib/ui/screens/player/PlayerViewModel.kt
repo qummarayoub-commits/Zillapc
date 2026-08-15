@@ -107,7 +107,7 @@ class PlayerViewModel(
                     val d = player.duration
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        durationMs = if (d != C.TIME_UNSPECIFIED && d > 0) d else _uiState.value.durationMs,
+                        durationMs = if (d != C.TIME_UNSET && d > 0) d else _uiState.value.durationMs,
                     )
                     if (!hasResumed) {
                         hasResumed = true
@@ -155,11 +155,11 @@ class PlayerViewModel(
             while (true) {
                 delay(500)
                 val rawDuration = player.duration
-                // Some formats report C.TIME_UNSPECIFIED (a huge negative
+                // Some formats report C.TIME_UNSET (a huge negative
                 // number) until fully determined — never let a garbage
                 // duration reach the seek bar, since dividing by it breaks
                 // the slider entirely (looks like "seeking doesn't work").
-                val safeDuration = if (rawDuration != C.TIME_UNSPECIFIED && rawDuration > 0) rawDuration
+                val safeDuration = if (rawDuration != C.TIME_UNSET && rawDuration > 0) rawDuration
                     else _uiState.value.durationMs
                 _uiState.value = _uiState.value.copy(
                     positionMs = player.currentPosition.coerceAtLeast(0),
