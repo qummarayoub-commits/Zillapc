@@ -116,7 +116,7 @@ dependencies {
     implementation("androidx.media3:media3-session:1.4.1")
 
     // Internal comic reader — CBZ (zip) via java.util.zip (built-in), CBR (rar) via junrar
-    implementation("com.github.junrar:junrar:7.5.5")
+    implementation("com.github.junrar:junrar:7.5.2")
 
     // Networking (metadata provider)
     implementation("com.squareup.retrofit2:retrofit:2.11.0")
