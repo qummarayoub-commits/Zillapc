@@ -76,6 +76,11 @@ jobs:
         uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: 8.7
+          # GitHub's Actions cache service has been having outages that were
+          # blocking every build attempt (cache restore/save failing with
+          # "Our services aren't available right now"). Disabling the cache
+          # makes builds immune to that — slightly slower, but reliable.
+          cache-disabled: true
 
       - name: Generate Gradle wrapper
         if: steps.extract.outputs.did_extract != 'true'
