@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -34,12 +33,13 @@ import com.darkjade.streamlib.ui.screens.home.HomeScreen
 import com.darkjade.streamlib.ui.screens.home.HomeViewModel
 import com.darkjade.streamlib.ui.screens.mylists.MyListsScreen
 import com.darkjade.streamlib.ui.screens.mylists.MyListsViewModel
+import com.darkjade.streamlib.ui.screens.player.PlayerScreen
+import com.darkjade.streamlib.ui.screens.player.PlayerViewModel
 import com.darkjade.streamlib.ui.screens.search.SearchScreen
 import com.darkjade.streamlib.ui.screens.search.SearchViewModel
 import com.darkjade.streamlib.ui.screens.settings.SettingsScreen
 import com.darkjade.streamlib.ui.screens.settings.SettingsViewModel
 import com.darkjade.streamlib.ui.util.SimpleViewModelFactory
-import kotlinx.coroutines.launch
 
 private val topLevelRoutes = setOf(Routes.HOME, Routes.MY_LISTS, Routes.BROWSE, Routes.SEARCH, Routes.ACCOUNT)
 
@@ -47,21 +47,8 @@ private val topLevelRoutes = setOf(Routes.HOME, Routes.MY_LISTS, Routes.BROWSE, 
 fun StreamLibNavGraph(container: AppContainer) {
     val navController = rememberNavController()
     val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
-
-    fun playVideo(uriString: String) {
-        coroutineScope.launch {
-            val preferred = container.preferencesRepository.getPreferredPlayerPackage()
-            val result = ExternalPlayerLauncher.play(context, Uri.parse(uriString), preferredPackage = preferred)
-            if (result is PlaybackLaunchResult.NoPlayerFound) {
-                Toast.makeText(context, "No video player app found. Please install one.", Toast.LENGTH_LONG).show()
-            } else if (result is PlaybackLaunchResult.Failed) {
-                Toast.makeText(context, "Couldn't open file: ${result.message}", Toast.LENGTH_LONG).show()
-            }
-        }
-    }
 
     fun openComic(uriString: String) {
         val result = ExternalPlayerLauncher.openComic(context, Uri.parse(uriString))
@@ -171,8 +158,33 @@ fun StreamLibNavGraph(container: AppContainer) {
                 DetailsScreen(
                     viewModel = vm,
                     onBack = { navController.popBackStack() },
-                    onPlay = { uriString, _ -> playVideo(uriString) }
+                    onPlay = { _, episodeId -> navController.navigate(Routes.player(mediaId, episodeId)) }
                 )
+            }
+
+            composable(
+                route = Routes.PLAYER,
+                arguments = listOf(
+                    navArgument("mediaId") { type = NavType.LongType },
+                    navArgument("episodeId") { type = NavType.LongType },
+                )
+            ) { entry: NavBackStackEntry ->
+                val playerMediaId = entry.arguments?.getLong("mediaId") ?: -1L
+                val rawEpisodeId = entry.arguments?.getLong("episodeId") ?: -1L
+                val playerEpisodeId = rawEpisodeId.takeIf { it != -1L }
+                val vm: PlayerViewModel = viewModel(
+                    key = "player_${playerMediaId}_${playerEpisodeId}",
+                    factory = SimpleViewModelFactory {
+                        PlayerViewModel(
+                            playerMediaId,
+                            playerEpisodeId,
+                            context.applicationContext,
+                            container.libraryRepository,
+                            container.playbackRepository,
+                        )
+                    }
+                )
+                PlayerScreen(viewModel = vm, onBack = { navController.popBackStack() })
             }
 
             composable(

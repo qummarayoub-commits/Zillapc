@@ -9,6 +9,7 @@ import com.darkjade.streamlib.data.db.dao.ComicDao
 import com.darkjade.streamlib.data.db.dao.EpisodeDao
 import com.darkjade.streamlib.data.db.dao.FolderSourceDao
 import com.darkjade.streamlib.data.db.dao.MediaItemDao
+import com.darkjade.streamlib.data.db.dao.PlaybackProgressDao
 import com.darkjade.streamlib.data.db.dao.ProfileDao
 import com.darkjade.streamlib.data.db.dao.ScanStatusDao
 import com.darkjade.streamlib.data.db.dao.SeasonDao
@@ -18,6 +19,7 @@ import com.darkjade.streamlib.data.db.entity.ComicEntity
 import com.darkjade.streamlib.data.db.entity.EpisodeEntity
 import com.darkjade.streamlib.data.db.entity.FolderSourceEntity
 import com.darkjade.streamlib.data.db.entity.MediaItemEntity
+import com.darkjade.streamlib.data.db.entity.PlaybackProgressEntity
 import com.darkjade.streamlib.data.db.entity.ProfileEntity
 import com.darkjade.streamlib.data.db.entity.ScanStatusEntity
 import com.darkjade.streamlib.data.db.entity.SeasonEntity
@@ -35,8 +37,9 @@ import com.darkjade.streamlib.data.db.entity.WatchlistEntity
         FolderSourceEntity::class,
         ScanStatusEntity::class,
         ComicEntity::class,
+        PlaybackProgressEntity::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -50,6 +53,7 @@ abstract class StreamLibDatabase : RoomDatabase() {
     abstract fun folderSourceDao(): FolderSourceDao
     abstract fun scanStatusDao(): ScanStatusDao
     abstract fun comicDao(): ComicDao
+    abstract fun playbackProgressDao(): PlaybackProgressDao
 
     companion object {
         @Volatile private var INSTANCE: StreamLibDatabase? = null

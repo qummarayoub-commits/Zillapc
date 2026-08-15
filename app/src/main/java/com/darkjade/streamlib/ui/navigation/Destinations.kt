@@ -23,10 +23,12 @@ object Routes {
     const val ONBOARDING = "onboarding"
     const val DETAILS = "details/{mediaId}"
     const val COMIC_DETAILS = "comic_details/{comicId}"
+    const val PLAYER = "player/{mediaId}/{episodeId}"
     const val SWITCH_PROFILE = "switch_profile"
 
     fun details(mediaId: Long) = "details/$mediaId"
     fun comicDetails(comicId: Long) = "comic_details/$comicId"
+    fun player(mediaId: Long, episodeId: Long?) = "player/$mediaId/${episodeId ?: -1L}"
 }
 
 data class BottomNavItem(
