@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.Flow
 class LibraryRepository(
     context: Context,
     private val metadataProvider: MetadataProvider,
+    private val omdbMetadataProvider: com.darkjade.streamlib.data.metadata.omdb.OmdbMetadataProvider? = null,
 ) {
     private val db = StreamLibDatabase.getInstance(context)
     private val scanner = LibraryScanner(context)
@@ -323,7 +324,10 @@ class LibraryRepository(
                     genres = result.genres.joinToString(","),
                     director = result.director,
                     cast = result.cast.joinToString(","),
+                    castMembers = serializeCastMembers(result.castMembers),
                     alternatePosterUrls = result.alternatePosterUrls.joinToString(","),
+                    trailerYoutubeKey = result.trailerYoutubeKey,
+                    imdbId = result.imdbId,
                     tmdbId = result.remoteId,
                     metadataFetched = true,
                     metadataMissing = false,
@@ -351,7 +355,13 @@ class LibraryRepository(
                     genres = result.genres.joinToString(","),
                     director = result.director,
                     cast = result.cast.joinToString(","),
+                    castMembers = serializeCastMembers(result.castMembers),
                     alternatePosterUrls = result.alternatePosterUrls.joinToString(","),
+                    trailerYoutubeKey = result.trailerYoutubeKey,
+                    imdbId = result.imdbId,
+                    seasonCount = result.seasonCount,
+                    episodeCount = result.episodeCount,
+                    status = result.status,
                     tmdbId = result.remoteId,
                     metadataFetched = true,
                     metadataMissing = false,
@@ -360,6 +370,40 @@ class LibraryRepository(
         } else {
             mediaDao.update(entity.copy(id = id, metadataFetched = true, metadataMissing = true))
         }
+    }
+
+    private fun serializeCastMembers(members: List<com.darkjade.streamlib.data.metadata.CastMember>): String =
+        members.joinToString(";;") { m ->
+            listOf(m.name, m.character.orEmpty(), m.photoUrl.orEmpty()).joinToString("|")
+        }
+
+    /**
+     * Fetches genuine IMDb rating + Rotten Tomatoes percentage from OMDb —
+     * only once per title (guarded by omdbFetched), and only when a movie's
+     * TMDB metadata has already resolved (so we have a real IMDb ID or at
+     * least a confident title/year to look up). Called on-demand from the
+     * details screen, not during scanning, so it never slows down a scan.
+     */
+    suspend fun fetchOmdbRatingsIfNeeded(mediaId: Long) {
+        val provider = omdbMetadataProvider ?: return
+        if (!provider.isConfigured) return
+        val entity = mediaDao.getById(mediaId) ?: return
+        if (entity.omdbFetched || entity.metadataMissing) return
+
+        val result = if (!entity.imdbId.isNullOrBlank()) {
+            provider.fetchByImdbId(entity.imdbId)
+        } else {
+            provider.fetchByTitle(entity.title, entity.year, entity.type.isSeriesLike())
+        }
+
+        mediaDao.update(
+            entity.copy(
+                imdbId = result?.imdbId ?: entity.imdbId,
+                imdbRating = result?.imdbRating,
+                rottenTomatoesPercent = result?.rottenTomatoesPercent,
+                omdbFetched = true, // mark attempted either way — avoids retrying every time the screen opens
+            )
+        )
     }
 
     private fun sortableTitle(title: String): String {

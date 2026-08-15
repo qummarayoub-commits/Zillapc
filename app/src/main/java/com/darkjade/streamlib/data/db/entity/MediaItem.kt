@@ -31,6 +31,20 @@ data class MediaItemEntity(
     val director: String? = null,
     val cast: String = "", // comma-separated top cast names
     val alternatePosterUrls: String = "", // comma-separated — TMDB has multiple posters per title
+    // Cast with photo+character, serialized as "name|character|photoUrl;;name2|..." —
+    // kept as a simple string (like genres/cast) rather than a join table.
+    val castMembers: String = "",
+    val trailerYoutubeKey: String? = null,
+    val seasonCount: Int? = null,
+    val episodeCount: Int? = null,
+    val status: String? = null, // e.g. "Ended", "Returning Series"
+    // Genuine IMDb/Rotten Tomatoes data from OMDb — never confused with
+    // TMDB's own vote_average. omdbFetched guards against refetching on
+    // every detail-page open once we've already tried once (success or not).
+    val imdbId: String? = null,
+    val imdbRating: Double? = null,
+    val rottenTomatoesPercent: Int? = null,
+    val omdbFetched: Boolean = false,
     val tmdbId: String? = null, // remote TMDB id, used to fetch per-episode metadata
     val localFileUri: String? = null, // set for MOVIE only; series use Episode entities
     val localFilePath: String? = null,

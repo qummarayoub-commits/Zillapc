@@ -114,10 +114,7 @@ fun HomeScreen(
                         MediaRail("Recently Added", state.recentlyAdded, onItemClick = { onOpenDetails(it.id) }, onAddToList = viewModel::addToWatchlist, onRemoveFromLibrary = viewModel::removeFromLibrary)
                     }
 
-                    // Movies section, then an auto-rotating movie banner strip below it.
-                    item {
-                        MediaRail("Movies", state.movies, onItemClick = { onOpenDetails(it.id) }, onAddToList = viewModel::addToWatchlist, onRemoveFromLibrary = viewModel::removeFromLibrary)
-                    }
+                    // Movies: banner ABOVE the content row, then the row itself.
                     if (state.movieBanners.isNotEmpty()) {
                         item {
                             SecondaryBannerCarousel(
@@ -129,11 +126,11 @@ fun HomeScreen(
                             )
                         }
                     }
-
-                    // Series section, then an auto-rotating series banner strip.
                     item {
-                        MediaRail("Series", state.series, onItemClick = { onOpenDetails(it.id) }, onAddToList = viewModel::addToWatchlist, onRemoveFromLibrary = viewModel::removeFromLibrary)
+                        MediaRail("Movies", state.movies, onItemClick = { onOpenDetails(it.id) }, onAddToList = viewModel::addToWatchlist, onRemoveFromLibrary = viewModel::removeFromLibrary)
                     }
+
+                    // Series: banner ABOVE the content row, then the row itself.
                     if (state.seriesBanners.isNotEmpty()) {
                         item {
                             SecondaryBannerCarousel(
@@ -145,15 +142,27 @@ fun HomeScreen(
                             )
                         }
                     }
+                    item {
+                        MediaRail("Series", state.series, onItemClick = { onOpenDetails(it.id) }, onAddToList = viewModel::addToWatchlist, onRemoveFromLibrary = viewModel::removeFromLibrary)
+                    }
 
+                    // Anime: banner ABOVE the content row, then the row itself.
+                    if (state.animeBanners.isNotEmpty()) {
+                        item {
+                            SecondaryBannerCarousel(
+                                items = state.animeBanners,
+                                categoryLabel = "Anime",
+                                imageUrl = { it.backdropUrl ?: it.posterUrl },
+                                title = { it.title },
+                                onClick = { onOpenDetails(it.id) },
+                            )
+                        }
+                    }
                     item {
                         MediaRail("Anime", state.anime, onItemClick = { onOpenDetails(it.id) }, onAddToList = viewModel::addToWatchlist, onRemoveFromLibrary = viewModel::removeFromLibrary)
                     }
 
-                    // Comics section, then an auto-rotating comics banner strip.
-                    item {
-                        ComicRail("Comics", state.comics, onItemClick = { onOpenComicDetails(it.id) })
-                    }
+                    // Comics: banner ABOVE the content row, then the row itself.
                     if (state.comicsBanners.isNotEmpty()) {
                         item {
                             SecondaryBannerCarousel(
@@ -168,6 +177,9 @@ fun HomeScreen(
                                 isPortraitContent = true,
                             )
                         }
+                    }
+                    item {
+                        ComicRail("Comics", state.comics, onItemClick = { onOpenComicDetails(it.id) })
                     }
                 }
             }

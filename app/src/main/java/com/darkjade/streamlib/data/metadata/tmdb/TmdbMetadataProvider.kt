@@ -3,6 +3,7 @@ package com.darkjade.streamlib.data.metadata.tmdb
 import com.darkjade.streamlib.data.metadata.EpisodeMetadata
 import com.darkjade.streamlib.data.metadata.MetadataProvider
 import com.darkjade.streamlib.data.metadata.MetadataResult
+import com.darkjade.streamlib.data.metadata.CastMember
 import com.darkjade.streamlib.data.metadata.SeasonMetadata
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -26,6 +27,8 @@ object TmdbConfig {
     // "original" for backdrops — hero banners/details backgrounds are shown
     // large, and w1280 was noticeably softer than Crunchyroll-style HD art.
     const val BACKDROP_BASE_URL = "https://image.tmdb.org/t/p/original"
+    // Cast profile photos — w185 is plenty for a small circular avatar; no need for full HD here.
+    const val PROFILE_BASE_URL = "https://image.tmdb.org/t/p/w185"
 
     /** Set this at app startup (e.g. from Settings > Metadata) once you have a key. */
     var apiKey: String = ""
@@ -53,6 +56,21 @@ class TmdbMetadataProvider : MetadataProvider {
     private fun extractCast(credits: TmdbCreditsDto?, limit: Int = 6): List<String> =
         credits?.cast.orEmpty().sortedBy { it.order }.take(limit).map { it.name }
 
+    private fun extractCastMembers(credits: TmdbCreditsDto?, limit: Int = 12): List<CastMember> =
+        credits?.cast.orEmpty().sortedBy { it.order }.take(limit).map {
+            CastMember(
+                name = it.name,
+                character = it.character?.takeIf { c -> c.isNotBlank() },
+                photoUrl = it.profile_path?.let { p -> TmdbConfig.PROFILE_BASE_URL + p },
+            )
+        }
+
+    private fun extractTrailerKey(videos: TmdbVideosDto?): String? =
+        videos?.results.orEmpty()
+            .filter { it.site == "YouTube" && it.type == "Trailer" }
+            .sortedByDescending { it.official }
+            .firstOrNull()?.key
+
     private fun extractAlternatePosters(images: TmdbImagesDto?, limit: Int = 5): List<String> =
         images?.posters.orEmpty().take(limit).map { TmdbConfig.IMAGE_BASE_URL + it.file_path }
 
@@ -77,7 +95,10 @@ class TmdbMetadataProvider : MetadataProvider {
                 genres = full.genres?.map { it.name } ?: emptyList(),
                 director = extractDirector(full.credits),
                 cast = extractCast(full.credits),
+                castMembers = extractCastMembers(full.credits),
                 alternatePosterUrls = extractAlternatePosters(full.images),
+                trailerYoutubeKey = extractTrailerKey(full.videos),
+                imdbId = full.external_ids?.imdb_id,
             )
         }.getOrNull()
     }
@@ -101,7 +122,13 @@ class TmdbMetadataProvider : MetadataProvider {
                 genres = full.genres?.map { it.name } ?: emptyList(),
                 director = extractDirector(full.credits),
                 cast = extractCast(full.credits),
+                castMembers = extractCastMembers(full.credits),
                 alternatePosterUrls = extractAlternatePosters(full.images),
+                trailerYoutubeKey = extractTrailerKey(full.videos),
+                imdbId = full.external_ids?.imdb_id,
+                seasonCount = full.number_of_seasons,
+                episodeCount = full.number_of_episodes,
+                status = full.status,
                 seasons = emptyList(), // fetched lazily via getSeasonDetails to save API calls
             )
         }.getOrNull()

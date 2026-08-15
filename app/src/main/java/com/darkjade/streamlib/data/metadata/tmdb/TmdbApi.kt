@@ -21,6 +21,8 @@ data class TmdbMovieDto(
     val genres: List<TmdbGenreDto>? = null,
     val credits: TmdbCreditsDto? = null,
     val images: TmdbImagesDto? = null,
+    val videos: TmdbVideosDto? = null,
+    val external_ids: TmdbExternalIdsDto? = null,
 )
 
 data class TmdbSeriesDto(
@@ -34,8 +36,12 @@ data class TmdbSeriesDto(
     val first_air_date: String?,
     val genres: List<TmdbGenreDto>? = null,
     val number_of_seasons: Int? = null,
+    val number_of_episodes: Int? = null,
+    val status: String? = null,
     val credits: TmdbCreditsDto? = null,
     val images: TmdbImagesDto? = null,
+    val videos: TmdbVideosDto? = null,
+    val external_ids: TmdbExternalIdsDto? = null,
 )
 
 data class TmdbImagesDto(val posters: List<TmdbPosterDto> = emptyList())
@@ -48,8 +54,23 @@ data class TmdbCreditsDto(
     val crew: List<TmdbCrewDto> = emptyList(),
 )
 
-data class TmdbCastDto(val name: String, val order: Int = Int.MAX_VALUE)
+data class TmdbCastDto(
+    val name: String,
+    val character: String? = null,
+    val profile_path: String? = null,
+    val order: Int = Int.MAX_VALUE,
+)
 data class TmdbCrewDto(val name: String, val job: String)
+
+data class TmdbVideosDto(val results: List<TmdbVideoDto> = emptyList())
+data class TmdbVideoDto(
+    val key: String,     // YouTube video id
+    val site: String,    // "YouTube"
+    val type: String,    // "Trailer", "Teaser", etc.
+    val official: Boolean = false,
+)
+
+data class TmdbExternalIdsDto(val imdb_id: String? = null)
 
 data class TmdbSeasonDto(
     val season_number: Int,
@@ -78,7 +99,7 @@ interface TmdbApi {
     suspend fun getMovie(
         @Path("id") id: Int,
         @Query("api_key") apiKey: String,
-        @Query("append_to_response") append: String = "credits,images",
+        @Query("append_to_response") append: String = "credits,images,videos,external_ids",
     ): TmdbMovieDto
 
     @GET("search/tv")
@@ -92,7 +113,7 @@ interface TmdbApi {
     suspend fun getSeries(
         @Path("id") id: Int,
         @Query("api_key") apiKey: String,
-        @Query("append_to_response") append: String = "credits,images",
+        @Query("append_to_response") append: String = "credits,images,videos,external_ids",
     ): TmdbSeriesDto
 
     @GET("tv/{id}/season/{seasonNumber}")

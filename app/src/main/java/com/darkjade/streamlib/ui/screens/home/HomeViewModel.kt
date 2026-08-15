@@ -22,6 +22,7 @@ data class HomeUiState(
     val heroItems: List<HeroCandidate> = emptyList(),
     val movieBanners: List<MediaItemEntity> = emptyList(),
     val seriesBanners: List<MediaItemEntity> = emptyList(),
+    val animeBanners: List<MediaItemEntity> = emptyList(),
     val comicsBanners: List<ComicEntity> = emptyList(),
     val continueWatching: List<MediaItemEntity> = emptyList(),
     val recentlyAdded: List<MediaItemEntity> = emptyList(),
@@ -61,6 +62,7 @@ class HomeViewModel(
     private val pinnedHeroKeys = mutableListOf<Pair<Long, Boolean>>() // id to isComic
     private val pinnedMovieBannerIds = mutableListOf<Long>()
     private val pinnedSeriesBannerIds = mutableListOf<Long>()
+    private val pinnedAnimeBannerIds = mutableListOf<Long>()
     private val pinnedComicsBannerIds = mutableListOf<Long>()
 
     init {
@@ -88,6 +90,7 @@ class HomeViewModel(
                 val heroItems = pickPinnedHero(heroPool)
                 val movieBanners = pickPinnedHomogeneous(flows.movies, pinnedMovieBannerIds) { it.id }
                 val seriesBanners = pickPinnedHomogeneous(flows.series, pinnedSeriesBannerIds) { it.id }
+                val animeBanners = pickPinnedHomogeneous(flows.anime, pinnedAnimeBannerIds) { it.id }
                 val comicsBanners = pickPinnedHomogeneous(comics, pinnedComicsBannerIds) { it.id }
 
                 HomeUiState(
@@ -95,6 +98,7 @@ class HomeViewModel(
                     heroItems = heroItems,
                     movieBanners = movieBanners,
                     seriesBanners = seriesBanners,
+                    animeBanners = animeBanners,
                     comicsBanners = comicsBanners,
                     continueWatching = flows.continueWatching,
                     recentlyAdded = flows.recentlyAdded,

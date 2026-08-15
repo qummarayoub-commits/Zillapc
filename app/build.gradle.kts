@@ -18,6 +18,9 @@ val tmdbApiKey: String = (localProperties.getProperty("TMDB_API_KEY")
 val comicVineApiKey: String = (localProperties.getProperty("COMICVINE_API_KEY")
     ?: System.getenv("COMICVINE_API_KEY")
     ?: "")
+val omdbApiKey: String = (localProperties.getProperty("OMDB_API_KEY")
+    ?: System.getenv("OMDB_API_KEY")
+    ?: "")
 
 android {
     namespace = "com.darkjade.streamlib"
@@ -32,6 +35,7 @@ android {
 
         buildConfigField("String", "TMDB_API_KEY", "\"$tmdbApiKey\"")
         buildConfigField("String", "COMICVINE_API_KEY", "\"$comicVineApiKey\"")
+        buildConfigField("String", "OMDB_API_KEY", "\"$omdbApiKey\"")
 
         vectorDrawables { useSupportLibrary = true }
     }

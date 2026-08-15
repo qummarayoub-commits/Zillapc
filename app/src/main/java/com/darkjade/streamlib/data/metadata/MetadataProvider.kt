@@ -16,8 +16,20 @@ data class MetadataResult(
     val genres: List<String>,
     val director: String? = null,
     val cast: List<String> = emptyList(),
+    val castMembers: List<CastMember> = emptyList(),
     val alternatePosterUrls: List<String> = emptyList(),
+    val trailerYoutubeKey: String? = null,
+    val imdbId: String? = null,
+    val seasonCount: Int? = null,
+    val episodeCount: Int? = null,
+    val status: String? = null,
     val seasons: List<SeasonMetadata> = emptyList(),
+)
+
+data class CastMember(
+    val name: String,
+    val character: String?,
+    val photoUrl: String?,
 )
 
 data class SeasonMetadata(

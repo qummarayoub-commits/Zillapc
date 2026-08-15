@@ -59,6 +59,17 @@ class DetailsViewModel(
                 return@launch
             }
 
+            // Fetch genuine IMDb/Rotten Tomatoes ratings in the background —
+            // cached after the first successful/attempted fetch (omdbFetched),
+            // so reopening this screen never re-hits the OMDb API.
+            viewModelScope.launch {
+                libraryRepository.fetchOmdbRatingsIfNeeded(mediaId)
+                val refreshed = libraryRepository.getMediaItem(mediaId)
+                if (refreshed != null) {
+                    _uiState.value = _uiState.value.copy(media = refreshed)
+                }
+            }
+
             // Real per-episode progress for the whole series, used for the
             // "Xm watched" display under each episode.
             val allProgress = playbackRepository.getAllForMedia(mediaId)

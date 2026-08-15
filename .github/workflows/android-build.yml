@@ -99,6 +99,7 @@ jobs:
         env:
           TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
           COMICVINE_API_KEY: ${{ secrets.COMICVINE_API_KEY }}
+          OMDB_API_KEY: ${{ secrets.OMDB_API_KEY }}
         run: |
           set +e
           ./gradlew assembleDebug --stacktrace > gradle_build_output.txt 2>&1

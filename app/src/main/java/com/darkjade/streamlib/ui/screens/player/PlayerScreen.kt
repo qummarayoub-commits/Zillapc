@@ -145,12 +145,26 @@ fun PlayerScreen(
             viewModel.saveProgressNow()
             activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
             restoreImmersive(view, restore = true)
+            // Restore normal Android screen-timeout behavior when leaving the player.
+            activity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             activity?.window?.let { window ->
                 val attrs = window.attributes
                 attrs.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
                 window.attributes = attrs
             }
         }
+    }
+
+    // Keep the screen awake only while actively playing — the standard
+    // Android mechanism (window flag), not a permanent override. Pausing
+    // lets the device's normal screen-timeout resume immediately.
+    DisposableEffect(state.isPlaying) {
+        if (state.isPlaying) {
+            activity?.window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        } else {
+            activity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+        onDispose { }
     }
 
     // Auto-dismiss the "audio not supported" notice after a few seconds.
