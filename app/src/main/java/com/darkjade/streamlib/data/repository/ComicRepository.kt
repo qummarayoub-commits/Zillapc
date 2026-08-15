@@ -132,6 +132,7 @@ class ComicRepository(
             sortTitle = parsed.seriesGuess,
             localFileUri = file.uri.toString(),
             localFilePath = file.pathSegments.joinToString("/"),
+            fileExtension = file.displayName.substringAfterLast('.', "").lowercase(),
             fileSizeBytes = file.sizeBytes,
             folderSourceId = folderSourceId,
         )

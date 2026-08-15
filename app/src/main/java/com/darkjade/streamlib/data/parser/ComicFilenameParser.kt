@@ -8,7 +8,10 @@ data class ParsedComic(
 
 /** Extensions the comic scanner treats as readable comic files. */
 object SupportedComicExtensions {
-    val DEFAULT = setOf("cbz", "cbr", "cb7", "pdf")
+    // PDF removed — user reported PDFs being incorrectly scanned as "comics"
+    // (random PDFs on the device, not actual comic issues). Real comic
+    // collections are cbz/cbr/cb7; PDF is too generic a format to assume.
+    val DEFAULT = setOf("cbz", "cbr", "cb7")
 }
 
 /**

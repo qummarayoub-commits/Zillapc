@@ -17,6 +17,11 @@ class PlaybackRepository(context: Context) {
 
     fun observeProgress(mediaItemId: Long, episodeId: Long?) = dao.observe(mediaItemId, episodeId)
 
+    suspend fun getAllForMedia(mediaItemId: Long) = dao.getAllForMedia(mediaItemId)
+
+    /** Used by "Play from Beginning" — discards saved position so the player starts fresh. */
+    suspend fun clearProgress(mediaItemId: Long, episodeId: Long?) = dao.clear(mediaItemId, episodeId)
+
     /**
      * Called from auto-save (periodic), on pause, on exit, on Back, on
      * backgrounding, and on playback finishing — every meaningful save point

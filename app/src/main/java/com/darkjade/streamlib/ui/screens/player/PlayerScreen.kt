@@ -385,6 +385,7 @@ fun PlayerScreen(
                     Slider(
                         value = displayPosition.toFloat().coerceIn(0f, state.durationMs.toFloat().coerceAtLeast(1f)),
                         valueRange = 0f..state.durationMs.toFloat().coerceAtLeast(1f),
+                        enabled = state.durationMs > 0,
                         onValueChange = {
                             isDraggingSeek = true
                             dragPositionMs = it.toLong()

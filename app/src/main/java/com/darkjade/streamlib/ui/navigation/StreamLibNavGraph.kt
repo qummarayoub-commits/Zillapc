@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -27,6 +28,8 @@ import com.darkjade.streamlib.ui.screens.browse.BrowseScreen
 import com.darkjade.streamlib.ui.screens.browse.BrowseViewModel
 import com.darkjade.streamlib.ui.screens.comics.ComicDetailsScreen
 import com.darkjade.streamlib.ui.screens.comics.ComicDetailsViewModel
+import com.darkjade.streamlib.ui.screens.comics.ComicReaderScreen
+import com.darkjade.streamlib.ui.screens.comics.ComicReaderViewModel
 import com.darkjade.streamlib.ui.screens.details.DetailsScreen
 import com.darkjade.streamlib.ui.screens.details.DetailsViewModel
 import com.darkjade.streamlib.ui.screens.home.HomeScreen
@@ -40,6 +43,7 @@ import com.darkjade.streamlib.ui.screens.search.SearchViewModel
 import com.darkjade.streamlib.ui.screens.settings.SettingsScreen
 import com.darkjade.streamlib.ui.screens.settings.SettingsViewModel
 import com.darkjade.streamlib.ui.util.SimpleViewModelFactory
+import kotlinx.coroutines.launch
 
 private val topLevelRoutes = setOf(Routes.HOME, Routes.MY_LISTS, Routes.BROWSE, Routes.SEARCH, Routes.ACCOUNT)
 
@@ -47,6 +51,7 @@ private val topLevelRoutes = setOf(Routes.HOME, Routes.MY_LISTS, Routes.BROWSE, 
 fun StreamLibNavGraph(container: AppContainer) {
     val navController = rememberNavController()
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
 
@@ -152,7 +157,7 @@ fun StreamLibNavGraph(container: AppContainer) {
                 val vm: DetailsViewModel = viewModel(
                     key = "details_$mediaId",
                     factory = SimpleViewModelFactory {
-                        DetailsViewModel(mediaId, container.libraryRepository, container.watchRepository, container.profileRepository)
+                        DetailsViewModel(mediaId, container.libraryRepository, container.watchRepository, container.profileRepository, container.playbackRepository)
                     }
                 )
                 DetailsScreen(
@@ -201,7 +206,30 @@ fun StreamLibNavGraph(container: AppContainer) {
                 ComicDetailsScreen(
                     viewModel = vm,
                     onBack = { navController.popBackStack() },
-                    onOpen = { uriString -> openComic(uriString) }
+                    onOpen = { _ -> navController.navigate(Routes.comicReader(comicId)) }
+                )
+            }
+
+            composable(
+                route = Routes.COMIC_READER,
+                arguments = listOf(navArgument("comicId") { type = NavType.LongType })
+            ) { entry: NavBackStackEntry ->
+                val readerComicId = entry.arguments?.getLong("comicId") ?: -1L
+                val vm: ComicReaderViewModel = viewModel(
+                    key = "comic_reader_$readerComicId",
+                    factory = SimpleViewModelFactory {
+                        ComicReaderViewModel(readerComicId, context.applicationContext, container.comicRepository)
+                    }
+                )
+                ComicReaderScreen(
+                    viewModel = vm,
+                    onBack = { navController.popBackStack() },
+                    onOpenExternally = {
+                        coroutineScope.launch {
+                            val comic = container.comicRepository.getById(readerComicId)
+                            comic?.let { openComic(it.localFileUri) }
+                        }
+                    }
                 )
             }
         }

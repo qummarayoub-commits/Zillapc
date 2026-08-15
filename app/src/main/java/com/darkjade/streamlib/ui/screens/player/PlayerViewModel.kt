@@ -11,6 +11,7 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.Tracks
+import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import com.darkjade.streamlib.data.repository.LibraryRepository
 import com.darkjade.streamlib.data.repository.PlaybackRepository
@@ -58,7 +59,18 @@ class PlayerViewModel(
     private val playbackRepository: PlaybackRepository,
 ) : ViewModel() {
 
-    val player: ExoPlayer = ExoPlayer.Builder(appContext)
+    val player: ExoPlayer = ExoPlayer.Builder(
+        appContext,
+        // PREFER lets ExoPlayer fall back to any available extension decoder
+        // (e.g. a bundled software audio decoder) when the device's own
+        // hardware codec can't handle a track — the closest this app can get
+        // to "support every audio format" without shipping a custom-built
+        // FFmpeg decoder module, which isn't something that can be added via
+        // a simple dependency (Google doesn't publish prebuilt AC-3/DTS
+        // decoders due to codec licensing — apps like VLC ship their own
+        // build of FFmpeg specifically to work around this).
+        DefaultRenderersFactory(appContext).setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
+    )
         // Explicit audio attributes + automatic audio-focus handling — the
         // default builder should already do this, but being explicit rules
         // out silent-audio caused by focus/routing not being requested.
@@ -92,9 +104,10 @@ class PlayerViewModel(
 
             override fun onPlaybackStateChanged(playbackState: Int) {
                 if (playbackState == Player.STATE_READY) {
+                    val d = player.duration
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        durationMs = player.duration.coerceAtLeast(0),
+                        durationMs = if (d != C.TIME_UNSPECIFIED && d > 0) d else _uiState.value.durationMs,
                     )
                     if (!hasResumed) {
                         hasResumed = true
@@ -141,9 +154,16 @@ class PlayerViewModel(
         positionPollJob = viewModelScope.launch {
             while (true) {
                 delay(500)
+                val rawDuration = player.duration
+                // Some formats report C.TIME_UNSPECIFIED (a huge negative
+                // number) until fully determined — never let a garbage
+                // duration reach the seek bar, since dividing by it breaks
+                // the slider entirely (looks like "seeking doesn't work").
+                val safeDuration = if (rawDuration != C.TIME_UNSPECIFIED && rawDuration > 0) rawDuration
+                    else _uiState.value.durationMs
                 _uiState.value = _uiState.value.copy(
                     positionMs = player.currentPosition.coerceAtLeast(0),
-                    durationMs = player.duration.coerceAtLeast(0),
+                    durationMs = safeDuration,
                 )
             }
         }

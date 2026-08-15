@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -26,6 +25,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
+import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -36,7 +36,9 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -86,7 +88,7 @@ fun DetailsScreen(
                 val media = state.media!!
                 LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = VaultSpacing.xl)) {
                     item {
-                        Box(modifier = Modifier.fillMaxWidth().height(260.dp)) {
+                        Box(modifier = Modifier.fillMaxWidth().height(200.dp)) {
                             if (media.backdropUrl != null) {
                                 AsyncImage(
                                     model = media.backdropUrl,
@@ -123,18 +125,18 @@ fun DetailsScreen(
                         }
                     }
 
-                    // Smaller poster overlapping the bottom of the big backdrop — same
-                    // "big background image + centered poster" pattern used by most
-                    // streaming apps for the details page.
+                    // Poster on the left, title + play actions on the right — matches
+                    // the layout requested over the previous centered-overlap style.
                     item {
-                        Box(
-                            modifier = Modifier.fillMaxWidth().height(150.dp),
-                            contentAlignment = Alignment.TopCenter,
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = VaultSpacing.md)
+                                .padding(top = VaultSpacing.sm),
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .offset(y = (-70).dp)
-                                    .size(130.dp, 195.dp)
+                                    .size(110.dp, 165.dp)
                                     .clip(VaultShapes.card)
                                     .background(VaultColors.SurfaceVariant)
                             ) {
@@ -152,13 +154,70 @@ fun DetailsScreen(
                                     FallbackPoster(title = media.title)
                                 }
                             }
+
+                            Column(modifier = Modifier.padding(start = VaultSpacing.sm).weight(1f)) {
+                                Text(media.title, style = MaterialTheme.typography.titleLarge, color = VaultColors.TextPrimary, maxLines = 3)
+
+                                Spacer(Modifier.height(VaultSpacing.xs))
+
+                                if (state.nextUpLabel != null && state.nextUpUri != null) {
+                                    if (state.hasResumeProgress) {
+                                        // Two explicit choices: start over, or pick up where you left off.
+                                        Button(
+                                            onClick = {
+                                                viewModel.recordOpened(state.nextUpEpisodeId)
+                                                onPlay(state.nextUpUri.toString(), state.nextUpEpisodeId)
+                                            },
+                                            shape = VaultShapes.button,
+                                            colors = ButtonDefaults.buttonColors(containerColor = VaultColors.Orange, contentColor = Color.White),
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Icon(Icons.Filled.PlayArrow, contentDescription = null)
+                                            Text(" Resume", modifier = Modifier.padding(start = 4.dp))
+                                        }
+                                        OutlinedButton(
+                                            onClick = {
+                                                viewModel.recordOpened(state.nextUpEpisodeId)
+                                                viewModel.playFromBeginning(state.nextUpEpisodeId) {
+                                                    onPlay(state.nextUpUri.toString(), state.nextUpEpisodeId)
+                                                }
+                                            },
+                                            shape = VaultShapes.button,
+                                            colors = ButtonDefaults.outlinedButtonColors(contentColor = VaultColors.TextPrimary),
+                                            modifier = Modifier.fillMaxWidth().padding(top = VaultSpacing.xxs)
+                                        ) {
+                                            Icon(Icons.Filled.Replay, contentDescription = null)
+                                            Text(" From Beginning", modifier = Modifier.padding(start = 4.dp))
+                                        }
+                                    } else {
+                                        Button(
+                                            onClick = {
+                                                viewModel.recordOpened(state.nextUpEpisodeId)
+                                                onPlay(state.nextUpUri.toString(), state.nextUpEpisodeId)
+                                            },
+                                            shape = VaultShapes.button,
+                                            colors = ButtonDefaults.buttonColors(containerColor = VaultColors.Orange, contentColor = Color.White),
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Icon(Icons.Filled.PlayArrow, contentDescription = null)
+                                            Text(" ${state.nextUpLabel}", modifier = Modifier.padding(start = 4.dp))
+                                        }
+                                    }
+                                }
+
+                                IconButton(onClick = { viewModel.toggleWatchlist() }, modifier = Modifier.padding(top = VaultSpacing.xxs)) {
+                                    Icon(
+                                        imageVector = if (state.isInWatchlist) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder,
+                                        contentDescription = "Watchlist",
+                                        tint = VaultColors.Orange,
+                                    )
+                                }
+                            }
                         }
                     }
 
                     item {
                         Column(modifier = Modifier.padding(horizontal = VaultSpacing.md)) {
-                            Text(media.title, style = MaterialTheme.typography.headlineMedium, color = VaultColors.TextPrimary)
-
                             val metaParts = buildList {
                                 media.ageRating?.let { add(it) }
                                 media.year?.let { add(it.toString()) }
@@ -170,7 +229,6 @@ fun DetailsScreen(
                                     metaParts.joinToString("  •  "),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = VaultColors.TextSecondary,
-                                    modifier = Modifier.padding(top = VaultSpacing.xxs)
                                 )
                             }
 
@@ -192,22 +250,12 @@ fun DetailsScreen(
                                 )
                             }
 
-                            Row(modifier = Modifier.padding(top = VaultSpacing.sm)) {
-                                IconButton(onClick = { viewModel.toggleWatchlist() }) {
-                                    Icon(
-                                        imageVector = if (state.isInWatchlist) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder,
-                                        contentDescription = "Watchlist",
-                                        tint = VaultColors.Orange,
-                                    )
-                                }
-                            }
-
                             media.overview?.let {
                                 Text(
                                     it,
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = VaultColors.TextSecondary,
-                                    modifier = Modifier.padding(top = VaultSpacing.xs)
+                                    modifier = Modifier.padding(top = VaultSpacing.sm)
                                 )
                             }
 
@@ -256,6 +304,7 @@ fun DetailsScreen(
                         items(state.episodes, key = { it.id }) { episode ->
                             EpisodeRow(
                                 episode = episode,
+                                watchedMs = state.episodeProgress[episode.id]?.positionMs,
                                 onClick = {
                                     viewModel.recordOpened(episode.id)
                                     onPlay(episode.localFileUri, episode.id)
@@ -276,25 +325,6 @@ fun DetailsScreen(
                         }
                     } else {
                         item { Spacer(Modifier.height(VaultSpacing.xl)) }
-                    }
-                }
-
-                // Bottom action bar: Continue/Start Watching + Play button
-                state.nextUpLabel?.let { label ->
-                    Box(modifier = Modifier.fillMaxWidth().align(Alignment.BottomCenter).padding(VaultSpacing.md)) {
-                        Button(
-                            onClick = {
-                                viewModel.recordOpened(state.nextUpEpisodeId)
-                                state.nextUpUri?.let { onPlay(it.toString(), state.nextUpEpisodeId) }
-                            },
-                            enabled = state.nextUpUri != null,
-                            shape = VaultShapes.button,
-                            colors = ButtonDefaults.buttonColors(containerColor = VaultColors.Orange, contentColor = Color.White),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Icon(Icons.Filled.PlayArrow, contentDescription = null)
-                            Text(text = " $label", modifier = Modifier.padding(start = 4.dp))
-                        }
                     }
                 }
 
@@ -329,9 +359,17 @@ fun DetailsScreen(
     }
 }
 
+private fun formatWatchedTime(ms: Long): String {
+    val totalMinutes = (ms / 60000).toInt()
+    val h = totalMinutes / 60
+    val m = totalMinutes % 60
+    return if (h > 0) "${h}h ${m}m watched" else "${m}m watched"
+}
+
 @Composable
 private fun EpisodeRow(
     episode: EpisodeEntity,
+    watchedMs: Long?,
     onClick: () -> Unit,
     onToggleWatched: () -> Unit,
     onRemove: () -> Unit,
@@ -372,6 +410,19 @@ private fun EpisodeRow(
                     .size(18.dp)
                     .clickable(onClick = onToggleWatched)
             )
+            // Thin progress bar along the bottom of the thumbnail when there's
+            // real playback progress for this episode — the "5m watched" fix.
+            if (watchedMs != null && watchedMs > 0 && episode.durationMinutes != null) {
+                val totalMs = episode.durationMinutes.toLong() * 60000
+                if (totalMs > 0) {
+                    LinearProgressIndicator(
+                        progress = (watchedMs.toFloat() / totalMs.toFloat()).coerceIn(0f, 1f),
+                        color = VaultColors.Orange,
+                        trackColor = Color.Black.copy(alpha = 0.4f),
+                        modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(3.dp)
+                    )
+                }
+            }
         }
         Column(modifier = Modifier.padding(start = VaultSpacing.sm).weight(1f)) {
             Text(
@@ -390,6 +441,14 @@ private fun EpisodeRow(
                     meta.joinToString(" • "),
                     style = MaterialTheme.typography.labelSmall,
                     color = if (episode.fileMissing) VaultColors.Error else VaultColors.TextTertiary,
+                    modifier = Modifier.padding(top = 2.dp)
+                )
+            }
+            if (watchedMs != null && watchedMs > 0) {
+                Text(
+                    formatWatchedTime(watchedMs),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = VaultColors.Orange,
                     modifier = Modifier.padding(top = 2.dp)
                 )
             }

@@ -20,4 +20,7 @@ interface PlaybackProgressDao {
 
     @Query("SELECT * FROM playback_progress WHERE mediaItemId = :mediaItemId")
     suspend fun getAllForMedia(mediaItemId: Long): List<PlaybackProgressEntity>
+
+    @Query("DELETE FROM playback_progress WHERE mediaItemId = :mediaItemId AND episodeId IS :episodeId")
+    suspend fun clear(mediaItemId: Long, episodeId: Long?)
 }
