@@ -92,7 +92,18 @@ jobs:
 
       - name: Run unit tests
         if: steps.extract.outputs.did_extract != 'true'
-        run: ./gradlew testDebugUnitTest --stacktrace
+        run: |
+          set +e
+          ./gradlew testDebugUnitTest --stacktrace > gradle_test_output.txt 2>&1
+          TEST_EXIT_CODE=$?
+          set -e
+          if [ $TEST_EXIT_CODE -ne 0 ]; then
+            grep -iE "error|failure|failed|exception|unresolved reference|cannot access" gradle_test_output.txt | tail -40 | while IFS= read -r line; do
+              esc=$(echo "$line" | sed 's/%/%25/g; s/\r/%0D/g' | cut -c1-500)
+              echo "::error::${esc}"
+            done
+            exit $TEST_EXIT_CODE
+          fi
 
       - name: Build debug APK
         if: steps.extract.outputs.did_extract != 'true'
