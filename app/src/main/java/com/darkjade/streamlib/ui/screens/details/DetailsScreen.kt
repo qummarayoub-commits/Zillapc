@@ -277,12 +277,21 @@ fun DetailsScreen(
                             RatingsBlock(media)
 
                             if (media.genres.isNotBlank()) {
-                                Text(
-                                    media.genres.replace(",", ", "),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = VaultColors.TextSecondary,
+                                LazyRow(
+                                    horizontalArrangement = Arrangement.spacedBy(VaultSpacing.xs),
                                     modifier = Modifier.padding(top = VaultSpacing.sm)
-                                )
+                                ) {
+                                    items(media.genres.split(",").map { it.trim() }.filter { it.isNotBlank() }) { genre ->
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(VaultShapes.chip)
+                                                .background(VaultColors.SurfaceVariant)
+                                                .padding(horizontal = VaultSpacing.sm, vertical = VaultSpacing.xxs)
+                                        ) {
+                                            Text(genre, style = MaterialTheme.typography.labelMedium, color = VaultColors.TextSecondary)
+                                        }
+                                    }
+                                }
                             }
 
                             if (media.metadataMissing) {

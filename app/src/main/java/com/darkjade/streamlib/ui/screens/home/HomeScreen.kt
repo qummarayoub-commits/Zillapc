@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
@@ -48,6 +50,7 @@ import coil.compose.SubcomposeAsyncImage
 import com.darkjade.streamlib.data.db.entity.ComicEntity
 import com.darkjade.streamlib.data.db.entity.MediaItemEntity
 import com.darkjade.streamlib.ui.components.ComicRail
+import com.darkjade.streamlib.ui.components.ContinueWatchingCard
 import com.darkjade.streamlib.ui.components.EmptyState
 import com.darkjade.streamlib.ui.components.MediaRail
 import com.darkjade.streamlib.ui.theme.VaultColors
@@ -107,8 +110,25 @@ fun HomeScreen(
                         }
                     }
 
-                    item {
-                        MediaRail("Continue Watching", state.continueWatching, onItemClick = { onOpenDetails(it.id) }, onAddToList = viewModel::addToWatchlist, onRemoveFromLibrary = viewModel::removeFromLibrary)
+                    if (state.continueWatching.isNotEmpty()) {
+                        item {
+                            Column(modifier = Modifier.padding(top = VaultSpacing.lg)) {
+                                Text(
+                                    "Continue Watching",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = VaultColors.TextPrimary,
+                                    modifier = Modifier.padding(horizontal = VaultSpacing.md, vertical = VaultSpacing.sm)
+                                )
+                                LazyRow(
+                                    horizontalArrangement = Arrangement.spacedBy(VaultSpacing.sm),
+                                    contentPadding = PaddingValues(horizontal = VaultSpacing.md)
+                                ) {
+                                    items(state.continueWatching, key = { it.id }) { item ->
+                                        ContinueWatchingCard(item = item, watchedFraction = null, onClick = { onOpenDetails(item.id) })
+                                    }
+                                }
+                            }
+                        }
                     }
                     item {
                         MediaRail("Recently Added", state.recentlyAdded, onItemClick = { onOpenDetails(it.id) }, onAddToList = viewModel::addToWatchlist, onRemoveFromLibrary = viewModel::removeFromLibrary)
