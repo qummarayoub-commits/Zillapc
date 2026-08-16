@@ -169,7 +169,8 @@ fun ComicDetailsScreen(
                                 colors = ButtonDefaults.buttonColors(containerColor = VaultColors.Orange, contentColor = Color.White),
                                 modifier = Modifier.fillMaxWidth().padding(top = VaultSpacing.lg)
                             ) {
-                                Text("Read")
+                                Icon(Icons.Filled.MenuBook, contentDescription = null, modifier = Modifier.size(20.dp))
+                                Text(" Read", modifier = Modifier.padding(start = 4.dp))
                             }
                         }
                     }

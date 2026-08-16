@@ -350,15 +350,15 @@ private fun NewsArticleCard(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .padding(horizontal = VaultSpacing.md, vertical = VaultSpacing.xxs)
+            .clip(VaultShapes.card)
+            .background(VaultColors.Surface)
             .clickable(onClick = onClick)
-            .padding(
-                horizontal = VaultSpacing.md,
-                vertical = VaultSpacing.sm
-            )
+            .padding(VaultSpacing.sm)
     ) {
         Box(
             modifier = Modifier
-                .size(96.dp, 72.dp)
+                .size(100.dp, 76.dp)
                 .clip(VaultShapes.card)
                 .background(VaultColors.SurfaceVariant)
         ) {
@@ -376,7 +376,7 @@ private fun NewsArticleCard(
                     Icons.Filled.Article,
                     contentDescription = null,
                     tint = VaultColors.TextTertiary,
-                    modifier = Modifier.align(Alignment.Center)
+                    modifier = Modifier.align(Alignment.Center).size(28.dp)
                 )
             }
         }
