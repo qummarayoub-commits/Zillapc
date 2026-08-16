@@ -135,7 +135,7 @@ fun DetailsScreen(
                     // Large cinematic hero — substantially bigger than a thumbnail strip,
                     // fading naturally into the tinted page background below it.
                     item {
-                        Box(modifier = Modifier.fillMaxWidth().height(300.dp)) {
+                        Box(modifier = Modifier.fillMaxWidth().height(420.dp)) {
                             if (media.backdropUrl != null) {
                                 AsyncImage(
                                     model = media.backdropUrl,
@@ -148,15 +148,25 @@ fun DetailsScreen(
                             }
                             Box(
                                 modifier = Modifier.fillMaxSize().background(
-                                    Brush.verticalGradient(0.35f to Color.Transparent, 1f to VaultColors.Background)
+                                    Brush.verticalGradient(0.5f to Color.Transparent, 1f to VaultColors.Background)
                                 )
                             )
                             IconButton(onClick = onBack, modifier = Modifier.align(Alignment.TopStart).padding(VaultSpacing.xs)) {
-                                Icon(Icons.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                                Box(
+                                    modifier = Modifier.clip(androidx.compose.foundation.shape.CircleShape).background(Color.Black.copy(alpha = 0.4f)),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Icon(Icons.Filled.ArrowBack, contentDescription = "Back", tint = Color.White, modifier = Modifier.padding(6.dp))
+                                }
                             }
                             Box(modifier = Modifier.align(Alignment.TopEnd).padding(VaultSpacing.xs)) {
                                 IconButton(onClick = { showOverflowMenu = true }) {
-                                    Icon(Icons.Filled.MoreVert, contentDescription = "More options", tint = Color.White)
+                                    Box(
+                                        modifier = Modifier.clip(androidx.compose.foundation.shape.CircleShape).background(Color.Black.copy(alpha = 0.4f)),
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        Icon(Icons.Filled.MoreVert, contentDescription = "More options", tint = Color.White, modifier = Modifier.padding(6.dp))
+                                    }
                                 }
                                 DropdownMenu(expanded = showOverflowMenu, onDismissRequest = { showOverflowMenu = false }) {
                                     DropdownMenuItem(
@@ -169,10 +179,29 @@ fun DetailsScreen(
                                     )
                                 }
                             }
+                            // Large centered play button directly on the backdrop —
+                            // matches the reference's "Cars" details screen exactly.
+                            if (state.nextUpUri != null) {
+                                Box(
+                                    modifier = Modifier
+                                        .align(Alignment.Center)
+                                        .size(64.dp)
+                                        .clip(androidx.compose.foundation.shape.CircleShape)
+                                        .background(Color.White.copy(alpha = 0.92f))
+                                        .clickable {
+                                            viewModel.recordOpened(state.nextUpEpisodeId)
+                                            onPlay(state.nextUpUri.toString(), state.nextUpEpisodeId)
+                                        },
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Icon(Icons.Filled.PlayArrow, contentDescription = "Play", tint = VaultColors.Orange, modifier = Modifier.size(32.dp))
+                                }
+                            }
                         }
                     }
 
-                    // Poster on the left, title + play actions on the right.
+                    // Small thumbnail + title + heart — compact info row directly
+                    // under the backdrop, matching the reference layout exactly.
                     item {
                         Row(
                             modifier = Modifier
@@ -182,7 +211,7 @@ fun DetailsScreen(
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(110.dp, 165.dp)
+                                    .size(90.dp, 90.dp)
                                     .clip(VaultShapes.card)
                                     .background(VaultColors.SurfaceVariant)
                             ) {
@@ -202,25 +231,24 @@ fun DetailsScreen(
                             }
 
                             Column(modifier = Modifier.padding(start = VaultSpacing.sm).weight(1f)) {
-                                Text(media.title, style = MaterialTheme.typography.titleLarge, color = VaultColors.TextPrimary, maxLines = 3)
-
-                                Spacer(Modifier.height(VaultSpacing.xs))
+                                Text(media.title, style = MaterialTheme.typography.titleLarge, color = VaultColors.TextPrimary, maxLines = 2)
 
                                 if (state.hasResumeProgress && !media.type.isSeriesLike()) {
                                     Text(
                                         formatWatchedProgress(state.resumePositionMs, media.runtimeMinutes),
                                         style = MaterialTheme.typography.labelSmall,
                                         color = VaultColors.Orange,
+                                        modifier = Modifier.padding(top = VaultSpacing.xxs)
                                     )
                                 }
+                            }
 
-                                IconButton(onClick = { viewModel.toggleWatchlist() }, modifier = Modifier.padding(top = VaultSpacing.xxs)) {
-                                    Icon(
-                                        imageVector = if (state.isInWatchlist) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder,
-                                        contentDescription = "Watchlist",
-                                        tint = VaultColors.Orange,
-                                    )
-                                }
+                            IconButton(onClick = { viewModel.toggleWatchlist() }) {
+                                Icon(
+                                    imageVector = if (state.isInWatchlist) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder,
+                                    contentDescription = "Watchlist",
+                                    tint = VaultColors.Orange,
+                                )
                             }
                         }
                     }
