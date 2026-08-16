@@ -185,6 +185,19 @@ fun PlayerScreen(
                 PlayerView(ctx).apply {
                     player = viewModel.player
                     useController = false // fully custom controls below
+                    // Transparent subtitle background (just outlined text, no
+                    // black box behind it) — matches modern streaming apps
+                    // instead of Android's default boxed-caption look.
+                    subtitleView?.setStyle(
+                        androidx.media3.ui.CaptionStyleCompat(
+                            android.graphics.Color.WHITE,
+                            android.graphics.Color.TRANSPARENT,
+                            android.graphics.Color.TRANSPARENT,
+                            androidx.media3.ui.CaptionStyleCompat.EDGE_TYPE_OUTLINE,
+                            android.graphics.Color.BLACK,
+                            null,
+                        )
+                    )
                 }
             },
             modifier = Modifier
