@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -86,6 +87,25 @@ fun PosterCard(
                 )
             } else {
                 FallbackPoster(title = item.title)
+            }
+            // Small circular play affordance in the corner — same idea as the
+            // reference image's poster styling, purely decorative (the whole
+            // card is already clickable, this doesn't add new behavior).
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(6.dp)
+                    .size(26.dp)
+                    .clip(androidx.compose.foundation.shape.CircleShape)
+                    .background(VaultColors.Background.copy(alpha = 0.55f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    Icons.Filled.PlayArrow,
+                    contentDescription = null,
+                    tint = VaultColors.TextPrimary,
+                    modifier = Modifier.size(16.dp)
+                )
             }
         }
         if (showTitle) {

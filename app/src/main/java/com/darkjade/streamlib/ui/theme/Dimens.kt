@@ -14,10 +14,11 @@ object VaultSpacing {
 }
 
 object VaultShapes {
-    val card = RoundedCornerShape(10.dp)
+    // Rounder cards — closer to the premium, glossy card look in the reference.
+    val card = RoundedCornerShape(16.dp)
     val chip = RoundedCornerShape(50)
     val button = RoundedCornerShape(28.dp)
-    val sheet = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+    val sheet = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
 }
 
 object VaultSizes {

@@ -61,6 +61,24 @@ fun ComicCard(
             } else {
                 ComicFallbackCover(title = comic.title)
             }
+            // Small circular "read" affordance — consistent with the play-icon
+            // treatment on video posters, purely decorative.
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(6.dp)
+                    .size(26.dp)
+                    .clip(androidx.compose.foundation.shape.CircleShape)
+                    .background(VaultColors.Background.copy(alpha = 0.55f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    Icons.Filled.MenuBook,
+                    contentDescription = null,
+                    tint = VaultColors.TextPrimary,
+                    modifier = Modifier.size(14.dp)
+                )
+            }
         }
         if (showTitle) {
             Text(
