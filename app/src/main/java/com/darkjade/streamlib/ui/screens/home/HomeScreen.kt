@@ -37,6 +37,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
@@ -70,6 +73,7 @@ fun HomeScreen(
     onOpenNews: () -> Unit,
 ) {
     val state by viewModel.uiState.collectAsState()
+    var selectedCategory by remember { mutableStateOf<HomeCategoryFilter?>(null) }
 
     Box(
         modifier = Modifier
@@ -98,6 +102,12 @@ fun HomeScreen(
                 ) {
                     item {
                         HomeTopBar(onOpenSearch = onOpenSearch, onOpenSettings = onOpenSettings, onOpenNews = onOpenNews)
+                    }
+                    item {
+                        HomeCategoryPills(
+                            selected = selectedCategory,
+                            onSelect = { selectedCategory = it },
+                        )
                     }
 
                     // Top: main auto-rotating carousel across everything (up to 5: movies, series, comics).
@@ -136,7 +146,8 @@ fun HomeScreen(
                     }
 
                     // Movies: banner ABOVE the content row, then the row itself.
-                    if (state.movieBanners.isNotEmpty()) {
+                    val showMovies = selectedCategory == null || selectedCategory == HomeCategoryFilter.MOVIES
+                    if (showMovies && state.movieBanners.isNotEmpty()) {
                         item {
                             SecondaryBannerCarousel(
                                 items = state.movieBanners,
@@ -147,12 +158,15 @@ fun HomeScreen(
                             )
                         }
                     }
-                    item {
-                        MediaRail("Movies", state.movies, onItemClick = { onOpenDetails(it.id) }, onAddToList = viewModel::addToWatchlist, onRemoveFromLibrary = viewModel::removeFromLibrary)
+                    if (showMovies) {
+                        item {
+                            MediaRail("Movies", state.movies, onItemClick = { onOpenDetails(it.id) }, onAddToList = viewModel::addToWatchlist, onRemoveFromLibrary = viewModel::removeFromLibrary)
+                        }
                     }
 
                     // Series: banner ABOVE the content row, then the row itself.
-                    if (state.seriesBanners.isNotEmpty()) {
+                    val showSeries = selectedCategory == null || selectedCategory == HomeCategoryFilter.SERIES
+                    if (showSeries && state.seriesBanners.isNotEmpty()) {
                         item {
                             SecondaryBannerCarousel(
                                 items = state.seriesBanners,
@@ -163,12 +177,15 @@ fun HomeScreen(
                             )
                         }
                     }
-                    item {
-                        MediaRail("Series", state.series, onItemClick = { onOpenDetails(it.id) }, onAddToList = viewModel::addToWatchlist, onRemoveFromLibrary = viewModel::removeFromLibrary)
+                    if (showSeries) {
+                        item {
+                            MediaRail("Series", state.series, onItemClick = { onOpenDetails(it.id) }, onAddToList = viewModel::addToWatchlist, onRemoveFromLibrary = viewModel::removeFromLibrary)
+                        }
                     }
 
                     // Anime: banner ABOVE the content row, then the row itself.
-                    if (state.animeBanners.isNotEmpty()) {
+                    val showAnime = selectedCategory == null || selectedCategory == HomeCategoryFilter.ANIME
+                    if (showAnime && state.animeBanners.isNotEmpty()) {
                         item {
                             SecondaryBannerCarousel(
                                 items = state.animeBanners,
@@ -179,12 +196,15 @@ fun HomeScreen(
                             )
                         }
                     }
-                    item {
-                        MediaRail("Anime", state.anime, onItemClick = { onOpenDetails(it.id) }, onAddToList = viewModel::addToWatchlist, onRemoveFromLibrary = viewModel::removeFromLibrary)
+                    if (showAnime) {
+                        item {
+                            MediaRail("Anime", state.anime, onItemClick = { onOpenDetails(it.id) }, onAddToList = viewModel::addToWatchlist, onRemoveFromLibrary = viewModel::removeFromLibrary)
+                        }
                     }
 
                     // Comics: banner ABOVE the content row, then the row itself.
-                    if (state.comicsBanners.isNotEmpty()) {
+                    val showComics = selectedCategory == null || selectedCategory == HomeCategoryFilter.COMICS
+                    if (showComics && state.comicsBanners.isNotEmpty()) {
                         item {
                             SecondaryBannerCarousel(
                                 items = state.comicsBanners,
@@ -199,8 +219,10 @@ fun HomeScreen(
                             )
                         }
                     }
-                    item {
-                        ComicRail("Comics", state.comics, onItemClick = { onOpenComicDetails(it.id) })
+                    if (showComics) {
+                        item {
+                            ComicRail("Comics", state.comics, onItemClick = { onOpenComicDetails(it.id) })
+                        }
                     }
                 }
             }
@@ -212,6 +234,43 @@ private fun openHero(hero: HeroCandidate, onOpenDetails: (Long) -> Unit, onOpenC
     when (hero) {
         is HeroCandidate.Media -> onOpenDetails(hero.id)
         is HeroCandidate.Comic -> onOpenComicDetails(hero.id)
+    }
+}
+
+private enum class HomeCategoryFilter { MOVIES, SERIES, ANIME, COMICS }
+
+/** Purple rounded-pill category selector under the header — filters which
+ * category sections are shown below (Continue Watching/Recently Added stay
+ * visible regardless, since they aren't category-specific). */
+@Composable
+private fun HomeCategoryPills(selected: HomeCategoryFilter?, onSelect: (HomeCategoryFilter?) -> Unit) {
+    val categories = listOf(
+        null to "All",
+        HomeCategoryFilter.MOVIES to "Movies",
+        HomeCategoryFilter.SERIES to "Series",
+        HomeCategoryFilter.ANIME to "Anime",
+        HomeCategoryFilter.COMICS to "Comics",
+    )
+    LazyRow(
+        horizontalArrangement = Arrangement.spacedBy(VaultSpacing.xs),
+        contentPadding = PaddingValues(horizontal = VaultSpacing.md, vertical = VaultSpacing.sm),
+    ) {
+        items(categories) { (value, label) ->
+            val isSelected = selected == value
+            Box(
+                modifier = Modifier
+                    .clip(VaultShapes.chip)
+                    .background(if (isSelected) VaultColors.Orange else VaultColors.Surface)
+                    .clickable { onSelect(value) }
+                    .padding(horizontal = VaultSpacing.md, vertical = VaultSpacing.xs)
+            ) {
+                Text(
+                    label,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = if (isSelected) Color.White else VaultColors.TextSecondary,
+                )
+            }
+        }
     }
 }
 

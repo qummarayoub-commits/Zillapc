@@ -206,56 +206,11 @@ fun DetailsScreen(
 
                                 Spacer(Modifier.height(VaultSpacing.xs))
 
-                                if (state.nextUpLabel != null && state.nextUpUri != null) {
-                                    if (state.hasResumeProgress) {
-                                        Button(
-                                            onClick = {
-                                                viewModel.recordOpened(state.nextUpEpisodeId)
-                                                onPlay(state.nextUpUri.toString(), state.nextUpEpisodeId)
-                                            },
-                                            shape = VaultShapes.button,
-                                            colors = ButtonDefaults.buttonColors(containerColor = VaultColors.Orange, contentColor = Color.White),
-                                            modifier = Modifier.fillMaxWidth()
-                                        ) {
-                                            Icon(Icons.Filled.PlayArrow, contentDescription = null)
-                                            Text(" Resume", modifier = Modifier.padding(start = 4.dp))
-                                        }
-                                        OutlinedButton(
-                                            onClick = {
-                                                viewModel.recordOpened(state.nextUpEpisodeId)
-                                                viewModel.playFromBeginning(state.nextUpEpisodeId) {
-                                                    onPlay(state.nextUpUri.toString(), state.nextUpEpisodeId)
-                                                }
-                                            },
-                                            shape = VaultShapes.button,
-                                            colors = ButtonDefaults.outlinedButtonColors(contentColor = VaultColors.TextPrimary),
-                                            modifier = Modifier.fillMaxWidth().padding(top = VaultSpacing.xxs)
-                                        ) {
-                                            Icon(Icons.Filled.Replay, contentDescription = null)
-                                            Text(" From Beginning", modifier = Modifier.padding(start = 4.dp))
-                                        }
-                                    } else {
-                                        Button(
-                                            onClick = {
-                                                viewModel.recordOpened(state.nextUpEpisodeId)
-                                                onPlay(state.nextUpUri.toString(), state.nextUpEpisodeId)
-                                            },
-                                            shape = VaultShapes.button,
-                                            colors = ButtonDefaults.buttonColors(containerColor = VaultColors.Orange, contentColor = Color.White),
-                                            modifier = Modifier.fillMaxWidth()
-                                        ) {
-                                            Icon(Icons.Filled.PlayArrow, contentDescription = null)
-                                            Text(" ${state.nextUpLabel}", modifier = Modifier.padding(start = 4.dp))
-                                        }
-                                    }
-                                }
-
                                 if (state.hasResumeProgress && !media.type.isSeriesLike()) {
                                     Text(
                                         formatWatchedProgress(state.resumePositionMs, media.runtimeMinutes),
                                         style = MaterialTheme.typography.labelSmall,
                                         color = VaultColors.Orange,
-                                        modifier = Modifier.padding(top = VaultSpacing.xxs)
                                     )
                                 }
 
@@ -270,8 +225,56 @@ fun DetailsScreen(
                         }
                     }
 
-                    // Breathing room below the poster, then Duration / IMDb / Rotten Tomatoes —
-                    // only the ratings that actually exist; never invented.
+                    // Large full-width primary CTA — matches the reference's
+                    // bold bottom "Watch Trailer"-style button treatment,
+                    // instead of a small button squeezed next to the poster.
+                    if (state.nextUpLabel != null && state.nextUpUri != null) {
+                        item {
+                            Column(modifier = Modifier.fillMaxWidth().padding(horizontal = VaultSpacing.md).padding(top = VaultSpacing.sm)) {
+                                if (state.hasResumeProgress) {
+                                    Button(
+                                        onClick = {
+                                            viewModel.recordOpened(state.nextUpEpisodeId)
+                                            onPlay(state.nextUpUri.toString(), state.nextUpEpisodeId)
+                                        },
+                                        shape = VaultShapes.button,
+                                        colors = ButtonDefaults.buttonColors(containerColor = VaultColors.Orange, contentColor = Color.White),
+                                        modifier = Modifier.fillMaxWidth().height(52.dp)
+                                    ) {
+                                        Icon(Icons.Filled.PlayArrow, contentDescription = null)
+                                        Text(" Resume", style = MaterialTheme.typography.titleMedium, color = Color.White, modifier = Modifier.padding(start = 4.dp))
+                                    }
+                                    OutlinedButton(
+                                        onClick = {
+                                            viewModel.recordOpened(state.nextUpEpisodeId)
+                                            viewModel.playFromBeginning(state.nextUpEpisodeId) {
+                                                onPlay(state.nextUpUri.toString(), state.nextUpEpisodeId)
+                                            }
+                                        },
+                                        shape = VaultShapes.button,
+                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = VaultColors.TextPrimary),
+                                        modifier = Modifier.fillMaxWidth().height(48.dp).padding(top = VaultSpacing.xs)
+                                    ) {
+                                        Icon(Icons.Filled.Replay, contentDescription = null)
+                                        Text(" From Beginning", modifier = Modifier.padding(start = 4.dp))
+                                    }
+                                } else {
+                                    Button(
+                                        onClick = {
+                                            viewModel.recordOpened(state.nextUpEpisodeId)
+                                            onPlay(state.nextUpUri.toString(), state.nextUpEpisodeId)
+                                        },
+                                        shape = VaultShapes.button,
+                                        colors = ButtonDefaults.buttonColors(containerColor = VaultColors.Orange, contentColor = Color.White),
+                                        modifier = Modifier.fillMaxWidth().height(52.dp)
+                                    ) {
+                                        Icon(Icons.Filled.PlayArrow, contentDescription = null)
+                                        Text(" ${state.nextUpLabel}", style = MaterialTheme.typography.titleMedium, color = Color.White, modifier = Modifier.padding(start = 4.dp))
+                                    }
+                                }
+                            }
+                        }
+                    }
                     item {
                         Column(modifier = Modifier.padding(horizontal = VaultSpacing.md).padding(top = VaultSpacing.lg)) {
                             RatingsBlock(media)
