@@ -131,9 +131,12 @@ fun NewsScreen(
                 )
             },
             singleLine = true,
+            shape = VaultShapes.button,
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = VaultColors.Orange,
                 unfocusedBorderColor = VaultColors.Divider,
+                focusedContainerColor = VaultColors.Surface,
+                unfocusedContainerColor = VaultColors.Surface,
                 focusedTextColor = VaultColors.TextPrimary,
                 unfocusedTextColor = VaultColors.TextPrimary,
                 cursorColor = VaultColors.Orange

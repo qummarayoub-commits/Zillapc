@@ -27,6 +27,7 @@ import com.darkjade.streamlib.ui.components.EmptyState
 import com.darkjade.streamlib.ui.components.MediaRail
 import com.darkjade.streamlib.ui.components.PosterCard
 import com.darkjade.streamlib.ui.theme.VaultColors
+import com.darkjade.streamlib.ui.theme.VaultShapes
 import com.darkjade.streamlib.ui.theme.VaultSpacing
 
 @Composable
@@ -43,9 +44,12 @@ fun SearchScreen(
             placeholder = { Text("Search movies, series, anime, episodes") },
             leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null, tint = VaultColors.TextSecondary) },
             singleLine = true,
+            shape = VaultShapes.button, // fully rounded pill search field, matching the reference
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = VaultColors.Orange,
                 unfocusedBorderColor = VaultColors.Divider,
+                focusedContainerColor = VaultColors.Surface,
+                unfocusedContainerColor = VaultColors.Surface,
                 focusedTextColor = VaultColors.TextPrimary,
                 unfocusedTextColor = VaultColors.TextPrimary,
                 cursorColor = VaultColors.Orange,

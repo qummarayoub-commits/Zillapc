@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Article
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -284,18 +285,46 @@ private fun MainHeroCarousel(
                             )
                         )
                 )
+                hero.rating?.let { rating ->
+                    Row(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(top = VaultSpacing.xl, end = VaultSpacing.md)
+                            .clip(VaultShapes.chip)
+                            .background(Color.Black.copy(alpha = 0.45f))
+                            .padding(horizontal = VaultSpacing.sm, vertical = VaultSpacing.xxs),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(Icons.Filled.Star, contentDescription = null, tint = VaultColors.PremiumGold, modifier = Modifier.size(14.dp))
+                        Text(
+                            " ${"%.1f".format(rating)}",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = VaultColors.TextPrimary,
+                        )
+                    }
+                }
                 Column(
                     modifier = Modifier
                         .align(Alignment.BottomStart)
                         .padding(VaultSpacing.md)
                         .padding(bottom = VaultSpacing.md)
                 ) {
+                    hero.metaLine?.let {
+                        Text(
+                            text = it,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = VaultColors.TextSecondary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                     Text(
                         text = hero.title,
                         style = MaterialTheme.typography.headlineLarge,
                         color = VaultColors.TextPrimary,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(top = 2.dp)
                     )
                     hero.overview?.let {
                         Text(
@@ -311,10 +340,10 @@ private fun MainHeroCarousel(
                         Button(
                             onClick = { onWatch(hero) },
                             shape = VaultShapes.button,
-                            colors = ButtonDefaults.buttonColors(containerColor = VaultColors.Orange, contentColor = Color.White),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = VaultColors.Orange),
                         ) {
                             Icon(Icons.Filled.PlayArrow, contentDescription = null)
-                            Text(text = if (hero is HeroCandidate.Comic) " Read" else " Watch", modifier = Modifier.padding(start = 2.dp))
+                            Text(text = if (hero is HeroCandidate.Comic) " Read Now" else " Watch Now", modifier = Modifier.padding(start = 2.dp))
                         }
                         OutlinedButton(
                             onClick = { onOpenDetails(hero) },
