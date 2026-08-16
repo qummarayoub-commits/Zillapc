@@ -25,12 +25,12 @@ fun MediaRail(
     onRemoveFromLibrary: ((MediaItemEntity) -> Unit)? = null,
 ) {
     if (items.isEmpty()) return
-    Column(modifier = modifier.padding(top = VaultSpacing.md)) {
+    Column(modifier = modifier.padding(top = VaultSpacing.lg)) {
         Text(
             text = title,
             style = MaterialTheme.typography.titleMedium,
             color = VaultColors.TextPrimary,
-            modifier = Modifier.padding(horizontal = VaultSpacing.md, vertical = VaultSpacing.xs)
+            modifier = Modifier.padding(horizontal = VaultSpacing.md, vertical = VaultSpacing.sm)
         )
         LazyRow(
             horizontalArrangement = Arrangement.spacedBy(VaultSpacing.sm),

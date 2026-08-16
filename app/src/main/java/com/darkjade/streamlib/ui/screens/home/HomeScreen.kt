@@ -351,7 +351,7 @@ private fun <T> SecondaryBannerCarousel(
         modifier = Modifier
             .fillMaxWidth()
             .height(if (isPortraitContent) 220.dp else 170.dp)
-            .padding(horizontal = VaultSpacing.md, vertical = VaultSpacing.xs)
+            .padding(horizontal = VaultSpacing.md, vertical = VaultSpacing.sm)
     ) {
         HorizontalPager(
             state = pagerState,

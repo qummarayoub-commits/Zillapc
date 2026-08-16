@@ -20,7 +20,7 @@ fun VaultBottomBar(
     onNavigate: (String) -> Unit,
 ) {
     NavigationBar(
-        containerColor = VaultColors.Background,
+        containerColor = VaultColors.Surface,
         contentColor = VaultColors.TextSecondary,
         tonalElevation = 0.dp,
         modifier = Modifier.height(VaultSizes.bottomNavHeight)
