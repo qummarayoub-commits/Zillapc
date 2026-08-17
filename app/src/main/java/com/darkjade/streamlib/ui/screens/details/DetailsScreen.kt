@@ -96,6 +96,10 @@ fun DetailsScreen(
     onPlay: (fileUriString: String, episodeId: Long?) -> Unit,
 ) {
     val state by viewModel.uiState.collectAsState()
+    // Full-phone-size cinematic backdrop — computed from actual screen
+    // height (not a fixed dp) so it scales correctly across device sizes,
+    // matching the reference's near-full-screen hero exactly.
+    val heroHeightDp = (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp * 0.62f).dp
     val context = LocalContext.current
     var showRemoveDialog by remember { mutableStateOf(false) }
     var showOverflowMenu by remember { mutableStateOf(false) }
@@ -135,7 +139,7 @@ fun DetailsScreen(
                     // Large cinematic hero — substantially bigger than a thumbnail strip,
                     // fading naturally into the tinted page background below it.
                     item {
-                        Box(modifier = Modifier.fillMaxWidth().height(420.dp)) {
+                        Box(modifier = Modifier.fillMaxWidth().height(heroHeightDp)) {
                             if (media.backdropUrl != null) {
                                 AsyncImage(
                                     model = media.backdropUrl,

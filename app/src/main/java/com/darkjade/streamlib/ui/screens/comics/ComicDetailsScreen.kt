@@ -55,6 +55,8 @@ fun ComicDetailsScreen(
     val state by viewModel.uiState.collectAsState()
     var showOverflowMenu by remember { mutableStateOf(false) }
     var showRemoveDialog by remember { mutableStateOf(false) }
+    // Same full-phone-size hero treatment as the movie/series details screen, for consistency.
+    val heroHeightDp = (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp * 0.62f).dp
 
     Box(modifier = Modifier.fillMaxSize().background(VaultColors.Background)) {
         when {
@@ -70,7 +72,7 @@ fun ComicDetailsScreen(
                 val comic = state.comic!!
                 LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = VaultSpacing.xl)) {
                     item {
-                        Box(modifier = Modifier.fillMaxWidth().height(320.dp)) {
+                        Box(modifier = Modifier.fillMaxWidth().height(heroHeightDp)) {
                             if (comic.coverUrl != null) {
                                 // Blurred cover fills the frame, real cover stays undistorted —
                                 // portrait comic covers looked stretched/oddly cropped when
