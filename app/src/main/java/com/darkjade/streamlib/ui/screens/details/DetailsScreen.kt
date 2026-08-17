@@ -247,11 +247,19 @@ fun DetailsScreen(
                                 }
                             }
 
-                            IconButton(onClick = { viewModel.toggleWatchlist() }) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.clickable { viewModel.toggleWatchlist() }
+                            ) {
                                 Icon(
                                     imageVector = if (state.isInWatchlist) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder,
                                     contentDescription = "Watchlist",
                                     tint = VaultColors.Orange,
+                                )
+                                Text(
+                                    if (state.isInWatchlist) "Saved" else "My List",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = VaultColors.TextSecondary,
                                 )
                             }
                         }
@@ -392,22 +400,28 @@ fun DetailsScreen(
                         }
                     }
 
-                    // Cast — main cast only, horizontally scrollable, circular photos.
+                    // Cast — main cast only, 3-column grid with circular
+                    // photos (matches the reference's "Top Cast" grid layout).
                     if (castMembers.isNotEmpty()) {
                         item {
-                            Column(modifier = Modifier.padding(top = VaultSpacing.lg)) {
+                            Column(modifier = Modifier.padding(top = VaultSpacing.lg).padding(horizontal = VaultSpacing.md)) {
                                 Text(
-                                    "Cast",
+                                    "Top Cast",
                                     style = MaterialTheme.typography.titleMedium,
                                     color = VaultColors.TextPrimary,
-                                    modifier = Modifier.padding(horizontal = VaultSpacing.md)
                                 )
-                                Spacer(Modifier.height(VaultSpacing.xs))
-                                LazyRow(
-                                    horizontalArrangement = Arrangement.spacedBy(VaultSpacing.sm),
-                                    contentPadding = PaddingValues(horizontal = VaultSpacing.md),
-                                ) {
-                                    items(castMembers) { member -> CastMemberCard(member) }
+                                Spacer(Modifier.height(VaultSpacing.sm))
+                                castMembers.chunked(3).forEach { rowMembers ->
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth().padding(bottom = VaultSpacing.sm),
+                                        horizontalArrangement = Arrangement.spacedBy(VaultSpacing.sm),
+                                    ) {
+                                        rowMembers.forEach { member ->
+                                            Box(modifier = Modifier.weight(1f)) { CastMemberCard(member) }
+                                        }
+                                        // Pad the last row so cards stay left-aligned instead of stretching.
+                                        repeat(3 - rowMembers.size) { Box(modifier = Modifier.weight(1f)) }
+                                    }
                                 }
                             }
                         }
@@ -529,7 +543,7 @@ private fun formatRuntimeLong(minutes: Int?): String? {
 @Composable
 private fun CastMemberCard(member: ParsedCastMember) {
     Column(
-        modifier = Modifier.width(80.dp),
+        modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box(

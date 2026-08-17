@@ -49,7 +49,7 @@ val bottomNavItems = listOf(
     BottomNavItem(Routes.HOME, "Home", Icons.Filled.Home, Icons.Outlined.Home),
     BottomNavItem(Routes.MY_LISTS, "My Lists", Icons.Filled.Bookmark, Icons.Outlined.BookmarkBorder),
     BottomNavItem(Routes.BROWSE, "Browse", Icons.Filled.GridView, Icons.Outlined.GridView),
-    BottomNavItem(Routes.NEWS, "News", Icons.Filled.Article, Icons.Outlined.Article),
     BottomNavItem(Routes.SEARCH, "Search", Icons.Filled.Search, Icons.Outlined.Search),
+    BottomNavItem(Routes.NEWS, "News", Icons.Filled.Article, Icons.Outlined.Article),
     BottomNavItem(Routes.ACCOUNT, "Account", Icons.Filled.AccountCircle, Icons.Outlined.AccountCircle),
 )

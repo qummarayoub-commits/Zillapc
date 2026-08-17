@@ -9,12 +9,11 @@ object VaultColors {
     val SurfaceElevated = Color(0xFF1C1C1C)
     val SurfaceVariant = Color(0xFF242424)
 
-    // "Accent" (kept the identifier generic since the color itself now
-    // changes per theme direction) — currently a vivid purple/violet,
-    // matching the reference mockup's cinematic streaming-app look.
-    val Orange = Color(0xFF8B5CF6)
-    val OrangeBright = Color(0xFFA78BFA)
-    val OrangeDim = Color(0xFF4C2E8F)
+    // "Accent" — currently a bold Netflix-style red, matching the
+    // reference mockup's cinematic red/black look.
+    val Orange = Color(0xFFE50914)
+    val OrangeBright = Color(0xFFFF3B47)
+    val OrangeDim = Color(0xFF7A050B)
 
     val TextPrimary = Color(0xFFFFFFFF)
     val TextSecondary = Color(0xFFAAAAAA)
