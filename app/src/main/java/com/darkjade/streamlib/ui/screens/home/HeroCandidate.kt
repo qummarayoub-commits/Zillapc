@@ -21,11 +21,10 @@ sealed class HeroCandidate {
         override val metaLine: String?
             get() {
                 val bits = buildList {
-                    item.runtimeMinutes?.takeIf { it > 0 }?.let {
-                        add(if (it >= 60) "${it / 60}h ${it % 60}m" else "${it}m")
+                    item.ageRating?.takeIf { it.isNotBlank() }?.let { add(it) }
+                    item.genres.split(",").map { it.trim() }.filter { it.isNotBlank() }.take(3).let {
+                        if (it.isNotEmpty()) add(it.joinToString(", "))
                     }
-                    item.genres.split(",").firstOrNull()?.trim()?.takeIf { it.isNotBlank() }?.let { add(it) }
-                    item.year?.let { add(it.toString()) }
                 }
                 return bits.takeIf { it.isNotEmpty() }?.joinToString("  \u2022  ")
             }

@@ -108,26 +108,6 @@ fun PosterCard(
                     modifier = Modifier.size(16.dp)
                 )
             }
-            // Rating badge (top-right) — only when a real rating exists.
-            val displayRating = item.imdbRating ?: item.rating
-            if (displayRating != null) {
-                Row(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(6.dp)
-                        .clip(VaultShapes.chip)
-                        .background(VaultColors.Background.copy(alpha = 0.65f))
-                        .padding(horizontal = 5.dp, vertical = 2.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(Icons.Filled.Star, contentDescription = null, tint = VaultColors.PremiumGold, modifier = Modifier.size(10.dp))
-                    Text(
-                        " ${"%.1f".format(displayRating)}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = VaultColors.TextPrimary,
-                    )
-                }
-            }
         }
         if (showTitle) {
             Row(

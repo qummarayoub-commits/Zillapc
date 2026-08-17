@@ -365,8 +365,9 @@ private fun MainHeroCarousel(
                 Column(
                     modifier = Modifier
                         .align(Alignment.BottomStart)
+                        .fillMaxWidth()
                         .padding(VaultSpacing.md)
-                        .padding(bottom = VaultSpacing.md)
+                        .padding(bottom = VaultSpacing.lg)
                 ) {
                     hero.metaLine?.let {
                         Text(
@@ -395,46 +396,54 @@ private fun MainHeroCarousel(
                             modifier = Modifier.padding(top = VaultSpacing.xxs)
                         )
                     }
-                    Row(modifier = Modifier.padding(top = VaultSpacing.sm)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(top = VaultSpacing.sm),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
                         Button(
                             onClick = { onWatch(hero) },
                             shape = VaultShapes.button,
                             colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = VaultColors.Orange),
+                            modifier = Modifier.weight(1f).height(48.dp)
                         ) {
                             Icon(Icons.Filled.PlayArrow, contentDescription = null)
-                            Text(text = if (hero is HeroCandidate.Comic) " Read Now" else " Watch Now", modifier = Modifier.padding(start = 2.dp))
+                            Text(
+                                text = if (hero is HeroCandidate.Comic) " Read Now" else " Watch Now",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = VaultColors.Orange,
+                                modifier = Modifier.padding(start = 2.dp)
+                            )
                         }
-                        OutlinedButton(
-                            onClick = { onOpenDetails(hero) },
-                            shape = VaultShapes.button,
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = VaultColors.TextPrimary),
-                            modifier = Modifier.padding(start = VaultSpacing.sm)
+                        Box(
+                            modifier = Modifier
+                                .padding(start = VaultSpacing.sm)
+                                .size(48.dp)
+                                .clip(CircleShape)
+                                .background(Color.Black.copy(alpha = 0.35f))
+                                .clickable { onOpenDetails(hero) },
+                            contentAlignment = Alignment.Center,
                         ) {
-                            Icon(Icons.Filled.Add, contentDescription = null)
-                            Text(text = " My List", modifier = Modifier.padding(start = 2.dp))
+                            Icon(Icons.Filled.Add, contentDescription = "Save to list", tint = Color.White)
                         }
                     }
                 }
             }
         }
         if (items.size > 1) {
-            DotIndicators(
+            SegmentedPageIndicators(
                 count = items.size,
                 currentPage = pagerState.currentPage,
-                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = VaultSpacing.xs)
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = VaultSpacing.xxs).padding(horizontal = VaultSpacing.md)
             )
         }
     }
 }
 
 /**
- * Compact auto-rotating strip used between sections (below "Movies", below
- * "Series", below "Comics") — smaller than the main hero, with a small
- * category chip + title overlaid directly on the image (Netflix-style),
- * and its own page dots. Cycles through a small set of items on its own,
- * independent of the main hero carousel.
+ * A plain swipeable row of distinct banner cards — not a single
+ * auto-rotating pager with dot indicators. The user swipes through the
+ * items directly, seeing a sliver of the next card at the edge.
  */
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun <T> SecondaryBannerCarousel(
     items: List<T>,
@@ -444,33 +453,17 @@ private fun <T> SecondaryBannerCarousel(
     onClick: (T) -> Unit,
     isPortraitContent: Boolean = false,
 ) {
-    val pagerState = rememberPagerState(pageCount = { items.size })
-
-    LaunchedEffect(items.size) {
-        if (items.size <= 1) return@LaunchedEffect
-        while (true) {
-            delay(4000)
-            val next = (pagerState.currentPage + 1) % items.size
-            pagerState.animateScrollToPage(next)
-        }
-    }
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(if (isPortraitContent) 220.dp else 170.dp)
-            .padding(horizontal = VaultSpacing.md, vertical = VaultSpacing.sm)
+    LazyRow(
+        horizontalArrangement = Arrangement.spacedBy(VaultSpacing.sm),
+        contentPadding = PaddingValues(horizontal = VaultSpacing.md, vertical = VaultSpacing.sm),
     ) {
-        HorizontalPager(
-            state = pagerState,
-            modifier = Modifier
-                .fillMaxSize()
-                .clip(VaultShapes.card)
-        ) { page ->
-            val item = items[page]
+        items(items.size) { index ->
+            val item = items[index]
             Box(
                 modifier = Modifier
-                    .fillMaxSize()
+                    .width(280.dp)
+                    .height(if (isPortraitContent) 220.dp else 170.dp)
+                    .clip(VaultShapes.card)
                     .background(VaultColors.SurfaceVariant)
                     .clickable { onClick(item) }
             ) {
@@ -537,26 +530,21 @@ private fun <T> SecondaryBannerCarousel(
                 }
             }
         }
-        if (items.size > 1) {
-            DotIndicators(
-                count = items.size,
-                currentPage = pagerState.currentPage,
-                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = VaultSpacing.xxs)
-            )
-        }
     }
 }
 
+/** Thin segmented capsule bars (not small dots) — matches the reference's page-position style. */
 @Composable
-private fun DotIndicators(count: Int, currentPage: Int, modifier: Modifier = Modifier) {
-    Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+private fun SegmentedPageIndicators(count: Int, currentPage: Int, modifier: Modifier = Modifier) {
+    Row(modifier = modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         repeat(count) { index ->
             val selected = index == currentPage
             Box(
                 modifier = Modifier
-                    .size(if (selected) 7.dp else 5.dp)
-                    .clip(CircleShape)
-                    .background(if (selected) VaultColors.Orange else Color.White.copy(alpha = 0.4f))
+                    .weight(1f)
+                    .height(3.dp)
+                    .clip(VaultShapes.chip)
+                    .background(if (selected) VaultColors.Orange else Color.White.copy(alpha = 0.3f))
             )
         }
     }

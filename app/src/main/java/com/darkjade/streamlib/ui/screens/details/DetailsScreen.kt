@@ -215,7 +215,7 @@ fun DetailsScreen(
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(90.dp, 90.dp)
+                                    .size(120.dp, 120.dp)
                                     .clip(VaultShapes.card)
                                     .background(VaultColors.SurfaceVariant)
                             ) {
