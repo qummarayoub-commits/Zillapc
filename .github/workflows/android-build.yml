@@ -98,6 +98,10 @@ jobs:
           TEST_EXIT_CODE=$?
           set -e
           if [ $TEST_EXIT_CODE -ne 0 ]; then
+            grep -E "^e: file|^e: warning: file" gradle_test_output.txt | tail -40 | while IFS= read -r line; do
+              esc=$(echo "$line" | sed 's/%/%25/g; s/\r/%0D/g' | cut -c1-500)
+              echo "::error::${esc}"
+            done
             grep -iE "error|failure|failed|exception|unresolved reference|cannot access" gradle_test_output.txt | tail -40 | while IFS= read -r line; do
               esc=$(echo "$line" | sed 's/%/%25/g; s/\r/%0D/g' | cut -c1-500)
               echo "::error::${esc}"
