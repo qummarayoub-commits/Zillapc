@@ -39,6 +39,7 @@ data class MediaItemEntity(
     val episodeCount: Int? = null,
     val status: String? = null, // e.g. "Ended", "Returning Series"
     val productionCountry: String? = null,
+    val originalLanguage: String? = null,
     // Genuine IMDb/Rotten Tomatoes data from OMDb — never confused with
     // TMDB's own vote_average. omdbFetched guards against refetching on
     // every detail-page open once we've already tried once (success or not).

@@ -100,6 +100,7 @@ class TmdbMetadataProvider : MetadataProvider {
                 trailerYoutubeKey = extractTrailerKey(full.videos),
                 imdbId = full.external_ids?.imdb_id,
                 productionCountry = full.production_countries?.firstOrNull()?.name,
+                originalLanguage = full.original_language?.let { code -> runCatching { java.util.Locale(code).displayLanguage.takeIf { it.isNotBlank() && !it.equals(code, true) } }.getOrNull() },
             )
         }.getOrNull()
     }
@@ -128,6 +129,7 @@ class TmdbMetadataProvider : MetadataProvider {
                 trailerYoutubeKey = extractTrailerKey(full.videos),
                 imdbId = full.external_ids?.imdb_id,
                 productionCountry = full.production_countries?.firstOrNull()?.name,
+                originalLanguage = full.original_language?.let { code -> runCatching { java.util.Locale(code).displayLanguage.takeIf { it.isNotBlank() && !it.equals(code, true) } }.getOrNull() },
                 seasonCount = full.number_of_seasons,
                 episodeCount = full.number_of_episodes,
                 status = full.status,

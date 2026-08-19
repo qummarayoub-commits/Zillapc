@@ -42,7 +42,7 @@ import com.darkjade.streamlib.data.db.entity.WatchlistEntity
         PlaybackProgressEntity::class,
         NewsArticleEntity::class,
     ],
-    version = 12,
+    version = 13,
     exportSchema = true
 )
 @TypeConverters(Converters::class)

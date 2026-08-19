@@ -139,8 +139,9 @@ fun DetailsScreen(
                 val castMembers = remember(media.castMembers) { parseCastMembers(media.castMembers) }
 
                 LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = VaultSpacing.xl)) {
-                    // Large cinematic hero — substantially bigger than a thumbnail strip,
-                    // fading naturally into the tinted page background below it.
+                    // ===== Step 1-6: everything below is overlaid on ONE
+                    // full-phone-size backdrop image, exactly like the
+                    // reference — not separate stacked sections. =====
                     item {
                         Box(modifier = Modifier.fillMaxWidth().height(heroHeightDp)) {
                             if (media.backdropUrl != null) {
@@ -153,14 +154,17 @@ fun DetailsScreen(
                             } else {
                                 Box(modifier = Modifier.fillMaxSize().background(VaultColors.SurfaceVariant))
                             }
+                            // Gradient dark enough at the bottom for the poster/title/button block to stay readable.
                             Box(
                                 modifier = Modifier.fillMaxSize().background(
-                                    Brush.verticalGradient(0.5f to Color.Transparent, 1f to VaultColors.Background)
+                                    Brush.verticalGradient(0.15f to Color.Transparent, 0.55f to VaultColors.Background.copy(alpha = 0.75f), 1f to VaultColors.Background)
                                 )
                             )
+
+                            // Step 2: back/menu icons, top corners.
                             IconButton(onClick = onBack, modifier = Modifier.align(Alignment.TopStart).padding(VaultSpacing.xs)) {
                                 Box(
-                                    modifier = Modifier.clip(androidx.compose.foundation.shape.CircleShape).background(Color.Black.copy(alpha = 0.4f)),
+                                    modifier = Modifier.clip(CircleShape).background(Color.Black.copy(alpha = 0.4f)),
                                     contentAlignment = Alignment.Center,
                                 ) {
                                     Icon(Icons.Filled.ArrowBack, contentDescription = "Back", tint = Color.White, modifier = Modifier.padding(6.dp))
@@ -169,7 +173,7 @@ fun DetailsScreen(
                             Box(modifier = Modifier.align(Alignment.TopEnd).padding(VaultSpacing.xs)) {
                                 IconButton(onClick = { showOverflowMenu = true }) {
                                     Box(
-                                        modifier = Modifier.clip(androidx.compose.foundation.shape.CircleShape).background(Color.Black.copy(alpha = 0.4f)),
+                                        modifier = Modifier.clip(CircleShape).background(Color.Black.copy(alpha = 0.4f)),
                                         contentAlignment = Alignment.Center,
                                     ) {
                                         Icon(Icons.Filled.MoreVert, contentDescription = "More options", tint = Color.White, modifier = Modifier.padding(6.dp))
@@ -186,14 +190,14 @@ fun DetailsScreen(
                                     )
                                 }
                             }
-                            // Large centered play button directly on the backdrop —
-                            // matches the reference's "Cars" details screen exactly.
+
+                            // Step 2: large centered play button — plays the movie/next episode.
                             if (state.nextUpUri != null) {
                                 Box(
                                     modifier = Modifier
                                         .align(Alignment.Center)
                                         .size(64.dp)
-                                        .clip(androidx.compose.foundation.shape.CircleShape)
+                                        .clip(CircleShape)
                                         .background(Color.White.copy(alpha = 0.92f))
                                         .clickable {
                                             viewModel.recordOpened(state.nextUpEpisodeId)
@@ -204,76 +208,138 @@ fun DetailsScreen(
                                     Icon(Icons.Filled.PlayArrow, contentDescription = "Play", tint = VaultColors.Orange, modifier = Modifier.size(32.dp))
                                 }
                             }
-                        }
-                    }
 
-                    // Small thumbnail + title + heart — compact info row directly
-                    // under the backdrop, matching the reference layout exactly.
-                    item {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = VaultSpacing.md)
-                                .padding(top = VaultSpacing.xxs),
-                        ) {
-                            Box(
+                            // Steps 3-6: poster + title + info + tags + Watch Trailer,
+                            // all still overlaid on the same backdrop image.
+                            Column(
                                 modifier = Modifier
-                                    .size(120.dp, 120.dp)
-                                    .clip(VaultShapes.card)
-                                    .background(VaultColors.SurfaceVariant)
+                                    .align(Alignment.BottomStart)
+                                    .fillMaxWidth()
+                                    .padding(VaultSpacing.md)
                             ) {
-                                val posterModel = com.darkjade.streamlib.ui.util.PosterRotationCache.posterFor(media) ?: media.localFileUri
-                                if (posterModel != null) {
-                                    SubcomposeAsyncImage(
-                                        model = posterModel,
-                                        contentDescription = media.title,
-                                        contentScale = ContentScale.Crop,
-                                        modifier = Modifier.fillMaxSize(),
-                                        loading = { FallbackPoster(title = media.title) },
-                                        error = { FallbackPoster(title = media.title) },
-                                    )
-                                } else {
-                                    FallbackPoster(title = media.title)
+                                Row(verticalAlignment = Alignment.Top) {
+                                    // Step 3: poster shows the FULL image, not cropped/shrunk.
+                                    Box(
+                                        modifier = Modifier
+                                            .width(90.dp)
+                                            .clip(VaultShapes.card)
+                                            .background(VaultColors.SurfaceVariant)
+                                    ) {
+                                        val posterModel = com.darkjade.streamlib.ui.util.PosterRotationCache.posterFor(media) ?: media.localFileUri
+                                        if (posterModel != null) {
+                                            SubcomposeAsyncImage(
+                                                model = posterModel,
+                                                contentDescription = media.title,
+                                                contentScale = ContentScale.Fit,
+                                                modifier = Modifier.fillMaxWidth(),
+                                                loading = { FallbackPoster(title = media.title) },
+                                                error = { FallbackPoster(title = media.title) },
+                                            )
+                                        } else {
+                                            FallbackPoster(title = media.title)
+                                        }
+                                    }
+
+                                    // Step 4: title beside the poster.
+                                    Column(modifier = Modifier.padding(start = VaultSpacing.sm).weight(1f)) {
+                                        Text(media.title, style = MaterialTheme.typography.titleLarge, color = VaultColors.TextPrimary, maxLines = 2)
+                                        if (state.hasResumeProgress && !media.type.isSeriesLike()) {
+                                            Text(
+                                                formatWatchedProgress(state.resumePositionMs, media.runtimeMinutes),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = VaultColors.Orange,
+                                                modifier = Modifier.padding(top = VaultSpacing.xxs)
+                                            )
+                                        }
+                                    }
+
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        modifier = Modifier.clickable { viewModel.toggleWatchlist() }
+                                    ) {
+                                        Icon(
+                                            imageVector = if (state.isInWatchlist) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder,
+                                            contentDescription = "Watchlist",
+                                            tint = VaultColors.Orange,
+                                        )
+                                        Text(
+                                            if (state.isInWatchlist) "Saved" else "My List",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = VaultColors.TextSecondary,
+                                        )
+                                    }
                                 }
-                            }
 
-                            Column(modifier = Modifier.padding(start = VaultSpacing.sm).weight(1f)) {
-                                Text(media.title, style = MaterialTheme.typography.titleLarge, color = VaultColors.TextPrimary, maxLines = 2)
-
-                                if (state.hasResumeProgress && !media.type.isSeriesLike()) {
+                                // Step 5: Duration - Language, then short overview, then genre tags.
+                                val metaBits = buildList {
+                                    formatRuntimeLong(media.runtimeMinutes)?.let { add(it) }
+                                    media.originalLanguage?.let { add(it) }
+                                }
+                                if (metaBits.isNotEmpty()) {
                                     Text(
-                                        formatWatchedProgress(state.resumePositionMs, media.runtimeMinutes),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = VaultColors.Orange,
+                                        metaBits.joinToString("  \u2022  "),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = VaultColors.TextSecondary,
+                                        modifier = Modifier.padding(top = VaultSpacing.sm)
+                                    )
+                                }
+                                media.overview?.let {
+                                    Text(
+                                        it,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = VaultColors.TextSecondary,
+                                        maxLines = 3,
+                                        overflow = TextOverflow.Ellipsis,
                                         modifier = Modifier.padding(top = VaultSpacing.xxs)
                                     )
                                 }
-                            }
+                                if (media.genres.isNotBlank()) {
+                                    LazyRow(
+                                        horizontalArrangement = Arrangement.spacedBy(VaultSpacing.xs),
+                                        modifier = Modifier.padding(top = VaultSpacing.sm)
+                                    ) {
+                                        items(media.genres.split(",").map { it.trim() }.filter { it.isNotBlank() }) { genre ->
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(VaultShapes.chip)
+                                                    .background(Color.White.copy(alpha = 0.12f))
+                                                    .padding(horizontal = VaultSpacing.sm, vertical = VaultSpacing.xxs)
+                                            ) {
+                                                Text(genre, style = MaterialTheme.typography.labelMedium, color = VaultColors.TextPrimary)
+                                            }
+                                        }
+                                    }
+                                }
 
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                modifier = Modifier.clickable { viewModel.toggleWatchlist() }
-                            ) {
-                                Icon(
-                                    imageVector = if (state.isInWatchlist) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder,
-                                    contentDescription = "Watchlist",
-                                    tint = VaultColors.Orange,
-                                )
-                                Text(
-                                    if (state.isInWatchlist) "Saved" else "My List",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = VaultColors.TextSecondary,
-                                )
+                                // Step 6: big "Watch Trailer" button, still on the backdrop.
+                                if (!media.trailerYoutubeKey.isNullOrBlank()) {
+                                    Button(
+                                        onClick = { showTrailer = true },
+                                        shape = VaultShapes.button,
+                                        colors = ButtonDefaults.buttonColors(containerColor = VaultColors.Orange, contentColor = Color.White),
+                                        modifier = Modifier.fillMaxWidth().height(52.dp).padding(top = VaultSpacing.md)
+                                    ) {
+                                        Text("Watch Trailer", style = MaterialTheme.typography.titleMedium, color = Color.White)
+                                    }
+                                }
                             }
                         }
                     }
 
-                    // Large full-width primary CTA — matches the reference's
-                    // bold bottom "Watch Trailer"-style button treatment,
-                    // instead of a small button squeezed next to the poster.
+                    // Embedded trailer player — appears here once "Watch Trailer" is tapped above.
+                    if (!media.trailerYoutubeKey.isNullOrBlank() && showTrailer) {
+                        item {
+                            EmbeddedYoutubePlayer(
+                                youtubeKey = media.trailerYoutubeKey,
+                                modifier = Modifier.fillMaxWidth().height(200.dp)
+                            )
+                        }
+                    }
+
+                    // Primary Play/Resume action — appears on scroll, below the hero.
                     if (state.nextUpLabel != null && state.nextUpUri != null) {
                         item {
-                            Column(modifier = Modifier.fillMaxWidth().padding(horizontal = VaultSpacing.md).padding(top = VaultSpacing.sm)) {
+                            Column(modifier = Modifier.fillMaxWidth().padding(horizontal = VaultSpacing.md).padding(top = VaultSpacing.md)) {
                                 if (state.hasResumeProgress) {
                                     Button(
                                         onClick = {
@@ -318,91 +384,6 @@ fun DetailsScreen(
                             }
                         }
                     }
-                    item {
-                        Column(modifier = Modifier.padding(horizontal = VaultSpacing.md).padding(top = VaultSpacing.lg)) {
-                            RatingsBlock(media)
-
-                            if (media.genres.isNotBlank()) {
-                                LazyRow(
-                                    horizontalArrangement = Arrangement.spacedBy(VaultSpacing.xs),
-                                    modifier = Modifier.padding(top = VaultSpacing.sm)
-                                ) {
-                                    items(media.genres.split(",").map { it.trim() }.filter { it.isNotBlank() }) { genre ->
-                                        Box(
-                                            modifier = Modifier
-                                                .clip(VaultShapes.chip)
-                                                .background(VaultColors.SurfaceVariant)
-                                                .padding(horizontal = VaultSpacing.sm, vertical = VaultSpacing.xxs)
-                                        ) {
-                                            Text(genre, style = MaterialTheme.typography.labelMedium, color = VaultColors.TextSecondary)
-                                        }
-                                    }
-                                }
-                            }
-
-                            if (media.metadataMissing) {
-                                Text(
-                                    "Metadata unavailable — showing local file info",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = VaultColors.TextTertiary,
-                                    modifier = Modifier.padding(top = VaultSpacing.xxs)
-                                )
-                            }
-
-                            media.overview?.let {
-                                Text(
-                                    it,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = VaultColors.TextSecondary,
-                                    modifier = Modifier.padding(top = VaultSpacing.sm)
-                                )
-                            }
-                        }
-                    }
-
-                    // Trailer — plays INSIDE this screen via an embedded player, never
-                    // an external browser/YouTube app. Nothing shown if none is available.
-                    if (!media.trailerYoutubeKey.isNullOrBlank()) {
-                        item {
-                            Column(modifier = Modifier.padding(horizontal = VaultSpacing.md).padding(top = VaultSpacing.lg)) {
-                                Text("Trailer", style = MaterialTheme.typography.titleMedium, color = VaultColors.TextPrimary)
-                                Spacer(Modifier.height(VaultSpacing.xs))
-                                if (showTrailer) {
-                                    EmbeddedYoutubePlayer(
-                                        youtubeKey = media.trailerYoutubeKey,
-                                        modifier = Modifier.fillMaxWidth().height(200.dp).clip(VaultShapes.card)
-                                    )
-                                } else {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(200.dp)
-                                            .clip(VaultShapes.card)
-                                            .background(VaultColors.SurfaceVariant)
-                                            .clickable { showTrailer = true },
-                                        contentAlignment = Alignment.Center,
-                                    ) {
-                                        if (media.backdropUrl != null) {
-                                            AsyncImage(
-                                                model = media.backdropUrl,
-                                                contentDescription = null,
-                                                contentScale = ContentScale.Crop,
-                                                modifier = Modifier.fillMaxSize(),
-                                            )
-                                            Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.35f)))
-                                        }
-                                        Icon(
-                                            Icons.Filled.PlayCircle,
-                                            contentDescription = "Play trailer",
-                                            tint = Color.White,
-                                            modifier = Modifier.size(56.dp)
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-
                     // Cast — main cast only, 3-column grid with circular
                     // photos (matches the reference's "Top Cast" grid layout).
                     if (castMembers.isNotEmpty()) {
@@ -518,24 +499,6 @@ fun DetailsScreen(
 
 /** "Duration: 2h 14m / IMDb: 8.1 / Rotten Tomatoes: 92%" — only fields that actually exist, never invented. */
 @Composable
-private fun RatingsBlock(media: MediaItemEntity) {
-    val lines = buildList {
-        formatRuntimeLong(media.runtimeMinutes)?.let { add("Duration: $it") }
-        media.imdbRating?.let { add("IMDb: ${"%.1f".format(it)}") }
-        media.rottenTomatoesPercent?.let { add("Rotten Tomatoes: $it%") }
-        // TMDB's own score is a different thing from IMDb — labeled distinctly, only shown if IMDb wasn't found.
-        if (media.imdbRating == null) {
-            media.rating?.let { add("TMDB Rating: ${"%.1f".format(it)}") }
-        }
-    }
-    if (lines.isEmpty()) return
-    Column {
-        lines.forEach {
-            Text(it, style = MaterialTheme.typography.bodyMedium, color = VaultColors.TextSecondary)
-        }
-    }
-}
-
 private fun formatRuntimeLong(minutes: Int?): String? {
     if (minutes == null || minutes <= 0) return null
     val h = minutes / 60

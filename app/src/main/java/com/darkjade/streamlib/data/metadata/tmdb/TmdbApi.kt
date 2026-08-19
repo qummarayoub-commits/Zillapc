@@ -24,6 +24,7 @@ data class TmdbMovieDto(
     val videos: TmdbVideosDto? = null,
     val external_ids: TmdbExternalIdsDto? = null,
     val production_countries: List<TmdbCountryDto>? = null,
+    val original_language: String? = null,
 )
 
 data class TmdbSeriesDto(
@@ -44,6 +45,7 @@ data class TmdbSeriesDto(
     val videos: TmdbVideosDto? = null,
     val external_ids: TmdbExternalIdsDto? = null,
     val production_countries: List<TmdbCountryDto>? = null,
+    val original_language: String? = null,
 )
 
 data class TmdbCountryDto(val name: String)
