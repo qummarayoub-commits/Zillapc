@@ -43,7 +43,7 @@ private data class MediaFlows(
     val continueWatching: List<MediaItemEntity>,
 )
 
-private const val HERO_CAROUSEL_SIZE = 5
+private const val HERO_CAROUSEL_SIZE = 6
 private const val SECONDARY_BANNER_SIZE = 3
 
 class HomeViewModel(

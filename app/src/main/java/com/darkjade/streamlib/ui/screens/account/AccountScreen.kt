@@ -25,6 +25,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.OpenWith
 import androidx.compose.material.icons.filled.Settings
@@ -65,6 +66,7 @@ import com.darkjade.streamlib.ui.theme.VaultSpacing
 fun AccountScreen(
     viewModel: AccountViewModel,
     onOpenSettings: () -> Unit,
+    onBack: () -> Unit,
 ) {
     val state by viewModel.uiState.collectAsState()
     val context = LocalContext.current
@@ -161,15 +163,22 @@ fun AccountScreen(
                         Icon(Icons.Filled.Edit, contentDescription = "Change banner", tint = Color.White, modifier = Modifier.size(16.dp))
                     }
                 }
-                Icon(
-                    Icons.Filled.Settings,
-                    contentDescription = "Settings",
-                    tint = Color.White,
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(VaultSpacing.sm)
-                        .clickable(onClick = onOpenSettings)
-                )
+                Row(modifier = Modifier.align(Alignment.TopStart).padding(VaultSpacing.sm)) {
+                    Icon(
+                        Icons.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        tint = Color.White,
+                        modifier = Modifier.clickable(onClick = onBack)
+                    )
+                    Icon(
+                        Icons.Filled.Settings,
+                        contentDescription = "Settings",
+                        tint = Color.White,
+                        modifier = Modifier
+                            .padding(start = VaultSpacing.md)
+                            .clickable(onClick = onOpenSettings)
+                    )
+                }
             }
         }
 

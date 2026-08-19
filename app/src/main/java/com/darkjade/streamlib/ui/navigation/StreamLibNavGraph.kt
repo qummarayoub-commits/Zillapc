@@ -49,7 +49,7 @@ import com.darkjade.streamlib.ui.screens.settings.SettingsViewModel
 import com.darkjade.streamlib.ui.util.SimpleViewModelFactory
 import kotlinx.coroutines.launch
 
-private val topLevelRoutes = setOf(Routes.HOME, Routes.MY_LISTS, Routes.BROWSE, Routes.NEWS, Routes.SEARCH, Routes.ACCOUNT)
+private val topLevelRoutes = setOf(Routes.HOME, Routes.MY_LISTS, Routes.BROWSE, Routes.NEWS, Routes.SEARCH)
 
 @Composable
 fun StreamLibNavGraph(container: AppContainer) {
@@ -108,6 +108,7 @@ fun StreamLibNavGraph(container: AppContainer) {
                     onOpenSearch = { navController.navigate(Routes.SEARCH) },
                     onOpenNews = { navController.navigate(Routes.NEWS) },
                     onOpenBrowse = { navController.navigate(Routes.BROWSE) },
+                    onOpenAccount = { navController.navigate(Routes.ACCOUNT) },
                 )
             }
 
@@ -140,7 +141,11 @@ fun StreamLibNavGraph(container: AppContainer) {
                 val vm: AccountViewModel = viewModel(factory = SimpleViewModelFactory {
                     AccountViewModel(container.profileRepository)
                 })
-                AccountScreen(viewModel = vm, onOpenSettings = { navController.navigate(Routes.SETTINGS) })
+                AccountScreen(
+                    viewModel = vm,
+                    onOpenSettings = { navController.navigate(Routes.SETTINGS) },
+                    onBack = { navController.popBackStack() },
+                )
             }
 
             composable(Routes.SETTINGS) {

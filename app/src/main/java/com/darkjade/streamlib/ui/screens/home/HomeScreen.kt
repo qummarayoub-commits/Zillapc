@@ -80,26 +80,11 @@ fun HomeScreen(
     onOpenSearch: () -> Unit,
     onOpenNews: () -> Unit,
     onOpenBrowse: () -> Unit,
+    onOpenAccount: () -> Unit,
 ) {
     val state by viewModel.uiState.collectAsState()
     var selectedCategory by remember { mutableStateOf<HomeCategoryFilter?>(null) }
-    val drawerState = androidx.compose.material3.rememberDrawerState(androidx.compose.material3.DrawerValue.Closed)
-    val drawerScope = androidx.compose.runtime.rememberCoroutineScope()
 
-    androidx.compose.material3.ModalNavigationDrawer(
-        drawerState = drawerState,
-        drawerContent = {
-            DarkJadeNavDrawer(
-                onHome = { drawerScope.launch { drawerState.close() } },
-                onMovies = { drawerScope.launch { drawerState.close() }; onOpenBrowse() },
-                onSeries = { drawerScope.launch { drawerState.close() }; onOpenBrowse() },
-                onSearch = { drawerScope.launch { drawerState.close() }; onOpenSearch() },
-                onStorage = { drawerScope.launch { drawerState.close() }; onOpenSettings() },
-                onNews = { drawerScope.launch { drawerState.close() }; onOpenNews() },
-                onSettings = { drawerScope.launch { drawerState.close() }; onOpenSettings() },
-            )
-        }
-    ) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -126,7 +111,7 @@ fun HomeScreen(
                     contentPadding = PaddingValues(bottom = VaultSpacing.xxl)
                 ) {
                     item {
-                        HomeTopBar(onOpenSearch = onOpenSearch, onOpenSettings = onOpenSettings, onOpenNews = onOpenNews, onOpenMenu = { drawerScope.launch { drawerState.open() } })
+                        HomeTopBar(onOpenSearch = onOpenSearch, onOpenSettings = onOpenSettings, onOpenNews = onOpenNews, onOpenAccount = onOpenAccount)
                     }
                     item {
                         HomeCategoryPills(
@@ -253,7 +238,6 @@ fun HomeScreen(
             }
         }
     }
-    }
 }
 
 private fun openHero(hero: HeroCandidate, onOpenDetails: (Long) -> Unit, onOpenComicDetails: (Long) -> Unit) {
@@ -301,7 +285,7 @@ private fun HomeCategoryPills(selected: HomeCategoryFilter?, onSelect: (HomeCate
 }
 
 @Composable
-private fun HomeTopBar(onOpenSearch: () -> Unit, onOpenSettings: () -> Unit, onOpenNews: () -> Unit, onOpenMenu: () -> Unit) {
+private fun HomeTopBar(onOpenSearch: () -> Unit, onOpenSettings: () -> Unit, onOpenNews: () -> Unit, onOpenAccount: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -309,84 +293,26 @@ private fun HomeTopBar(onOpenSearch: () -> Unit, onOpenSettings: () -> Unit, onO
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        Text(
+            text = "Dark Jade Player",
+            style = MaterialTheme.typography.headlineSmall,
+            color = VaultColors.Orange,
+        )
         Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onOpenMenu) {
-                Icon(Icons.Filled.Menu, contentDescription = "Menu", tint = VaultColors.TextPrimary)
-            }
-            Text(
-                text = "Dark Jade Player",
-                style = MaterialTheme.typography.headlineSmall,
-                color = VaultColors.Orange,
-            )
-        }
-        Row {
             IconButton(onClick = onOpenNews) {
                 Icon(Icons.Filled.Article, contentDescription = "News", tint = VaultColors.TextPrimary)
             }
             IconButton(onClick = onOpenSearch) {
                 Icon(Icons.Filled.Search, contentDescription = "Search", tint = VaultColors.TextPrimary)
             }
+            IconButton(onClick = onOpenAccount) {
+                Icon(Icons.Filled.AccountCircle, contentDescription = "Account", tint = VaultColors.TextPrimary)
+            }
         }
     }
 }
 
-/** Sidebar drawer — additive navigation surface alongside the existing
- * bottom nav, matching the reference's sidebar. Every item routes to an
- * existing destination; nothing here is new/fake functionality. */
-@Composable
-private fun DarkJadeNavDrawer(
-    onHome: () -> Unit,
-    onMovies: () -> Unit,
-    onSeries: () -> Unit,
-    onSearch: () -> Unit,
-    onStorage: () -> Unit,
-    onNews: () -> Unit,
-    onSettings: () -> Unit,
-) {
-    androidx.compose.material3.ModalDrawerSheet(
-        drawerContainerColor = VaultColors.Surface,
-    ) {
-        Column(modifier = Modifier.padding(VaultSpacing.md)) {
-            Text("Dark Jade Player", style = MaterialTheme.typography.titleLarge, color = VaultColors.Orange)
-            Text(
-                "Local Media System",
-                style = MaterialTheme.typography.labelSmall,
-                color = VaultColors.TextTertiary,
-                modifier = Modifier.padding(bottom = VaultSpacing.md)
-            )
-            DrawerRow(Icons.Filled.Home, "Home Screen", onHome, highlighted = true)
-            DrawerRow(Icons.Filled.Movie, "Movies Library", onMovies)
-            DrawerRow(Icons.Filled.Tv, "TV Series Library", onSeries)
-            DrawerRow(Icons.Filled.Search, "Global Search", onSearch)
-            DrawerRow(Icons.Filled.Folder, "Storage Sources", onStorage)
-            DrawerRow(Icons.Filled.Article, "Entertainment News", onNews)
-            DrawerRow(Icons.Filled.Settings, "Settings & System", onSettings)
-        }
-    }
-}
-
-@Composable
-private fun DrawerRow(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit, highlighted: Boolean = false) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(VaultShapes.card)
-            .background(if (highlighted) VaultColors.Orange.copy(alpha = 0.15f) else Color.Transparent)
-            .clickable(onClick = onClick)
-            .padding(vertical = VaultSpacing.sm, horizontal = VaultSpacing.sm),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(icon, contentDescription = null, tint = if (highlighted) VaultColors.Orange else VaultColors.TextSecondary)
-        Text(
-            label,
-            style = MaterialTheme.typography.bodyLarge,
-            color = if (highlighted) VaultColors.Orange else VaultColors.TextPrimary,
-            modifier = Modifier.padding(start = VaultSpacing.sm)
-        )
-    }
-}
-
-/** Main top-of-Home banner: up to 5 items, auto-advancing, with page dots — Crunchyroll-style. */
+/** Main top-of-Home banner: up to 6 items, auto-advancing, with page indicators — Crunchyroll-style. */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun MainHeroCarousel(
