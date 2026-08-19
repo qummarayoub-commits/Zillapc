@@ -59,6 +59,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
@@ -429,9 +430,17 @@ fun DetailsScreen(
                         }
                     }
 
-                    // Detailed information section.
-                    item {
-                        InfoSection(media, state.seasons.size)
+                    // Detailed information section — full layout for movies;
+                    // series gets a compact "See Information" toggle instead
+                    // (right above the season/episode list, where it matters more).
+                    if (!media.type.isSeriesLike()) {
+                        item {
+                            InfoSection(media)
+                        }
+                    } else {
+                        item {
+                            SeeInformationRow(media)
+                        }
                     }
 
                     if (state.seasons.isNotEmpty()) {
@@ -595,38 +604,101 @@ private fun CastFallbackIcon() {
 }
 
 /** Movies vs Series/Anime get different fields — only ones with real data are shown. */
+/** Full details layout for movies — RATING (IMDb + Rotten Tomatoes), GENRES,
+ * RUNTIME, DIRECTORS, matching the reference's label-caps + value style. */
 @Composable
-private fun InfoSection(media: MediaItemEntity, seasonCountFromDb: Int) {
+private fun InfoSection(media: MediaItemEntity) {
     Column(modifier = Modifier.padding(horizontal = VaultSpacing.md).padding(top = VaultSpacing.lg)) {
-        Text("Information", style = MaterialTheme.typography.titleMedium, color = VaultColors.TextPrimary)
-        Spacer(Modifier.height(VaultSpacing.xs))
-
-        InfoRow("Title", media.title)
-        media.year?.let { InfoRow("Year", it.toString()) }
-        if (media.genres.isNotBlank()) InfoRow("Genres", media.genres.replace(",", ", "))
-
-        if (media.type.isSeriesLike()) {
-            (media.seasonCount ?: seasonCountFromDb.takeIf { it > 0 })?.let { InfoRow("Seasons", it.toString()) }
-            media.episodeCount?.let { InfoRow("Episodes", it.toString()) }
-            media.status?.let { InfoRow("Status", it) }
-        } else {
-            formatRuntimeLong(media.runtimeMinutes)?.let { InfoRow("Duration", it) }
+        if (media.imdbRating != null || media.rottenTomatoesPercent != null) {
+            CapsInfoRow("RATING") {
+                Column {
+                    media.imdbRating?.let {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier.clip(RoundedCornerShape(3.dp)).background(Color(0xFFF5C518)).padding(horizontal = 4.dp, vertical = 1.dp)
+                            ) {
+                                Text("IMDb", style = MaterialTheme.typography.labelSmall, color = Color.Black)
+                            }
+                            Text(" ${"%.1f".format(it)}", style = MaterialTheme.typography.bodyMedium, color = VaultColors.TextPrimary, modifier = Modifier.padding(start = 6.dp))
+                        }
+                    }
+                    media.rottenTomatoesPercent?.let {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
+                            Text("\uD83C\uDF45", style = MaterialTheme.typography.bodyMedium)
+                            Text(" $it%", style = MaterialTheme.typography.bodyMedium, color = VaultColors.TextPrimary, modifier = Modifier.padding(start = 4.dp))
+                        }
+                    }
+                }
+            }
         }
 
-        media.imdbRating?.let { InfoRow("IMDb Rating", "%.1f / 10".format(it)) }
-        media.rottenTomatoesPercent?.let { InfoRow("Rotten Tomatoes", "$it%") }
-        if (media.imdbRating == null) media.rating?.let { InfoRow("TMDB Rating", "%.1f / 10".format(it)) }
-
-        if (!media.director.isNullOrBlank()) InfoRow("Director", media.director)
-        if (media.cast.isNotBlank()) InfoRow("Main Cast", media.cast.replace(",", ", "))
+        if (media.genres.isNotBlank()) CapsInfoRow("GENRES") { Text(media.genres.replace(",", ", "), style = MaterialTheme.typography.bodyMedium, color = VaultColors.TextPrimary) }
+        formatRuntimeLong(media.runtimeMinutes)?.let { CapsInfoRow("RUNTIME") { Text(it, style = MaterialTheme.typography.bodyMedium, color = VaultColors.TextPrimary) } }
+        if (!media.director.isNullOrBlank()) {
+            CapsInfoRow("DIRECTORS") {
+                Text(media.director.replace(",", ", "), style = MaterialTheme.typography.bodyMedium, color = VaultColors.Orange)
+            }
+        }
     }
 
-    // Only for movies (episodes have their own file per-row already). Shows
-    // only what's genuinely known — real file path and format from the
+    // Only what's genuinely known — real file path and format from the
     // actual extension — never fabricated size/resolution/audio-track data
     // we don't reliably have stored for this item.
-    if (!media.type.isSeriesLike() && (media.localFilePath != null || media.localFileUri != null)) {
+    if (media.localFilePath != null || media.localFileUri != null) {
         LocalFileInfoSection(media)
+    }
+}
+
+@Composable
+private fun CapsInfoRow(label: String, content: @Composable () -> Unit) {
+    Row(modifier = Modifier.fillMaxWidth().padding(vertical = VaultSpacing.sm)) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelMedium,
+            color = VaultColors.TextTertiary,
+            modifier = Modifier.width(110.dp)
+        )
+        Box(modifier = Modifier.weight(1f)) { content() }
+    }
+}
+
+/** Compact, collapsed-by-default ratings toggle for series — shown above
+ * the season/episode list rather than a full info block, since episodes
+ * matter more there. */
+@Composable
+private fun SeeInformationRow(media: MediaItemEntity) {
+    var expanded by remember { mutableStateOf(false) }
+    if (media.imdbRating == null && media.rottenTomatoesPercent == null) return
+
+    Column(modifier = Modifier.padding(horizontal = VaultSpacing.md).padding(top = VaultSpacing.md)) {
+        Row(
+            modifier = Modifier.fillMaxWidth().clickable { expanded = !expanded },
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("See Information", style = MaterialTheme.typography.titleSmall, color = VaultColors.Orange)
+            Icon(
+                if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                contentDescription = null,
+                tint = VaultColors.Orange,
+            )
+        }
+        if (expanded) {
+            Row(modifier = Modifier.padding(top = VaultSpacing.xs)) {
+                media.imdbRating?.let {
+                    Box(
+                        modifier = Modifier.clip(RoundedCornerShape(3.dp)).background(Color(0xFFF5C518)).padding(horizontal = 4.dp, vertical = 1.dp)
+                    ) {
+                        Text("IMDb", style = MaterialTheme.typography.labelSmall, color = Color.Black)
+                    }
+                    Text(" ${"%.1f".format(it)}", style = MaterialTheme.typography.bodyMedium, color = VaultColors.TextPrimary, modifier = Modifier.padding(start = 6.dp))
+                }
+                media.rottenTomatoesPercent?.let {
+                    Text("\uD83C\uDF45", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(start = VaultSpacing.md))
+                    Text(" $it%", style = MaterialTheme.typography.bodyMedium, color = VaultColors.TextPrimary, modifier = Modifier.padding(start = 4.dp))
+                }
+            }
+        }
     }
 }
 
