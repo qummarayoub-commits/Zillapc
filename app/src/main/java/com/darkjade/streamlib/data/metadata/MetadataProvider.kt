@@ -20,6 +20,7 @@ data class MetadataResult(
     val alternatePosterUrls: List<String> = emptyList(),
     val trailerYoutubeKey: String? = null,
     val imdbId: String? = null,
+    val productionCountry: String? = null,
     val seasonCount: Int? = null,
     val episodeCount: Int? = null,
     val status: String? = null,

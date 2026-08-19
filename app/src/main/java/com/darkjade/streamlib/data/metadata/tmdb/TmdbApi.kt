@@ -23,6 +23,7 @@ data class TmdbMovieDto(
     val images: TmdbImagesDto? = null,
     val videos: TmdbVideosDto? = null,
     val external_ids: TmdbExternalIdsDto? = null,
+    val production_countries: List<TmdbCountryDto>? = null,
 )
 
 data class TmdbSeriesDto(
@@ -42,7 +43,10 @@ data class TmdbSeriesDto(
     val images: TmdbImagesDto? = null,
     val videos: TmdbVideosDto? = null,
     val external_ids: TmdbExternalIdsDto? = null,
+    val production_countries: List<TmdbCountryDto>? = null,
 )
+
+data class TmdbCountryDto(val name: String)
 
 data class TmdbImagesDto(val posters: List<TmdbPosterDto> = emptyList())
 data class TmdbPosterDto(val file_path: String)

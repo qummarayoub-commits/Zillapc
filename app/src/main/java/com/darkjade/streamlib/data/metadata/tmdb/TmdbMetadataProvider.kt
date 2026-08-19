@@ -99,6 +99,7 @@ class TmdbMetadataProvider : MetadataProvider {
                 alternatePosterUrls = extractAlternatePosters(full.images),
                 trailerYoutubeKey = extractTrailerKey(full.videos),
                 imdbId = full.external_ids?.imdb_id,
+                productionCountry = full.production_countries?.firstOrNull()?.name,
             )
         }.getOrNull()
     }
@@ -126,6 +127,7 @@ class TmdbMetadataProvider : MetadataProvider {
                 alternatePosterUrls = extractAlternatePosters(full.images),
                 trailerYoutubeKey = extractTrailerKey(full.videos),
                 imdbId = full.external_ids?.imdb_id,
+                productionCountry = full.production_countries?.firstOrNull()?.name,
                 seasonCount = full.number_of_seasons,
                 episodeCount = full.number_of_episodes,
                 status = full.status,

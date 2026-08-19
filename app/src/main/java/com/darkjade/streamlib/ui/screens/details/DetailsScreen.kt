@@ -430,17 +430,9 @@ fun DetailsScreen(
                         }
                     }
 
-                    // Detailed information section — full layout for movies;
-                    // series gets a compact "See Information" toggle instead
-                    // (right above the season/episode list, where it matters more).
-                    if (!media.type.isSeriesLike()) {
-                        item {
-                            InfoSection(media)
-                        }
-                    } else {
-                        item {
-                            SeeInformationRow(media)
-                        }
+                    // Same full Information card for both movies and series.
+                    item {
+                        InfoSection(media)
                     }
 
                     if (state.seasons.isNotEmpty()) {
@@ -608,7 +600,15 @@ private fun CastFallbackIcon() {
  * RUNTIME, DIRECTORS, matching the reference's label-caps + value style. */
 @Composable
 private fun InfoSection(media: MediaItemEntity) {
-    Column(modifier = Modifier.padding(horizontal = VaultSpacing.md).padding(top = VaultSpacing.lg)) {
+    Column(
+        modifier = Modifier
+            .padding(horizontal = VaultSpacing.md)
+            .padding(top = VaultSpacing.lg)
+            .fillMaxWidth()
+            .clip(VaultShapes.card)
+            .background(VaultColors.Surface)
+            .padding(VaultSpacing.md)
+    ) {
         if (media.imdbRating != null || media.rottenTomatoesPercent != null) {
             CapsInfoRow("RATING") {
                 Column {
@@ -634,6 +634,9 @@ private fun InfoSection(media: MediaItemEntity) {
 
         if (media.genres.isNotBlank()) CapsInfoRow("GENRES") { Text(media.genres.replace(",", ", "), style = MaterialTheme.typography.bodyMedium, color = VaultColors.TextPrimary) }
         formatRuntimeLong(media.runtimeMinutes)?.let { CapsInfoRow("RUNTIME") { Text(it, style = MaterialTheme.typography.bodyMedium, color = VaultColors.TextPrimary) } }
+        if (!media.productionCountry.isNullOrBlank()) {
+            CapsInfoRow("PRODUCTION COUNTRY") { Text(media.productionCountry, style = MaterialTheme.typography.bodyMedium, color = VaultColors.TextPrimary) }
+        }
         if (!media.director.isNullOrBlank()) {
             CapsInfoRow("DIRECTORS") {
                 Text(media.director.replace(",", ", "), style = MaterialTheme.typography.bodyMedium, color = VaultColors.Orange)
@@ -666,42 +669,6 @@ private fun CapsInfoRow(label: String, content: @Composable () -> Unit) {
  * the season/episode list rather than a full info block, since episodes
  * matter more there. */
 @Composable
-private fun SeeInformationRow(media: MediaItemEntity) {
-    var expanded by remember { mutableStateOf(false) }
-    if (media.imdbRating == null && media.rottenTomatoesPercent == null) return
-
-    Column(modifier = Modifier.padding(horizontal = VaultSpacing.md).padding(top = VaultSpacing.md)) {
-        Row(
-            modifier = Modifier.fillMaxWidth().clickable { expanded = !expanded },
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text("See Information", style = MaterialTheme.typography.titleSmall, color = VaultColors.Orange)
-            Icon(
-                if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
-                contentDescription = null,
-                tint = VaultColors.Orange,
-            )
-        }
-        if (expanded) {
-            Row(modifier = Modifier.padding(top = VaultSpacing.xs)) {
-                media.imdbRating?.let {
-                    Box(
-                        modifier = Modifier.clip(RoundedCornerShape(3.dp)).background(Color(0xFFF5C518)).padding(horizontal = 4.dp, vertical = 1.dp)
-                    ) {
-                        Text("IMDb", style = MaterialTheme.typography.labelSmall, color = Color.Black)
-                    }
-                    Text(" ${"%.1f".format(it)}", style = MaterialTheme.typography.bodyMedium, color = VaultColors.TextPrimary, modifier = Modifier.padding(start = 6.dp))
-                }
-                media.rottenTomatoesPercent?.let {
-                    Text("\uD83C\uDF45", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(start = VaultSpacing.md))
-                    Text(" $it%", style = MaterialTheme.typography.bodyMedium, color = VaultColors.TextPrimary, modifier = Modifier.padding(start = 4.dp))
-                }
-            }
-        }
-    }
-}
-
 @Composable
 private fun LocalFileInfoSection(media: MediaItemEntity) {
     var expanded by remember { mutableStateOf(false) }
