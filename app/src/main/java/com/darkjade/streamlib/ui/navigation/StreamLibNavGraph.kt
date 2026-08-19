@@ -107,6 +107,7 @@ fun StreamLibNavGraph(container: AppContainer) {
                     onOpenSettings = { navController.navigate(Routes.SETTINGS) },
                     onOpenSearch = { navController.navigate(Routes.SEARCH) },
                     onOpenNews = { navController.navigate(Routes.NEWS) },
+                    onOpenBrowse = { navController.navigate(Routes.BROWSE) },
                 )
             }
 

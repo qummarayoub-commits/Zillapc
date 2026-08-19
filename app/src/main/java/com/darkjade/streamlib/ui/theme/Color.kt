@@ -9,11 +9,14 @@ object VaultColors {
     val SurfaceElevated = Color(0xFF1C1C1C)
     val SurfaceVariant = Color(0xFF242424)
 
-    // "Accent" — currently a bold Netflix-style red, matching the
-    // reference mockup's cinematic red/black look.
-    val Orange = Color(0xFFE50914)
-    val OrangeBright = Color(0xFFFF3B47)
-    val OrangeDim = Color(0xFF7A050B)
+    // "Accent" — Dark Jade Player's Electric Orange primary action color.
+    val Orange = Color(0xFFFF6A00)
+    val OrangeBright = Color(0xFFFF8A33)
+    val OrangeDim = Color(0xFF9C4200)
+
+    // Secondary accent — Dark Jade's namesake teal/jade, used sparingly
+    // (branding accents, secondary highlights) alongside the primary orange.
+    val Jade = Color(0xFF2DD4A7)
 
     val TextPrimary = Color(0xFFFFFFFF)
     val TextSecondary = Color(0xFFAAAAAA)

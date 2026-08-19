@@ -23,6 +23,8 @@ import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
@@ -617,6 +619,46 @@ private fun InfoSection(media: MediaItemEntity, seasonCountFromDb: Int) {
 
         if (!media.director.isNullOrBlank()) InfoRow("Director", media.director)
         if (media.cast.isNotBlank()) InfoRow("Main Cast", media.cast.replace(",", ", "))
+    }
+
+    // Only for movies (episodes have their own file per-row already). Shows
+    // only what's genuinely known — real file path and format from the
+    // actual extension — never fabricated size/resolution/audio-track data
+    // we don't reliably have stored for this item.
+    if (!media.type.isSeriesLike() && (media.localFilePath != null || media.localFileUri != null)) {
+        LocalFileInfoSection(media)
+    }
+}
+
+@Composable
+private fun LocalFileInfoSection(media: MediaItemEntity) {
+    var expanded by remember { mutableStateOf(false) }
+    Column(modifier = Modifier.padding(horizontal = VaultSpacing.md).padding(top = VaultSpacing.md)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(VaultShapes.card)
+                .background(VaultColors.Surface)
+                .clickable { expanded = !expanded }
+                .padding(VaultSpacing.sm),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("Local File Information", style = MaterialTheme.typography.titleSmall, color = VaultColors.TextPrimary)
+            Icon(
+                if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                contentDescription = null,
+                tint = VaultColors.TextSecondary,
+            )
+        }
+        if (expanded) {
+            Column(modifier = Modifier.padding(top = VaultSpacing.xs)) {
+                val rawPath = media.localFilePath ?: media.localFileUri.orEmpty()
+                InfoRow("Path", rawPath)
+                val ext = rawPath.substringAfterLast('.', "").uppercase()
+                if (ext.isNotBlank() && ext.length <= 5) InfoRow("Format", ext)
+            }
+        }
     }
 }
 
