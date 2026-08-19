@@ -665,10 +665,6 @@ private fun CapsInfoRow(label: String, content: @Composable () -> Unit) {
     }
 }
 
-/** Compact, collapsed-by-default ratings toggle for series — shown above
- * the season/episode list rather than a full info block, since episodes
- * matter more there. */
-@Composable
 @Composable
 private fun LocalFileInfoSection(media: MediaItemEntity) {
     var expanded by remember { mutableStateOf(false) }
