@@ -102,7 +102,14 @@ fun DetailsScreen(
     // Full-phone-size cinematic backdrop — computed from actual screen
     // height (not a fixed dp) so it scales correctly across device sizes,
     // matching the reference's near-full-screen hero exactly.
-    val heroHeightDp = (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp * 0.62f).dp
+    // Full-phone-size cinematic backdrop — computed from actual screen
+    // height (not a fixed dp) so it scales correctly across device sizes.
+    // Generous enough (0.85) that the overlaid poster/title/duration/
+    // overview/genres/button content never overflows past the backdrop's
+    // own bounds (a Box's aligned children aren't auto-clipped in Compose,
+    // so if the content was taller than this, it would visibly "leak" into
+    // plain black below the image instead of staying on the artwork).
+    val heroHeightDp = (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp * 0.85f).dp
     val context = LocalContext.current
     var showRemoveDialog by remember { mutableStateOf(false) }
     var showOverflowMenu by remember { mutableStateOf(false) }
@@ -288,7 +295,7 @@ fun DetailsScreen(
                                         it,
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = VaultColors.TextSecondary,
-                                        maxLines = 3,
+                                        maxLines = 2,
                                         overflow = TextOverflow.Ellipsis,
                                         modifier = Modifier.padding(top = VaultSpacing.xxs)
                                     )
@@ -336,54 +343,6 @@ fun DetailsScreen(
                         }
                     }
 
-                    // Primary Play/Resume action — appears on scroll, below the hero.
-                    if (state.nextUpLabel != null && state.nextUpUri != null) {
-                        item {
-                            Column(modifier = Modifier.fillMaxWidth().padding(horizontal = VaultSpacing.md).padding(top = VaultSpacing.md)) {
-                                if (state.hasResumeProgress) {
-                                    Button(
-                                        onClick = {
-                                            viewModel.recordOpened(state.nextUpEpisodeId)
-                                            onPlay(state.nextUpUri.toString(), state.nextUpEpisodeId)
-                                        },
-                                        shape = VaultShapes.button,
-                                        colors = ButtonDefaults.buttonColors(containerColor = VaultColors.Orange, contentColor = Color.White),
-                                        modifier = Modifier.fillMaxWidth().height(52.dp)
-                                    ) {
-                                        Icon(Icons.Filled.PlayArrow, contentDescription = null)
-                                        Text(" Resume", style = MaterialTheme.typography.titleMedium, color = Color.White, modifier = Modifier.padding(start = 4.dp))
-                                    }
-                                    OutlinedButton(
-                                        onClick = {
-                                            viewModel.recordOpened(state.nextUpEpisodeId)
-                                            viewModel.playFromBeginning(state.nextUpEpisodeId) {
-                                                onPlay(state.nextUpUri.toString(), state.nextUpEpisodeId)
-                                            }
-                                        },
-                                        shape = VaultShapes.button,
-                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = VaultColors.TextPrimary),
-                                        modifier = Modifier.fillMaxWidth().height(48.dp).padding(top = VaultSpacing.xs)
-                                    ) {
-                                        Icon(Icons.Filled.Replay, contentDescription = null)
-                                        Text(" From Beginning", modifier = Modifier.padding(start = 4.dp))
-                                    }
-                                } else {
-                                    Button(
-                                        onClick = {
-                                            viewModel.recordOpened(state.nextUpEpisodeId)
-                                            onPlay(state.nextUpUri.toString(), state.nextUpEpisodeId)
-                                        },
-                                        shape = VaultShapes.button,
-                                        colors = ButtonDefaults.buttonColors(containerColor = VaultColors.Orange, contentColor = Color.White),
-                                        modifier = Modifier.fillMaxWidth().height(52.dp)
-                                    ) {
-                                        Icon(Icons.Filled.PlayArrow, contentDescription = null)
-                                        Text(" ${state.nextUpLabel}", style = MaterialTheme.typography.titleMedium, color = Color.White, modifier = Modifier.padding(start = 4.dp))
-                                    }
-                                }
-                            }
-                        }
-                    }
                     // Cast — main cast only, 3-column grid with circular
                     // photos (matches the reference's "Top Cast" grid layout).
                     if (castMembers.isNotEmpty()) {
