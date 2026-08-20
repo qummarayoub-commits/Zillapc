@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -109,7 +110,7 @@ fun DetailsScreen(
     // own bounds (a Box's aligned children aren't auto-clipped in Compose,
     // so if the content was taller than this, it would visibly "leak" into
     // plain black below the image instead of staying on the artwork).
-    val heroHeightDp = (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp * 0.85f).dp
+    val heroHeightDp = (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp * 0.78f).dp
     val context = LocalContext.current
     var showRemoveDialog by remember { mutableStateOf(false) }
     var showOverflowMenu by remember { mutableStateOf(false) }
@@ -198,11 +199,15 @@ fun DetailsScreen(
                                 }
                             }
 
-                            // Step 2: large centered play button — plays the movie/next episode.
+                            // Step 2: play button positioned in the upper-middle of the
+                            // backdrop artwork (like the reference), not the dead center
+                            // of the whole box — the box now includes the content strip
+                            // at the bottom, so true center would sit too low.
                             if (state.nextUpUri != null) {
                                 Box(
                                     modifier = Modifier
-                                        .align(Alignment.Center)
+                                        .align(Alignment.TopCenter)
+                                        .offset(y = heroHeightDp * 0.37f)
                                         .size(64.dp)
                                         .clip(CircleShape)
                                         .background(Color.White.copy(alpha = 0.92f))
@@ -260,21 +265,13 @@ fun DetailsScreen(
                                         }
                                     }
 
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                    // Icon-only (no text label) — matches the reference's plain heart/bookmark treatment.
+                                    Icon(
+                                        imageVector = if (state.isInWatchlist) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder,
+                                        contentDescription = "Watchlist",
+                                        tint = if (state.isInWatchlist) VaultColors.Orange else Color.White,
                                         modifier = Modifier.clickable { viewModel.toggleWatchlist() }
-                                    ) {
-                                        Icon(
-                                            imageVector = if (state.isInWatchlist) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder,
-                                            contentDescription = "Watchlist",
-                                            tint = VaultColors.Orange,
-                                        )
-                                        Text(
-                                            if (state.isInWatchlist) "Saved" else "My List",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = VaultColors.TextSecondary,
-                                        )
-                                    }
+                                    )
                                 }
 
                                 // Step 5: Duration - Language, then short overview, then genre tags.
