@@ -33,6 +33,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Replay
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -174,6 +175,7 @@ private fun AddInfoDialog(viewModel: DetailsViewModel, onDismiss: () -> Unit) {
     }
 }
 
+private data class ParsedCastMember(val name: String, val character: String?, val photoUrl: String?)
 
 private fun parseCastMembers(raw: String): List<ParsedCastMember> {
     if (raw.isBlank()) return emptyList()
