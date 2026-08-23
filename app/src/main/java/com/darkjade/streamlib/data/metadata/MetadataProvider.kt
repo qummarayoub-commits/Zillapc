@@ -34,6 +34,15 @@ data class CastMember(
     val photoUrl: String?,
 )
 
+/** A lightweight search result for the manual "fix metadata" picker — just
+ * enough to show in a list and let the user pick the right match. */
+data class SearchCandidate(
+    val remoteId: String,
+    val title: String,
+    val year: Int?,
+    val posterUrl: String?,
+)
+
 data class SeasonMetadata(
     val seasonNumber: Int,
     val name: String?,
@@ -57,6 +66,10 @@ interface MetadataProvider {
     suspend fun searchMovie(title: String, year: Int?): MetadataResult?
     suspend fun searchSeries(title: String, year: Int?): MetadataResult?
     suspend fun getSeasonDetails(seriesRemoteId: String, seasonNumber: Int): SeasonMetadata?
+    /** Manual "fix metadata" flow: search returns candidates for the user to pick from. */
+    suspend fun searchCandidates(query: String, isSeries: Boolean): List<SearchCandidate>
+    /** Fetches full details for a specific already-known remote id (the user's chosen candidate). */
+    suspend fun getByRemoteId(remoteId: String, isSeries: Boolean): MetadataResult?
 }
 
 /** Metadata lookups can legitimately fail (offline, rate-limited, no match). */

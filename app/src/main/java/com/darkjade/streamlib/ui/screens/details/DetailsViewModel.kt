@@ -193,4 +193,38 @@ class DetailsViewModel(
             onRemoved()
         }
     }
+
+    private val _searchResults = kotlinx.coroutines.flow.MutableStateFlow<List<com.darkjade.streamlib.data.metadata.SearchCandidate>>(emptyList())
+    val searchResults: kotlinx.coroutines.flow.StateFlow<List<com.darkjade.streamlib.data.metadata.SearchCandidate>> = _searchResults
+    private val _searchInProgress = kotlinx.coroutines.flow.MutableStateFlow(false)
+    val searchInProgress: kotlinx.coroutines.flow.StateFlow<Boolean> = _searchInProgress
+
+    /** "Add Info" — user searches TMDB manually to fix a wrong/missing match. */
+    fun searchTmdb(query: String) {
+        viewModelScope.launch {
+            _searchInProgress.value = true
+            val isSeries = _uiState.value.media?.type?.isSeriesLike() ?: false
+            _searchResults.value = libraryRepository.searchMetadataCandidates(query, isSeries)
+            _searchInProgress.value = false
+        }
+    }
+
+    fun applyManualMatch(remoteId: String, onApplied: () -> Unit) {
+        viewModelScope.launch {
+            val isSeries = _uiState.value.media?.type?.isSeriesLike() ?: false
+            libraryRepository.applyManualMatch(mediaId, remoteId, isSeries)
+            val refreshed = libraryRepository.getMediaItem(mediaId)
+            if (refreshed != null) {
+                _uiState.value = _uiState.value.copy(media = refreshed)
+            }
+            // Re-check OMDb for the newly-corrected title.
+            libraryRepository.fetchOmdbRatingsIfNeeded(mediaId)
+            val withRatings = libraryRepository.getMediaItem(mediaId)
+            if (withRatings != null) {
+                _uiState.value = _uiState.value.copy(media = withRatings)
+            }
+            _searchResults.value = emptyList()
+            onApplied()
+        }
+    }
 }

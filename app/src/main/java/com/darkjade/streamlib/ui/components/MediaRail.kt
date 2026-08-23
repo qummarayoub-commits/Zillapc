@@ -25,7 +25,7 @@ fun MediaRail(
     onRemoveFromLibrary: ((MediaItemEntity) -> Unit)? = null,
 ) {
     if (items.isEmpty()) return
-    Column(modifier = modifier.padding(top = VaultSpacing.lg)) {
+    Column(modifier = modifier.padding(top = VaultSpacing.xl)) {
         Text(
             text = title,
             style = MaterialTheme.typography.titleMedium,

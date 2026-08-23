@@ -79,29 +79,8 @@ class TmdbMetadataProvider : MetadataProvider {
         return runCatching {
             val response = api.searchMovie(TmdbConfig.apiKey, title, year)
             val match = response.results.firstOrNull() ?: return null
-            // The search endpoint doesn't reliably include runtime/credits —
-            // fetch the full details (with credits appended) for the match.
             val full = api.getMovie(match.id, TmdbConfig.apiKey)
-            MetadataResult(
-                remoteId = full.id.toString(),
-                title = full.title ?: title,
-                originalTitle = full.original_title,
-                overview = full.overview,
-                posterUrl = full.poster_path?.let { TmdbConfig.IMAGE_BASE_URL + it },
-                backdropUrl = full.backdrop_path?.let { TmdbConfig.BACKDROP_BASE_URL + it },
-                rating = full.vote_average,
-                ageRating = null,
-                runtimeMinutes = full.runtime,
-                genres = full.genres?.map { it.name } ?: emptyList(),
-                director = extractDirector(full.credits),
-                cast = extractCast(full.credits),
-                castMembers = extractCastMembers(full.credits),
-                alternatePosterUrls = extractAlternatePosters(full.images),
-                trailerYoutubeKey = extractTrailerKey(full.videos),
-                imdbId = full.external_ids?.imdb_id,
-                productionCountry = full.production_countries?.firstOrNull()?.name,
-                originalLanguage = full.original_language?.let { code -> runCatching { java.util.Locale(code).displayLanguage.takeIf { it.isNotBlank() && !it.equals(code, true) } }.getOrNull() },
-            )
+            movieDtoToResult(full, title)
         }.getOrNull()
     }
 
@@ -111,32 +90,92 @@ class TmdbMetadataProvider : MetadataProvider {
             val response = api.searchSeries(TmdbConfig.apiKey, title, year)
             val match = response.results.firstOrNull() ?: return null
             val full = api.getSeries(match.id, TmdbConfig.apiKey)
-            MetadataResult(
-                remoteId = full.id.toString(),
-                title = full.name ?: title,
-                originalTitle = full.original_name,
-                overview = full.overview,
-                posterUrl = full.poster_path?.let { TmdbConfig.IMAGE_BASE_URL + it },
-                backdropUrl = full.backdrop_path?.let { TmdbConfig.BACKDROP_BASE_URL + it },
-                rating = full.vote_average,
-                ageRating = null,
-                runtimeMinutes = null,
-                genres = full.genres?.map { it.name } ?: emptyList(),
-                director = extractDirector(full.credits),
-                cast = extractCast(full.credits),
-                castMembers = extractCastMembers(full.credits),
-                alternatePosterUrls = extractAlternatePosters(full.images),
-                trailerYoutubeKey = extractTrailerKey(full.videos),
-                imdbId = full.external_ids?.imdb_id,
-                productionCountry = full.production_countries?.firstOrNull()?.name,
-                originalLanguage = full.original_language?.let { code -> runCatching { java.util.Locale(code).displayLanguage.takeIf { it.isNotBlank() && !it.equals(code, true) } }.getOrNull() },
-                seasonCount = full.number_of_seasons,
-                episodeCount = full.number_of_episodes,
-                status = full.status,
-                seasons = emptyList(), // fetched lazily via getSeasonDetails to save API calls
-            )
+            seriesDtoToResult(full, title)
         }.getOrNull()
     }
+
+    override suspend fun searchCandidates(query: String, isSeries: Boolean): List<com.darkjade.streamlib.data.metadata.SearchCandidate> {
+        if (TmdbConfig.apiKey.isBlank() || query.isBlank()) return emptyList()
+        return runCatching {
+            if (isSeries) {
+                api.searchSeries(TmdbConfig.apiKey, query, null).results.take(15).map {
+                    com.darkjade.streamlib.data.metadata.SearchCandidate(
+                        remoteId = it.id.toString(),
+                        title = it.name ?: query,
+                        year = it.first_air_date?.take(4)?.toIntOrNull(),
+                        posterUrl = it.poster_path?.let { p -> TmdbConfig.IMAGE_BASE_URL + p },
+                    )
+                }
+            } else {
+                api.searchMovie(TmdbConfig.apiKey, query, null).results.take(15).map {
+                    com.darkjade.streamlib.data.metadata.SearchCandidate(
+                        remoteId = it.id.toString(),
+                        title = it.title ?: query,
+                        year = it.release_date?.take(4)?.toIntOrNull(),
+                        posterUrl = it.poster_path?.let { p -> TmdbConfig.IMAGE_BASE_URL + p },
+                    )
+                }
+            }
+        }.getOrElse { emptyList() }
+    }
+
+    override suspend fun getByRemoteId(remoteId: String, isSeries: Boolean): MetadataResult? {
+        if (TmdbConfig.apiKey.isBlank()) return null
+        val id = remoteId.toIntOrNull() ?: return null
+        return runCatching {
+            if (isSeries) {
+                seriesDtoToResult(api.getSeries(id, TmdbConfig.apiKey), null)
+            } else {
+                movieDtoToResult(api.getMovie(id, TmdbConfig.apiKey), null)
+            }
+        }.getOrNull()
+    }
+
+    private fun movieDtoToResult(full: TmdbMovieDto, fallbackTitle: String?): MetadataResult = MetadataResult(
+        remoteId = full.id.toString(),
+        title = full.title ?: fallbackTitle ?: "Untitled",
+        originalTitle = full.original_title,
+        overview = full.overview,
+        posterUrl = full.poster_path?.let { TmdbConfig.IMAGE_BASE_URL + it },
+        backdropUrl = full.backdrop_path?.let { TmdbConfig.BACKDROP_BASE_URL + it },
+        rating = full.vote_average,
+        ageRating = null,
+        runtimeMinutes = full.runtime,
+        genres = full.genres?.map { it.name } ?: emptyList(),
+        director = extractDirector(full.credits),
+        cast = extractCast(full.credits),
+        castMembers = extractCastMembers(full.credits),
+        alternatePosterUrls = extractAlternatePosters(full.images),
+        trailerYoutubeKey = extractTrailerKey(full.videos),
+        imdbId = full.external_ids?.imdb_id,
+        productionCountry = full.production_countries?.firstOrNull()?.name,
+        originalLanguage = full.original_language?.let { code -> runCatching { java.util.Locale(code).displayLanguage.takeIf { it.isNotBlank() && !it.equals(code, true) } }.getOrNull() },
+    )
+
+    private fun seriesDtoToResult(full: TmdbSeriesDto, fallbackTitle: String?): MetadataResult = MetadataResult(
+        remoteId = full.id.toString(),
+        title = full.name ?: fallbackTitle ?: "Untitled",
+        originalTitle = full.original_name,
+        overview = full.overview,
+        posterUrl = full.poster_path?.let { TmdbConfig.IMAGE_BASE_URL + it },
+        backdropUrl = full.backdrop_path?.let { TmdbConfig.BACKDROP_BASE_URL + it },
+        rating = full.vote_average,
+        ageRating = null,
+        runtimeMinutes = null,
+        genres = full.genres?.map { it.name } ?: emptyList(),
+        director = extractDirector(full.credits),
+        cast = extractCast(full.credits),
+        castMembers = extractCastMembers(full.credits),
+        alternatePosterUrls = extractAlternatePosters(full.images),
+        trailerYoutubeKey = extractTrailerKey(full.videos),
+        imdbId = full.external_ids?.imdb_id,
+        productionCountry = full.production_countries?.firstOrNull()?.name,
+        originalLanguage = full.original_language?.let { code -> runCatching { java.util.Locale(code).displayLanguage.takeIf { it.isNotBlank() && !it.equals(code, true) } }.getOrNull() },
+        seasonCount = full.number_of_seasons,
+        episodeCount = full.number_of_episodes,
+        status = full.status,
+        seasons = emptyList(), // fetched lazily via getSeasonDetails to save API calls
+    )
 
     override suspend fun getSeasonDetails(seriesRemoteId: String, seasonNumber: Int): SeasonMetadata? {
         if (TmdbConfig.apiKey.isBlank()) return null

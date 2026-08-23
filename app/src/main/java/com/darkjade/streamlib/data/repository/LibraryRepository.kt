@@ -376,6 +376,52 @@ class LibraryRepository(
         }
     }
 
+    /**
+     * Manual metadata fix — the user searches TMDB themselves and picks the
+     * correct match (for cases where auto-matching picked the wrong title,
+     * or matched nothing at all, e.g. a poster that's actually a censor
+     * certificate image). Reuses the same field-mapping as the automatic
+     * enrichment path.
+     */
+    suspend fun applyManualMatch(mediaId: Long, remoteId: String, isSeries: Boolean) {
+        val entity = mediaDao.getById(mediaId) ?: return
+        val result = metadataProvider.getByRemoteId(remoteId, isSeries) ?: return
+        mediaDao.update(
+            entity.copy(
+                id = mediaId,
+                title = result.title,
+                originalTitle = result.originalTitle,
+                overview = result.overview,
+                posterUrl = result.posterUrl,
+                backdropUrl = result.backdropUrl,
+                rating = result.rating,
+                runtimeMinutes = result.runtimeMinutes ?: entity.runtimeMinutes,
+                genres = result.genres.joinToString(","),
+                director = result.director,
+                cast = result.cast.joinToString(","),
+                castMembers = serializeCastMembers(result.castMembers),
+                alternatePosterUrls = result.alternatePosterUrls.joinToString(","),
+                trailerYoutubeKey = result.trailerYoutubeKey,
+                productionCountry = result.productionCountry,
+                originalLanguage = result.originalLanguage,
+                imdbId = result.imdbId,
+                tmdbId = result.remoteId,
+                seasonCount = result.seasonCount,
+                episodeCount = result.episodeCount,
+                status = result.status,
+                metadataFetched = true,
+                metadataMissing = false,
+                // A manual re-match should re-check OMDb ratings for the (now correct) title.
+                omdbFetched = false,
+                imdbRating = null,
+                rottenTomatoesPercent = null,
+            )
+        )
+    }
+
+    suspend fun searchMetadataCandidates(query: String, isSeries: Boolean) =
+        metadataProvider.searchCandidates(query, isSeries)
+
     private fun serializeCastMembers(members: List<com.darkjade.streamlib.data.metadata.CastMember>): String =
         members.joinToString(";;") { m ->
             listOf(m.name, m.character.orEmpty(), m.photoUrl.orEmpty()).joinToString("|")

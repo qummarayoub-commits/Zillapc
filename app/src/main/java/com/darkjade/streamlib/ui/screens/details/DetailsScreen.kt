@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -78,7 +79,101 @@ import com.darkjade.streamlib.ui.theme.VaultSizes
 import com.darkjade.streamlib.ui.theme.VaultSpacing
 import com.darkjade.streamlib.ui.util.ArtworkTintExtractor
 
-private data class ParsedCastMember(val name: String, val character: String?, val photoUrl: String?)
+/** "Add Info" — search TMDB manually and pick the correct match, for
+ * titles that auto-matched wrong (or not at all, e.g. a censor-certificate
+ * image instead of a real poster). */
+@Composable
+private fun AddInfoDialog(viewModel: DetailsViewModel, onDismiss: () -> Unit) {
+    var query by remember { mutableStateOf("") }
+    val results by viewModel.searchResults.collectAsState()
+    val loading by viewModel.searchInProgress.collectAsState()
+
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = 480.dp)
+                .clip(VaultShapes.card)
+                .background(VaultColors.Surface)
+                .padding(VaultSpacing.md)
+        ) {
+            Text("Add Info — search TMDB", style = MaterialTheme.typography.titleMedium, color = VaultColors.TextPrimary)
+            Spacer(Modifier.height(VaultSpacing.sm))
+            androidx.compose.material3.OutlinedTextField(
+                value = query,
+                onValueChange = { query = it },
+                placeholder = { Text("Movie or series title") },
+                singleLine = true,
+                trailingIcon = {
+                    IconButton(onClick = { viewModel.searchTmdb(query) }) {
+                        Icon(Icons.Filled.Search, contentDescription = "Search", tint = VaultColors.Orange)
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = VaultColors.Orange,
+                    unfocusedBorderColor = VaultColors.Divider,
+                    focusedTextColor = VaultColors.TextPrimary,
+                    unfocusedTextColor = VaultColors.TextPrimary,
+                    cursorColor = VaultColors.Orange,
+                ),
+                keyboardActions = androidx.compose.foundation.text.KeyboardActions(onSearch = { viewModel.searchTmdb(query) }),
+                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(imeAction = androidx.compose.ui.text.input.ImeAction.Search),
+            )
+            Spacer(Modifier.height(VaultSpacing.sm))
+
+            if (loading) {
+                Box(modifier = Modifier.fillMaxWidth().padding(VaultSpacing.lg), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = VaultColors.Orange)
+                }
+            } else if (results.isEmpty()) {
+                Text(
+                    "Search for the correct title above.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = VaultColors.TextTertiary,
+                    modifier = Modifier.padding(vertical = VaultSpacing.md)
+                )
+            } else {
+                LazyColumn {
+                    items(results, key = { it.remoteId }) { candidate ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { viewModel.applyManualMatch(candidate.remoteId, onApplied = onDismiss) }
+                                .padding(vertical = VaultSpacing.xs),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(46.dp, 66.dp)
+                                    .clip(VaultShapes.card)
+                                    .background(VaultColors.SurfaceVariant)
+                            ) {
+                                if (candidate.posterUrl != null) {
+                                    SubcomposeAsyncImage(
+                                        model = candidate.posterUrl,
+                                        contentDescription = candidate.title,
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize(),
+                                        loading = {},
+                                        error = {},
+                                    )
+                                }
+                            }
+                            Column(modifier = Modifier.padding(start = VaultSpacing.sm)) {
+                                Text(candidate.title, style = MaterialTheme.typography.bodyMedium, color = VaultColors.TextPrimary)
+                                candidate.year?.let {
+                                    Text(it.toString(), style = MaterialTheme.typography.labelSmall, color = VaultColors.TextTertiary)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 
 private fun parseCastMembers(raw: String): List<ParsedCastMember> {
     if (raw.isBlank()) return emptyList()
@@ -115,6 +210,7 @@ fun DetailsScreen(
     var showRemoveDialog by remember { mutableStateOf(false) }
     var showOverflowMenu by remember { mutableStateOf(false) }
     var showTrailer by remember { mutableStateOf(false) }
+    var showAddInfoDialog by remember { mutableStateOf(false) }
 
     // Dark/subtle tint pulled from this title's own artwork — cached per
     // image URL, recomputed only when the artwork actually changes.
@@ -189,6 +285,14 @@ fun DetailsScreen(
                                 }
                                 DropdownMenu(expanded = showOverflowMenu, onDismissRequest = { showOverflowMenu = false }) {
                                     DropdownMenuItem(
+                                        text = { Text("Add Info") },
+                                        leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                                        onClick = {
+                                            showOverflowMenu = false
+                                            showAddInfoDialog = true
+                                        }
+                                    )
+                                    DropdownMenuItem(
                                         text = { Text("Remove from library") },
                                         leadingIcon = { Icon(Icons.Filled.Delete, contentDescription = null) },
                                         onClick = {
@@ -199,36 +303,38 @@ fun DetailsScreen(
                                 }
                             }
 
-                            // Step 2: play button positioned in the upper-middle of the
-                            // backdrop artwork (like the reference), not the dead center
-                            // of the whole box — the box now includes the content strip
-                            // at the bottom, so true center would sit too low.
-                            if (state.nextUpUri != null) {
-                                Box(
-                                    modifier = Modifier
-                                        .align(Alignment.TopCenter)
-                                        .offset(y = heroHeightDp * 0.37f)
-                                        .size(64.dp)
-                                        .clip(CircleShape)
-                                        .background(Color.White.copy(alpha = 0.92f))
-                                        .clickable {
-                                            viewModel.recordOpened(state.nextUpEpisodeId)
-                                            onPlay(state.nextUpUri.toString(), state.nextUpEpisodeId)
-                                        },
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    Icon(Icons.Filled.PlayArrow, contentDescription = "Play", tint = VaultColors.Orange, modifier = Modifier.size(32.dp))
+                            // Step 2: play button + steps 3-6 content, structured so the
+                            // button always gets exactly the leftover space above the
+                            // content block (weight-based, not percentage guesswork) —
+                            // this guarantees they can never visually collide/overlap,
+                            // regardless of screen size or content length.
+                            Column(modifier = Modifier.fillMaxSize()) {
+                                Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                                    if (state.nextUpUri != null) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(64.dp)
+                                                .clip(CircleShape)
+                                                .background(Color.White.copy(alpha = 0.92f))
+                                                .clickable {
+                                                    viewModel.recordOpened(state.nextUpEpisodeId)
+                                                    onPlay(state.nextUpUri.toString(), state.nextUpEpisodeId)
+                                                },
+                                            contentAlignment = Alignment.Center,
+                                        ) {
+                                            Icon(Icons.Filled.PlayArrow, contentDescription = "Play", tint = VaultColors.Orange, modifier = Modifier.size(32.dp))
+                                        }
+                                    }
                                 }
-                            }
 
-                            // Steps 3-6: poster + title + info + tags + Watch Trailer,
-                            // all still overlaid on the same backdrop image.
-                            Column(
-                                modifier = Modifier
-                                    .align(Alignment.BottomStart)
-                                    .fillMaxWidth()
-                                    .padding(VaultSpacing.md)
-                            ) {
+                                // Steps 3-6: poster + title + info + tags + Watch Trailer,
+                                // still overlaid on the same backdrop image — natural height,
+                                // never clipped or forced to share space with the button above.
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(VaultSpacing.md)
+                                ) {
                                 Row(verticalAlignment = Alignment.Top) {
                                     // Step 3: poster shows the FULL image, not cropped/shrunk.
                                     Box(
@@ -252,9 +358,22 @@ fun DetailsScreen(
                                         }
                                     }
 
-                                    // Step 4: title beside the poster.
+                                    // Step 4: title (smaller font, matching the reference) +
+                                    // Step 5's duration/language line — both beside the poster.
                                     Column(modifier = Modifier.padding(start = VaultSpacing.sm).weight(1f)) {
-                                        Text(media.title, style = MaterialTheme.typography.titleLarge, color = VaultColors.TextPrimary, maxLines = 2)
+                                        Text(media.title, style = MaterialTheme.typography.titleMedium, color = VaultColors.TextPrimary, maxLines = 2)
+                                        val metaBits = buildList {
+                                            formatRuntimeLong(media.runtimeMinutes)?.let { add(it) }
+                                            media.originalLanguage?.let { add(it) }
+                                        }
+                                        if (metaBits.isNotEmpty()) {
+                                            Text(
+                                                metaBits.joinToString("  \u2022  "),
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = VaultColors.TextSecondary,
+                                                modifier = Modifier.padding(top = 2.dp)
+                                            )
+                                        }
                                         if (state.hasResumeProgress && !media.type.isSeriesLike()) {
                                             Text(
                                                 formatWatchedProgress(state.resumePositionMs, media.runtimeMinutes),
@@ -274,19 +393,7 @@ fun DetailsScreen(
                                     )
                                 }
 
-                                // Step 5: Duration - Language, then short overview, then genre tags.
-                                val metaBits = buildList {
-                                    formatRuntimeLong(media.runtimeMinutes)?.let { add(it) }
-                                    media.originalLanguage?.let { add(it) }
-                                }
-                                if (metaBits.isNotEmpty()) {
-                                    Text(
-                                        metaBits.joinToString("  \u2022  "),
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = VaultColors.TextSecondary,
-                                        modifier = Modifier.padding(top = VaultSpacing.sm)
-                                    )
-                                }
+                                // Step 5 (rest): short overview, then genre tags — full width below the poster row.
                                 media.overview?.let {
                                     Text(
                                         it,
@@ -315,15 +422,16 @@ fun DetailsScreen(
                                     }
                                 }
 
-                                // Step 6: big "Watch Trailer" button, still on the backdrop.
-                                if (!media.trailerYoutubeKey.isNullOrBlank()) {
-                                    Button(
-                                        onClick = { showTrailer = true },
-                                        shape = VaultShapes.button,
-                                        colors = ButtonDefaults.buttonColors(containerColor = VaultColors.Orange, contentColor = Color.White),
-                                        modifier = Modifier.fillMaxWidth().height(52.dp).padding(top = VaultSpacing.md)
-                                    ) {
-                                        Text("Watch Trailer", style = MaterialTheme.typography.titleMedium, color = Color.White)
+                                    // Step 6: big "Watch Trailer" button, still on the backdrop.
+                                    if (!media.trailerYoutubeKey.isNullOrBlank()) {
+                                        Button(
+                                            onClick = { showTrailer = true },
+                                            shape = VaultShapes.button,
+                                            colors = ButtonDefaults.buttonColors(containerColor = VaultColors.Orange, contentColor = Color.White),
+                                            modifier = Modifier.fillMaxWidth().height(52.dp).padding(top = VaultSpacing.md)
+                                        ) {
+                                            Text("Watch Trailer", style = MaterialTheme.typography.titleMedium, color = Color.White)
+                                        }
                                     }
                                 }
                             }
@@ -446,6 +554,13 @@ fun DetailsScreen(
                                 Text("Cancel", color = VaultColors.TextSecondary)
                             }
                         }
+                    )
+                }
+
+                if (showAddInfoDialog) {
+                    AddInfoDialog(
+                        viewModel = viewModel,
+                        onDismiss = { showAddInfoDialog = false },
                     )
                 }
             }
