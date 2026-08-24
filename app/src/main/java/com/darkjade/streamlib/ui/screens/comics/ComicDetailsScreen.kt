@@ -169,7 +169,7 @@ fun ComicDetailsScreen(
                             Button(
                                 onClick = { onOpen(comic.localFileUri) },
                                 shape = VaultShapes.button,
-                                colors = ButtonDefaults.buttonColors(containerColor = VaultColors.Orange, contentColor = Color.White),
+                                colors = ButtonDefaults.buttonColors(containerColor = VaultColors.Orange, contentColor = VaultColors.Background),
                                 modifier = Modifier.fillMaxWidth().padding(top = VaultSpacing.lg)
                             ) {
                                 Icon(Icons.Filled.MenuBook, contentDescription = null, modifier = Modifier.size(20.dp))

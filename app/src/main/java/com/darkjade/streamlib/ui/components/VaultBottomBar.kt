@@ -65,7 +65,7 @@ fun VaultBottomBar(
                             .clickable { onNavigate(item.route) },
                         contentAlignment = Alignment.Center,
                     ) {
-                        Icon(item.filledIcon, contentDescription = item.label, tint = Color.White)
+                        Icon(item.filledIcon, contentDescription = item.label, tint = VaultColors.Background)
                     }
                 }
             } else {
