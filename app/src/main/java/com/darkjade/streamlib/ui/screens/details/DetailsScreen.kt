@@ -429,10 +429,10 @@ fun DetailsScreen(
                                         Button(
                                             onClick = { showTrailer = true },
                                             shape = VaultShapes.button,
-                                            colors = ButtonDefaults.buttonColors(containerColor = VaultColors.Orange, contentColor = VaultColors.Background),
+                                            colors = ButtonDefaults.buttonColors(containerColor = VaultColors.Background, contentColor = VaultColors.Orange),
                                             modifier = Modifier.fillMaxWidth().height(52.dp).padding(top = VaultSpacing.md)
                                         ) {
-                                            Text("Watch Trailer", style = MaterialTheme.typography.titleMedium, color = VaultColors.Background)
+                                            Text("Watch Trailer", style = MaterialTheme.typography.titleMedium, color = VaultColors.Orange)
                                         }
                                     }
                                 }

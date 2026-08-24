@@ -126,7 +126,7 @@ fun NewsArticleDetailsScreen(
                                     }
                                 },
                                 shape = VaultShapes.button,
-                                colors = ButtonDefaults.buttonColors(containerColor = VaultColors.Orange, contentColor = VaultColors.Background),
+                                colors = ButtonDefaults.buttonColors(containerColor = VaultColors.Background, contentColor = VaultColors.Orange),
                                 modifier = Modifier.fillMaxWidth().padding(top = VaultSpacing.md)
                             ) {
                                 Icon(Icons.Filled.OpenInBrowser, contentDescription = null)

@@ -350,7 +350,7 @@ private fun BannerAdjustDialog(
             }
             Button(
                 onClick = { onSave(scale, offsetX, offsetY) },
-                colors = ButtonDefaults.buttonColors(containerColor = VaultColors.Orange, contentColor = VaultColors.Background)
+                colors = ButtonDefaults.buttonColors(containerColor = VaultColors.Background, contentColor = VaultColors.Orange)
             ) {
                 Text("Save")
             }

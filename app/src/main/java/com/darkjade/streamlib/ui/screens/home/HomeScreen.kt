@@ -531,7 +531,7 @@ private fun <T> SecondaryBannerCarousel(
                             .background(VaultColors.Orange)
                             .padding(horizontal = VaultSpacing.xs, vertical = 2.dp)
                     ) {
-                        Text(categoryLabel, style = MaterialTheme.typography.labelSmall, color = Color.White)
+                        Text(categoryLabel, style = MaterialTheme.typography.labelSmall, color = VaultColors.Background)
                     }
                     Text(
                         text = title(item),

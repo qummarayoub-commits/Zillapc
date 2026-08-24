@@ -4,12 +4,12 @@ import androidx.compose.ui.graphics.Color
 
 // Core palette — centralized so no screen hardcodes raw colors.
 object VaultColors {
-    // Ebony Clay background — surfaces are lighter/darker shades of the
-    // same navy for card differentiation.
-    val Background = Color(0xFF2A428C)
-    val Surface = Color(0xFF243972)
-    val SurfaceElevated = Color(0xFF2E4A9E)
-    val SurfaceVariant = Color(0xFF345296)
+    // Ebony Clay background — the correct dark charcoal-navy, not the
+    // earlier bright blue. Surfaces are subtle shades of the same tone.
+    val Background = Color(0xFF373C4B)
+    val Surface = Color(0xFF31353F)
+    val SurfaceElevated = Color(0xFF454B5E)
+    val SurfaceVariant = Color(0xFF404654)
 
     // Sandy Yellow — the single accent, used for buttons, selected states,
     // progress, and important icons.
@@ -27,11 +27,11 @@ object VaultColors {
     val TextSecondary = Color(0xFFC7CEE8)
     val TextTertiary = Color(0xFF8F9BC7)
 
-    val Divider = Color(0xFF3E5AA8)
+    val Divider = Color(0xFF4A5062)
     val Success = Color(0xFF2ECC71)
     val Error = Color(0xFFFF6B6B)
     val PremiumGold = Color(0xFFE8A93A)
 
-    val GradientTop = Color(0x002A428C)
-    val GradientBottom = Color(0xF02A428C)
+    val GradientTop = Color(0x00373C4B)
+    val GradientBottom = Color(0xF0373C4B)
 }
