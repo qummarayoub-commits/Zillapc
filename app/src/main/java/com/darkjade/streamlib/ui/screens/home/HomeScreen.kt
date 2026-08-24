@@ -454,11 +454,10 @@ private fun MainHeroCarousel(
 }
 
 /**
- * A single banner that auto-shuffles through this category's items over
- * time (same visual treatment as the main hero, just compact) — not a
- * swipeable multi-card row.
+ * Two large banner cards side by side — a fresh random pair each time the
+ * app opens (picked once per Home session by the ViewModel, not re-shuffled
+ * on a timer). Applies the same treatment to Movies/Series/Anime/Comics.
  */
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun <T> SecondaryBannerCarousel(
     items: List<T>,
@@ -468,32 +467,20 @@ private fun <T> SecondaryBannerCarousel(
     onClick: (T) -> Unit,
     isPortraitContent: Boolean = false,
 ) {
-    val pagerState = rememberPagerState(pageCount = { items.size })
-
-    LaunchedEffect(items.size) {
-        if (items.size <= 1) return@LaunchedEffect
-        while (true) {
-            delay(5000)
-            val next = (pagerState.currentPage + 1) % items.size
-            pagerState.animateScrollToPage(next)
-        }
-    }
-
-    Box(
+    val pair = items.take(2)
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(if (isPortraitContent) 220.dp else 170.dp)
             .padding(horizontal = VaultSpacing.md)
-            .padding(top = 64.dp)
+            .padding(top = 64.dp),
+        horizontalArrangement = Arrangement.spacedBy(VaultSpacing.sm),
     ) {
-        HorizontalPager(
-            state = pagerState,
-            modifier = Modifier.fillMaxSize().clip(VaultShapes.card)
-        ) { page ->
-            val item = items[page]
+        pair.forEach { item ->
             Box(
                 modifier = Modifier
-                    .fillMaxSize()
+                    .weight(1f)
+                    .height(if (isPortraitContent) 260.dp else 210.dp)
+                    .clip(VaultShapes.card)
                     .background(VaultColors.SurfaceVariant)
                     .clickable { onClick(item) }
             ) {
@@ -548,7 +535,7 @@ private fun <T> SecondaryBannerCarousel(
                     }
                     Text(
                         text = title(item),
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.titleSmall,
                         color = VaultColors.TextPrimary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -556,13 +543,6 @@ private fun <T> SecondaryBannerCarousel(
                     )
                 }
             }
-        }
-        if (items.size > 1) {
-            SegmentedPageIndicators(
-                count = items.size,
-                currentPage = pagerState.currentPage,
-                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = VaultSpacing.xxs).padding(horizontal = VaultSpacing.sm)
-            )
         }
     }
 }
