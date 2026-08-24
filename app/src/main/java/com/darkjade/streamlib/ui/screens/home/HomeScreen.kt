@@ -134,7 +134,7 @@ fun HomeScreen(
 
                     if (state.continueWatching.isNotEmpty()) {
                         item {
-                            Column(modifier = Modifier.padding(top = VaultSpacing.lg)) {
+                            Column(modifier = Modifier.padding(top = 48.dp)) {
                                 Text(
                                     "Continue Watching",
                                     style = MaterialTheme.typography.titleMedium,
@@ -454,10 +454,11 @@ private fun MainHeroCarousel(
 }
 
 /**
- * A plain swipeable row of distinct banner cards — not a single
- * auto-rotating pager with dot indicators. The user swipes through the
- * items directly, seeing a sliver of the next card at the edge.
+ * A single banner that auto-shuffles through this category's items over
+ * time (same visual treatment as the main hero, just compact) — not a
+ * swipeable multi-card row.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun <T> SecondaryBannerCarousel(
     items: List<T>,
@@ -467,26 +468,38 @@ private fun <T> SecondaryBannerCarousel(
     onClick: (T) -> Unit,
     isPortraitContent: Boolean = false,
 ) {
-    LazyRow(
-        horizontalArrangement = Arrangement.spacedBy(VaultSpacing.sm),
-        contentPadding = PaddingValues(horizontal = VaultSpacing.md, vertical = VaultSpacing.sm),
+    val pagerState = rememberPagerState(pageCount = { items.size })
+
+    LaunchedEffect(items.size) {
+        if (items.size <= 1) return@LaunchedEffect
+        while (true) {
+            delay(5000)
+            val next = (pagerState.currentPage + 1) % items.size
+            pagerState.animateScrollToPage(next)
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(if (isPortraitContent) 220.dp else 170.dp)
+            .padding(horizontal = VaultSpacing.md)
+            .padding(top = 64.dp)
     ) {
-        items(items.size) { index ->
-            val item = items[index]
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize().clip(VaultShapes.card)
+        ) { page ->
+            val item = items[page]
             Box(
                 modifier = Modifier
-                    .width(280.dp)
-                    .height(if (isPortraitContent) 220.dp else 170.dp)
-                    .clip(VaultShapes.card)
+                    .fillMaxSize()
                     .background(VaultColors.SurfaceVariant)
                     .clickable { onClick(item) }
             ) {
                 val model = imageUrl(item)
                 if (model != null) {
                     if (isPortraitContent) {
-                        // Blurred cover fills the frame behind, real cover stays
-                        // undistorted centered on top — same idea Spotify/Crunchyroll
-                        // use for portrait art inside a wide banner slot.
                         SubcomposeAsyncImage(
                             model = model,
                             contentDescription = null,
@@ -543,6 +556,13 @@ private fun <T> SecondaryBannerCarousel(
                     )
                 }
             }
+        }
+        if (items.size > 1) {
+            SegmentedPageIndicators(
+                count = items.size,
+                currentPage = pagerState.currentPage,
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = VaultSpacing.xxs).padding(horizontal = VaultSpacing.sm)
+            )
         }
     }
 }

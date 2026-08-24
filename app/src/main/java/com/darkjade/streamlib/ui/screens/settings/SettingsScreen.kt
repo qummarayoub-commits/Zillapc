@@ -169,7 +169,7 @@ fun SettingsScreen(
                     Button(
                         onClick = { requestScan() },
                         shape = VaultShapes.button,
-                        colors = ButtonDefaults.buttonColors(containerColor = VaultColors.Background, contentColor = VaultColors.Orange),
+                        colors = ButtonDefaults.buttonColors(containerColor = VaultColors.Orange, contentColor = VaultColors.Background),
                         modifier = Modifier.fillMaxWidth().padding(vertical = VaultSpacing.sm)
                     ) {
                         Icon(Icons.Filled.VideoLibrary, contentDescription = null)
@@ -336,7 +336,7 @@ fun SettingsScreen(
                                 context.startActivity(intent)
                             },
                             shape = VaultShapes.button,
-                            colors = ButtonDefaults.buttonColors(containerColor = VaultColors.Background, contentColor = VaultColors.Orange),
+                            colors = ButtonDefaults.buttonColors(containerColor = VaultColors.Orange, contentColor = VaultColors.Background),
                             modifier = Modifier.fillMaxWidth().padding(vertical = VaultSpacing.xs)
                         ) {
                             Text("Grant All Files Access")
@@ -345,7 +345,7 @@ fun SettingsScreen(
                         Button(
                             onClick = { viewModel.scanDeviceForComics() },
                             shape = VaultShapes.button,
-                            colors = ButtonDefaults.buttonColors(containerColor = VaultColors.Background, contentColor = VaultColors.Orange),
+                            colors = ButtonDefaults.buttonColors(containerColor = VaultColors.Orange, contentColor = VaultColors.Background),
                             modifier = Modifier.fillMaxWidth().padding(vertical = VaultSpacing.xs)
                         ) {
                             Icon(Icons.Filled.MenuBook, contentDescription = null)
