@@ -376,6 +376,24 @@ fun DetailsScreen(
                                                 modifier = Modifier.padding(top = 2.dp)
                                             )
                                         }
+                                        // IMDb + Rotten Tomatoes, inline right under the duration line
+                                        // (matches the reference's placement) — only real ratings, never invented.
+                                        if (media.imdbRating != null || media.rottenTomatoesPercent != null) {
+                                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
+                                                media.imdbRating?.let {
+                                                    Box(
+                                                        modifier = Modifier.clip(RoundedCornerShape(3.dp)).background(Color(0xFFF5C518)).padding(horizontal = 4.dp, vertical = 1.dp)
+                                                    ) {
+                                                        Text("IMDb", style = MaterialTheme.typography.labelSmall, color = Color.Black)
+                                                    }
+                                                    Text(" ${"%.1f".format(it)}", style = MaterialTheme.typography.labelMedium, color = VaultColors.TextPrimary, modifier = Modifier.padding(start = 4.dp))
+                                                }
+                                                media.rottenTomatoesPercent?.let {
+                                                    Text("\uD83C\uDF45", style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(start = VaultSpacing.sm))
+                                                    Text(" $it%", style = MaterialTheme.typography.labelMedium, color = VaultColors.TextPrimary, modifier = Modifier.padding(start = 2.dp))
+                                                }
+                                            }
+                                        }
                                         // Short info moved directly under the title/duration line, per feedback.
                                         media.overview?.let {
                                             Text(
@@ -398,12 +416,24 @@ fun DetailsScreen(
                                     }
 
                                     // Icon-only (no text label) — matches the reference's plain heart/bookmark treatment.
-                                    Icon(
-                                        imageVector = if (state.isInWatchlist) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder,
-                                        contentDescription = "Watchlist",
-                                        tint = if (state.isInWatchlist) VaultColors.Orange else Color.White,
-                                        modifier = Modifier.clickable { viewModel.toggleWatchlist() }
-                                    )
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Icon(
+                                            imageVector = if (state.isInWatchlist) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder,
+                                            contentDescription = "Watchlist",
+                                            tint = if (state.isInWatchlist) VaultColors.Orange else Color.White,
+                                            modifier = Modifier.clickable { viewModel.toggleWatchlist() }
+                                        )
+                                        if (!media.type.isSeriesLike()) {
+                                            Icon(
+                                                imageVector = if (state.hasResumeProgress) Icons.Filled.CheckCircle else Icons.Filled.RadioButtonUnchecked,
+                                                contentDescription = "Mark as watched",
+                                                tint = if (state.hasResumeProgress) VaultColors.Orange else Color.White,
+                                                modifier = Modifier
+                                                    .padding(top = VaultSpacing.xs)
+                                                    .clickable { viewModel.markAsWatched() }
+                                            )
+                                        }
+                                    }
                                 }
 
                                 // Step 5 (rest): genre tags — full width below the poster row.

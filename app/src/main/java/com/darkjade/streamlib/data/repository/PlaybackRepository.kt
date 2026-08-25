@@ -28,6 +28,27 @@ class PlaybackRepository(context: Context) {
      * per the spec. Marks completed at ~90% and keeps the final position
      * (never resets progress once saved).
      */
+    /** Manual "Mark as Watched" action — forces completed=true at full duration. */
+    suspend fun markAsWatched(mediaItemId: Long, episodeId: Long?, durationMsFallback: Long) {
+        val existing = dao.find(mediaItemId, episodeId)
+        val durationMs = existing?.durationMs?.takeIf { it > 0 } ?: durationMsFallback
+        if (durationMs <= 0) return
+        dao.upsert(
+            PlaybackProgressEntity(
+                mediaItemId = mediaItemId,
+                episodeId = episodeId,
+                durationMs = durationMs,
+                positionMs = durationMs,
+                watchedPercentage = 1f,
+                completed = true,
+                lastPlayedAt = System.currentTimeMillis(),
+            )
+        )
+        if (episodeId != null) {
+            episodeDao.setWatched(episodeId, true)
+        }
+    }
+
     suspend fun saveProgress(mediaItemId: Long, episodeId: Long?, positionMs: Long, durationMs: Long) {
         if (durationMs <= 0) return
         val pct = (positionMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)

@@ -187,6 +187,15 @@ class DetailsViewModel(
     }
 
     /** Removes the whole movie/show from the library. Caller should navigate back after this. */
+    fun markAsWatched() {
+        viewModelScope.launch {
+            val media = _uiState.value.media ?: return@launch
+            val durationMsFallback = (media.runtimeMinutes ?: 0).toLong() * 60000L
+            playbackRepository.markAsWatched(mediaId, null, durationMsFallback)
+            _uiState.value = _uiState.value.copy(hasResumeProgress = true, resumePositionMs = durationMsFallback)
+        }
+    }
+
     fun removeMediaItem(onRemoved: () -> Unit) {
         viewModelScope.launch {
             libraryRepository.removeMediaItem(mediaId)

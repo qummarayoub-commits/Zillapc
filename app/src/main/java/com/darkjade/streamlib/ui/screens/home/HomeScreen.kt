@@ -294,10 +294,10 @@ private fun HomeTopBar(onOpenSearch: () -> Unit, onOpenSettings: () -> Unit, onO
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            text = "Dark Jade Player",
-            style = MaterialTheme.typography.headlineSmall,
-            color = VaultColors.Orange,
+        androidx.compose.foundation.Image(
+            painter = androidx.compose.ui.res.painterResource(id = com.darkjade.streamlib.R.drawable.logo_velora),
+            contentDescription = "App logo",
+            modifier = Modifier.height(36.dp),
         )
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onOpenNews) {
