@@ -69,7 +69,7 @@ fun PosterCard(
         Box(
             modifier = Modifier
                 .size(VaultSizes.posterWidth, VaultSizes.posterHeight)
-                .clip(VaultShapes.card)
+                .clip(androidx.compose.foundation.shape.RoundedCornerShape(4.dp)) // sharp/minimal corners, Netflix-style
                 .background(VaultColors.SurfaceVariant)
         ) {
             // Prefer TMDB poster (rotated per app-session across TMDB's multiple

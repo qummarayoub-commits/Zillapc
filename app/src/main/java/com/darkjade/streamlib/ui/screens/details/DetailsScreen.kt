@@ -376,6 +376,17 @@ fun DetailsScreen(
                                                 modifier = Modifier.padding(top = 2.dp)
                                             )
                                         }
+                                        // Short info moved directly under the title/duration line, per feedback.
+                                        media.overview?.let {
+                                            Text(
+                                                it,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = VaultColors.TextSecondary,
+                                                maxLines = 2,
+                                                overflow = TextOverflow.Ellipsis,
+                                                modifier = Modifier.padding(top = 2.dp)
+                                            )
+                                        }
                                         if (state.hasResumeProgress && !media.type.isSeriesLike()) {
                                             Text(
                                                 formatWatchedProgress(state.resumePositionMs, media.runtimeMinutes),
@@ -395,17 +406,7 @@ fun DetailsScreen(
                                     )
                                 }
 
-                                // Step 5 (rest): short overview, then genre tags — full width below the poster row.
-                                media.overview?.let {
-                                    Text(
-                                        it,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = VaultColors.TextSecondary,
-                                        maxLines = 2,
-                                        overflow = TextOverflow.Ellipsis,
-                                        modifier = Modifier.padding(top = VaultSpacing.xxs)
-                                    )
-                                }
+                                // Step 5 (rest): genre tags — full width below the poster row.
                                 if (media.genres.isNotBlank()) {
                                     LazyRow(
                                         horizontalArrangement = Arrangement.spacedBy(VaultSpacing.xs),

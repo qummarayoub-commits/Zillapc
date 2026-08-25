@@ -134,7 +134,7 @@ fun HomeScreen(
 
                     if (state.continueWatching.isNotEmpty()) {
                         item {
-                            Column(modifier = Modifier.padding(top = 48.dp)) {
+                            Column(modifier = Modifier.padding(top = 32.dp)) {
                                 Text(
                                     "Continue Watching",
                                     style = MaterialTheme.typography.titleMedium,
@@ -472,14 +472,14 @@ private fun <T> SecondaryBannerCarousel(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = VaultSpacing.md)
-            .padding(top = 64.dp),
+            .padding(top = 40.dp),
         horizontalArrangement = Arrangement.spacedBy(VaultSpacing.sm),
     ) {
         pair.forEach { item ->
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .height(if (isPortraitContent) 260.dp else 210.dp)
+                    .height(260.dp) // same size for Movies/Series/Anime/Comics banners
                     .clip(VaultShapes.card)
                     .background(VaultColors.SurfaceVariant)
                     .clickable { onClick(item) }

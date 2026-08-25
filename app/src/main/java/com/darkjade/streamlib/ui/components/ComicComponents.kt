@@ -119,7 +119,7 @@ fun ComicRail(
     onItemClick: (ComicEntity) -> Unit,
 ) {
     if (items.isEmpty()) return
-    Column(modifier = modifier.padding(top = 64.dp)) {
+    Column(modifier = modifier.padding(top = 40.dp)) {
         Text(
             text = title,
             style = MaterialTheme.typography.titleMedium,
