@@ -320,6 +320,7 @@ class LibraryRepository(
                     posterUrl = result.posterUrl,
                     backdropUrl = result.backdropUrl,
                     rating = result.rating,
+                    ageRating = result.ageRating,
                     runtimeMinutes = result.runtimeMinutes ?: entity.runtimeMinutes,
                     genres = result.genres.joinToString(","),
                     director = result.director,
@@ -354,6 +355,7 @@ class LibraryRepository(
                     posterUrl = result.posterUrl,
                     backdropUrl = result.backdropUrl,
                     rating = result.rating,
+                    ageRating = result.ageRating,
                     genres = result.genres.joinToString(","),
                     director = result.director,
                     cast = result.cast.joinToString(","),
@@ -395,6 +397,7 @@ class LibraryRepository(
                 posterUrl = result.posterUrl,
                 backdropUrl = result.backdropUrl,
                 rating = result.rating,
+                    ageRating = result.ageRating,
                 runtimeMinutes = result.runtimeMinutes ?: entity.runtimeMinutes,
                 genres = result.genres.joinToString(","),
                 director = result.director,
@@ -421,6 +424,12 @@ class LibraryRepository(
 
     suspend fun searchMetadataCandidates(query: String, isSeries: Boolean) =
         metadataProvider.searchCandidates(query, isSeries)
+
+    /** "Rate" action — a personal 1-5 star rating, stored locally. */
+    suspend fun setUserRating(mediaId: Long, stars: Int) {
+        val entity = mediaDao.getById(mediaId) ?: return
+        mediaDao.update(entity.copy(id = mediaId, userRating = stars.coerceIn(1, 5)))
+    }
 
     private fun serializeCastMembers(members: List<com.darkjade.streamlib.data.metadata.CastMember>): String =
         members.joinToString(";;") { m ->

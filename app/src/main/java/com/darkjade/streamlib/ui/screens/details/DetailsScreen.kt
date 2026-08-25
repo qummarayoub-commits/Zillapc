@@ -24,6 +24,10 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.CheckCircleOutline
+import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
@@ -83,6 +87,50 @@ import com.darkjade.streamlib.ui.util.ArtworkTintExtractor
 /** "Add Info" — search TMDB manually and pick the correct match, for
  * titles that auto-matched wrong (or not at all, e.g. a censor-certificate
  * image instead of a real poster). */
+@Composable
+private fun ActionIconButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    tint: Color = VaultColors.TextPrimary,
+    onClick: () -> Unit,
+) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable(onClick = onClick)) {
+        Box(
+            modifier = Modifier.size(48.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.35f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(icon, contentDescription = label, tint = tint)
+        }
+        Text(label, style = MaterialTheme.typography.labelSmall, color = VaultColors.TextSecondary, modifier = Modifier.padding(top = 2.dp))
+    }
+}
+
+@Composable
+private fun RateDialog(currentRating: Int, onRate: (Int) -> Unit, onDismiss: () -> Unit) {
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(VaultShapes.card)
+                .background(VaultColors.Surface)
+                .padding(VaultSpacing.lg),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text("Rate this title", style = MaterialTheme.typography.titleMedium, color = VaultColors.TextPrimary)
+            Row(modifier = Modifier.padding(top = VaultSpacing.md)) {
+                for (i in 1..5) {
+                    Icon(
+                        imageVector = if (i <= currentRating) Icons.Filled.Star else Icons.Filled.StarBorder,
+                        contentDescription = "$i star",
+                        tint = VaultColors.Orange,
+                        modifier = Modifier.size(36.dp).clickable { onRate(i) }.padding(2.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun AddInfoDialog(viewModel: DetailsViewModel, onDismiss: () -> Unit) {
     var query by remember { mutableStateOf("") }
@@ -213,6 +261,7 @@ fun DetailsScreen(
     var showOverflowMenu by remember { mutableStateOf(false) }
     var showTrailer by remember { mutableStateOf(false) }
     var showAddInfoDialog by remember { mutableStateOf(false) }
+    var showRateDialog by remember { mutableStateOf(false) }
 
     // Dark/subtle tint pulled from this title's own artwork — cached per
     // image URL, recomputed only when the artwork actually changes.
@@ -225,8 +274,8 @@ fun DetailsScreen(
             .fillMaxSize()
             .background(
                 Brush.verticalGradient(
-                    0f to (tintColor?.copy(alpha = 0.6f) ?: VaultColors.Background),
-                    0.45f to VaultColors.Background,
+                    0f to (tintColor?.copy(alpha = 0.75f) ?: VaultColors.Background),
+                    0.75f to VaultColors.Background,
                     1f to VaultColors.Background,
                 )
             )
@@ -329,130 +378,153 @@ fun DetailsScreen(
                                     }
                                 }
 
-                                // Steps 3-6: poster + title + info + tags + Watch Trailer,
-                                // still overlaid on the same backdrop image — natural height,
-                                // never clipped or forced to share space with the button above.
+                                // Large title directly on the backdrop — no small poster
+                                // thumbnail block, matching the reference exactly.
                                 Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(VaultSpacing.md)
                                 ) {
-                                Row(verticalAlignment = Alignment.Top) {
-                                    // Step 3: poster shows the FULL image, not cropped/shrunk.
-                                    Box(
-                                        modifier = Modifier
-                                            .width(90.dp)
-                                            .clip(VaultShapes.card)
-                                            .background(VaultColors.SurfaceVariant)
-                                    ) {
-                                        val posterModel = com.darkjade.streamlib.ui.util.PosterRotationCache.posterFor(media) ?: media.localFileUri
-                                        if (posterModel != null) {
-                                            SubcomposeAsyncImage(
-                                                model = posterModel,
-                                                contentDescription = media.title,
-                                                contentScale = ContentScale.Fit,
-                                                modifier = Modifier.fillMaxWidth(),
-                                                loading = { FallbackPoster(title = media.title) },
-                                                error = { FallbackPoster(title = media.title) },
-                                            )
-                                        } else {
-                                            FallbackPoster(title = media.title)
+                                Text(
+                                    media.title,
+                                    style = MaterialTheme.typography.headlineMedium,
+                                    color = VaultColors.TextPrimary,
+                                    maxLines = 2,
+                                )
+
+                                // Year • Duration • Genres, age-cert badge.
+                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = VaultSpacing.xxs)) {
+                                    val infoBits = buildList {
+                                        media.year?.let { add(it.toString()) }
+                                        formatRuntimeLong(media.runtimeMinutes)?.let { add(it) }
+                                        media.genres.split(",").map { it.trim() }.filter { it.isNotBlank() }.take(2).let {
+                                            if (it.isNotEmpty()) add(it.joinToString(", "))
                                         }
                                     }
-
-                                    // Step 4: title (smaller font, matching the reference) +
-                                    // Step 5's duration/language line — both beside the poster.
-                                    Column(modifier = Modifier.padding(start = VaultSpacing.sm).weight(1f)) {
-                                        Text(media.title, style = MaterialTheme.typography.titleMedium, color = VaultColors.TextPrimary, maxLines = 2)
-                                        val metaBits = buildList {
-                                            formatRuntimeLong(media.runtimeMinutes)?.let { add(it) }
-                                            media.originalLanguage?.let { add(it) }
-                                        }
-                                        if (metaBits.isNotEmpty()) {
-                                            Text(
-                                                metaBits.joinToString("  \u2022  "),
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = VaultColors.TextSecondary,
-                                                modifier = Modifier.padding(top = 2.dp)
-                                            )
-                                        }
-                                        // IMDb + Rotten Tomatoes, inline right under the duration line
-                                        // (matches the reference's placement) — only real ratings, never invented.
-                                        if (media.imdbRating != null || media.rottenTomatoesPercent != null) {
-                                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
-                                                media.imdbRating?.let {
-                                                    Box(
-                                                        modifier = Modifier.clip(RoundedCornerShape(3.dp)).background(Color(0xFFF5C518)).padding(horizontal = 4.dp, vertical = 1.dp)
-                                                    ) {
-                                                        Text("IMDb", style = MaterialTheme.typography.labelSmall, color = Color.Black)
-                                                    }
-                                                    Text(" ${"%.1f".format(it)}", style = MaterialTheme.typography.labelMedium, color = VaultColors.TextPrimary, modifier = Modifier.padding(start = 4.dp))
-                                                }
-                                                media.rottenTomatoesPercent?.let {
-                                                    Text("\uD83C\uDF45", style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(start = VaultSpacing.sm))
-                                                    Text(" $it%", style = MaterialTheme.typography.labelMedium, color = VaultColors.TextPrimary, modifier = Modifier.padding(start = 2.dp))
-                                                }
-                                            }
-                                        }
-                                        // Short info moved directly under the title/duration line, per feedback.
-                                        media.overview?.let {
-                                            Text(
-                                                it,
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = VaultColors.TextSecondary,
-                                                maxLines = 2,
-                                                overflow = TextOverflow.Ellipsis,
-                                                modifier = Modifier.padding(top = 2.dp)
-                                            )
-                                        }
-                                        if (state.hasResumeProgress && !media.type.isSeriesLike()) {
-                                            Text(
-                                                formatWatchedProgress(state.resumePositionMs, media.runtimeMinutes),
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = VaultColors.Orange,
-                                                modifier = Modifier.padding(top = VaultSpacing.xxs)
-                                            )
-                                        }
-                                    }
-
-                                    // Icon-only (no text label) — matches the reference's plain heart/bookmark treatment.
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Icon(
-                                            imageVector = if (state.isInWatchlist) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder,
-                                            contentDescription = "Watchlist",
-                                            tint = if (state.isInWatchlist) VaultColors.Orange else Color.White,
-                                            modifier = Modifier.clickable { viewModel.toggleWatchlist() }
+                                    if (infoBits.isNotEmpty()) {
+                                        Text(
+                                            infoBits.joinToString("   "),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = VaultColors.TextSecondary,
                                         )
-                                        if (!media.type.isSeriesLike()) {
-                                            Icon(
-                                                imageVector = if (state.hasResumeProgress) Icons.Filled.CheckCircle else Icons.Filled.RadioButtonUnchecked,
-                                                contentDescription = "Mark as watched",
-                                                tint = if (state.hasResumeProgress) VaultColors.Orange else Color.White,
-                                                modifier = Modifier
-                                                    .padding(top = VaultSpacing.xs)
-                                                    .clickable { viewModel.markAsWatched() }
-                                            )
+                                    }
+                                    if (!media.ageRating.isNullOrBlank()) {
+                                        Box(
+                                            modifier = Modifier
+                                                .padding(start = VaultSpacing.sm)
+                                                .clip(RoundedCornerShape(3.dp))
+                                                .background(Color.Black.copy(alpha = 0.5f))
+                                                .padding(horizontal = 5.dp, vertical = 1.dp)
+                                        ) {
+                                            Text(media.ageRating, style = MaterialTheme.typography.labelSmall, color = VaultColors.TextPrimary)
                                         }
                                     }
                                 }
 
-                                // Step 5 (rest): genre tags — full width below the poster row.
-                                if (media.genres.isNotBlank()) {
-                                    LazyRow(
-                                        horizontalArrangement = Arrangement.spacedBy(VaultSpacing.xs),
-                                        modifier = Modifier.padding(top = VaultSpacing.sm)
-                                    ) {
-                                        items(media.genres.split(",").map { it.trim() }.filter { it.isNotBlank() }) { genre ->
+                                // Ratings row — only real, fetched data; nothing invented.
+                                if (media.imdbRating != null || media.rottenTomatoesPercent != null || media.rating != null) {
+                                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = VaultSpacing.xs)) {
+                                        media.imdbRating?.let {
                                             Box(
-                                                modifier = Modifier
-                                                    .clip(VaultShapes.chip)
-                                                    .background(Color.White.copy(alpha = 0.12f))
-                                                    .padding(horizontal = VaultSpacing.sm, vertical = VaultSpacing.xxs)
+                                                modifier = Modifier.clip(RoundedCornerShape(3.dp)).background(Color(0xFFF5C518)).padding(horizontal = 4.dp, vertical = 1.dp)
                                             ) {
-                                                Text(genre, style = MaterialTheme.typography.labelMedium, color = VaultColors.TextPrimary)
+                                                Text("IMDb", style = MaterialTheme.typography.labelSmall, color = Color.Black)
                                             }
+                                            Text(" ${"%.1f".format(it)}", style = MaterialTheme.typography.labelMedium, color = VaultColors.TextPrimary, modifier = Modifier.padding(start = 4.dp, end = VaultSpacing.sm))
+                                        }
+                                        media.rottenTomatoesPercent?.let {
+                                            Text("\uD83C\uDF45", style = MaterialTheme.typography.labelMedium)
+                                            Text(" $it%", style = MaterialTheme.typography.labelMedium, color = VaultColors.TextPrimary, modifier = Modifier.padding(start = 2.dp, end = VaultSpacing.sm))
+                                        }
+                                        // Our own TMDB score — clearly labeled, never confused with IMDb.
+                                        media.rating?.let {
+                                            Text("TMDB", style = MaterialTheme.typography.labelSmall, color = VaultColors.Orange)
+                                            Text(" ${"%.1f".format(it)}", style = MaterialTheme.typography.labelMedium, color = VaultColors.TextPrimary, modifier = Modifier.padding(start = 2.dp))
                                         }
                                     }
+                                }
+
+                                // "Add to List" pill + "No Streaming Availability" — the latter is
+                                // genuinely always true here (this is a local media library, never
+                                // a streaming source), not a fake/decorative indicator.
+                                Row(modifier = Modifier.fillMaxWidth().padding(top = VaultSpacing.sm), verticalAlignment = Alignment.CenterVertically) {
+                                    Button(
+                                        onClick = { viewModel.toggleWatchlist() },
+                                        shape = VaultShapes.button,
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = VaultColors.Background),
+                                        modifier = Modifier.weight(1f).height(48.dp)
+                                    ) {
+                                        Icon(if (state.isInWatchlist) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder, contentDescription = null, modifier = Modifier.size(18.dp))
+                                        Text(if (state.isInWatchlist) " In List" else " Add to List", modifier = Modifier.padding(start = 4.dp))
+                                    }
+                                    Box(
+                                        modifier = Modifier
+                                            .padding(start = VaultSpacing.sm)
+                                            .size(48.dp)
+                                            .clip(CircleShape)
+                                            .background(Color.Black.copy(alpha = 0.3f)),
+                                    )
+                                }
+                                Row(modifier = Modifier.fillMaxWidth()) {
+                                    Spacer(Modifier.weight(1f))
+                                    Text(
+                                        "No Streaming Availability",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = VaultColors.TextTertiary,
+                                        modifier = Modifier.padding(top = 2.dp)
+                                    )
+                                }
+
+                                // Action row — Watch Trailer / Rate / Mark as Watched / More.
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(top = VaultSpacing.md),
+                                    horizontalArrangement = Arrangement.SpaceEvenly,
+                                ) {
+                                    if (!media.trailerYoutubeKey.isNullOrBlank()) {
+                                        ActionIconButton(Icons.Filled.PlayCircle, "Watch Trailer") { showTrailer = true }
+                                    }
+                                    ActionIconButton(
+                                        if ((state.media?.userRating ?: 0) > 0) Icons.Filled.Star else Icons.Filled.StarBorder,
+                                        "Rate",
+                                        tint = if ((state.media?.userRating ?: 0) > 0) VaultColors.Orange else VaultColors.TextPrimary,
+                                    ) { showRateDialog = true }
+                                    if (!media.type.isSeriesLike()) {
+                                        ActionIconButton(
+                                            if (state.hasResumeProgress) Icons.Filled.CheckCircle else Icons.Filled.CheckCircleOutline,
+                                            "Mark as Watched",
+                                            tint = if (state.hasResumeProgress) VaultColors.Orange else VaultColors.TextPrimary,
+                                        ) { viewModel.markAsWatched() }
+                                    }
+                                    ActionIconButton(Icons.Filled.MoreHoriz, "More") { showOverflowMenu = true }
+                                }
+
+                                // Description, then "Directed by X" — matching the reference's placement.
+                                media.overview?.let {
+                                    Text(
+                                        it,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = VaultColors.TextSecondary,
+                                        maxLines = 3,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.padding(top = VaultSpacing.md)
+                                    )
+                                }
+                                if (!media.director.isNullOrBlank()) {
+                                    Text(
+                                        "Directed by ${media.director}",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = VaultColors.TextTertiary,
+                                        modifier = Modifier.padding(top = VaultSpacing.xs)
+                                    )
+                                }
+
+                                if (state.hasResumeProgress && !media.type.isSeriesLike()) {
+                                    Text(
+                                        formatWatchedProgress(state.resumePositionMs, media.runtimeMinutes),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = VaultColors.Orange,
+                                        modifier = Modifier.padding(top = VaultSpacing.xs)
+                                    )
                                 }
 
                                     // Step 6: big "Watch Trailer" button, still on the backdrop.
@@ -487,7 +559,7 @@ fun DetailsScreen(
                         item {
                             Column(modifier = Modifier.padding(top = VaultSpacing.lg).padding(horizontal = VaultSpacing.md)) {
                                 Text(
-                                    "Top Cast",
+                                    "Cast & Crew",
                                     style = MaterialTheme.typography.titleMedium,
                                     color = VaultColors.TextPrimary,
                                 )
@@ -594,6 +666,13 @@ fun DetailsScreen(
                     AddInfoDialog(
                         viewModel = viewModel,
                         onDismiss = { showAddInfoDialog = false },
+                    )
+                }
+                if (showRateDialog) {
+                    RateDialog(
+                        currentRating = media.userRating ?: 0,
+                        onRate = { stars -> viewModel.rateMedia(stars); showRateDialog = false },
+                        onDismiss = { showRateDialog = false },
                     )
                 }
             }

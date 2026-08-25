@@ -22,10 +22,10 @@ object VaultShapes {
 }
 
 object VaultSizes {
-    val posterWidth = 150.dp
-    val posterHeight = 150.dp // square, per explicit request — normal/larger size, not the earlier shrunken 128
-    val posterWidthLarge = 180.dp
-    val posterHeightLarge = 180.dp
+    val posterWidth = 120.dp
+    val posterHeight = 180.dp // portrait 2:3 — Netflix-style, was squared per an earlier request
+    val posterWidthLarge = 150.dp
+    val posterHeightLarge = 225.dp
     val heroHeight = 380.dp
     val episodeThumbWidth = 140.dp
     val episodeThumbHeight = 90.dp

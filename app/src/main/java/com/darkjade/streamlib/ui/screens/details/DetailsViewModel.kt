@@ -187,6 +187,16 @@ class DetailsViewModel(
     }
 
     /** Removes the whole movie/show from the library. Caller should navigate back after this. */
+    fun rateMedia(stars: Int) {
+        viewModelScope.launch {
+            libraryRepository.setUserRating(mediaId, stars)
+            val refreshed = libraryRepository.getMediaItem(mediaId)
+            if (refreshed != null) {
+                _uiState.value = _uiState.value.copy(media = refreshed)
+            }
+        }
+    }
+
     fun markAsWatched() {
         viewModelScope.launch {
             val media = _uiState.value.media ?: return@launch

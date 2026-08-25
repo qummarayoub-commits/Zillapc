@@ -25,6 +25,7 @@ data class TmdbMovieDto(
     val external_ids: TmdbExternalIdsDto? = null,
     val production_countries: List<TmdbCountryDto>? = null,
     val original_language: String? = null,
+    val release_dates: TmdbReleaseDatesDto? = null,
 )
 
 data class TmdbSeriesDto(
@@ -46,7 +47,15 @@ data class TmdbSeriesDto(
     val external_ids: TmdbExternalIdsDto? = null,
     val production_countries: List<TmdbCountryDto>? = null,
     val original_language: String? = null,
+    val content_ratings: TmdbContentRatingsDto? = null,
 )
+
+data class TmdbReleaseDatesDto(val results: List<TmdbReleaseDateCountryDto> = emptyList())
+data class TmdbReleaseDateCountryDto(val iso_3166_1: String, val release_dates: List<TmdbReleaseDateEntryDto> = emptyList())
+data class TmdbReleaseDateEntryDto(val certification: String)
+
+data class TmdbContentRatingsDto(val results: List<TmdbContentRatingCountryDto> = emptyList())
+data class TmdbContentRatingCountryDto(val iso_3166_1: String, val rating: String)
 
 data class TmdbCountryDto(val name: String)
 
@@ -105,7 +114,7 @@ interface TmdbApi {
     suspend fun getMovie(
         @Path("id") id: Int,
         @Query("api_key") apiKey: String,
-        @Query("append_to_response") append: String = "credits,images,videos,external_ids",
+        @Query("append_to_response") append: String = "credits,images,videos,external_ids,release_dates",
     ): TmdbMovieDto
 
     @GET("search/tv")
@@ -119,7 +128,7 @@ interface TmdbApi {
     suspend fun getSeries(
         @Path("id") id: Int,
         @Query("api_key") apiKey: String,
-        @Query("append_to_response") append: String = "credits,images,videos,external_ids",
+        @Query("append_to_response") append: String = "credits,images,videos,external_ids,content_ratings",
     ): TmdbSeriesDto
 
     @GET("tv/{id}/season/{seasonNumber}")

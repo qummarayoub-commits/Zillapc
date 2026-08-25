@@ -70,15 +70,15 @@ object ArtworkTintExtractor {
         return result
     }
 
-    /** Pulls a raw swatch color down to something safe/subtle behind text. */
+    /** Pulls a raw swatch color down to something usable behind text, while
+     * staying MUCH closer to the actual poster color than before — a black
+     * poster should read as a black-ish theme, a red poster a red-ish theme,
+     * not a uniformly desaturated version of everything. */
     private fun darkenForBackground(argb: Int): Color {
         val hsl = FloatArray(3)
         ColorUtils.colorToHSL(argb, hsl)
-        // Keep the hue, cap saturation, and pin lightness low — this is what
-        // keeps the result "dark, subtle, eye-friendly" instead of a bright
-        // color wash, regardless of how vivid the source swatch was.
-        hsl[1] = hsl[1].coerceAtMost(0.45f)
-        hsl[2] = hsl[2].coerceIn(0.08f, 0.16f)
+        hsl[1] = hsl[1].coerceAtMost(0.75f)
+        hsl[2] = hsl[2].coerceIn(0.06f, 0.22f)
         return Color(ColorUtils.HSLToColor(hsl))
     }
 }

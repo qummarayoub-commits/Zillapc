@@ -71,6 +71,22 @@ class TmdbMetadataProvider : MetadataProvider {
             .sortedByDescending { it.official }
             .firstOrNull()?.key
 
+    // Prefer the viewer's likely region (US) certification since it's the
+    // most widely recognized rating system; fall back to any country that
+    // has one rather than showing nothing.
+    private fun extractMovieCertification(releaseDates: TmdbReleaseDatesDto?): String? {
+        val countries = releaseDates?.results.orEmpty()
+        val us = countries.firstOrNull { it.iso_3166_1 == "US" }
+        val chosen = us ?: countries.firstOrNull { it.release_dates.any { d -> d.certification.isNotBlank() } }
+        return chosen?.release_dates?.firstOrNull { it.certification.isNotBlank() }?.certification
+    }
+
+    private fun extractSeriesCertification(contentRatings: TmdbContentRatingsDto?): String? {
+        val countries = contentRatings?.results.orEmpty()
+        val us = countries.firstOrNull { it.iso_3166_1 == "US" && it.rating.isNotBlank() }
+        return (us ?: countries.firstOrNull { it.rating.isNotBlank() })?.rating
+    }
+
     private fun extractAlternatePosters(images: TmdbImagesDto?, limit: Int = 5): List<String> =
         images?.posters.orEmpty().take(limit).map { TmdbConfig.IMAGE_BASE_URL + it.file_path }
 
@@ -139,7 +155,7 @@ class TmdbMetadataProvider : MetadataProvider {
         posterUrl = full.poster_path?.let { TmdbConfig.IMAGE_BASE_URL + it },
         backdropUrl = full.backdrop_path?.let { TmdbConfig.BACKDROP_BASE_URL + it },
         rating = full.vote_average,
-        ageRating = null,
+        ageRating = extractMovieCertification(full.release_dates),
         runtimeMinutes = full.runtime,
         genres = full.genres?.map { it.name } ?: emptyList(),
         director = extractDirector(full.credits),
@@ -160,7 +176,7 @@ class TmdbMetadataProvider : MetadataProvider {
         posterUrl = full.poster_path?.let { TmdbConfig.IMAGE_BASE_URL + it },
         backdropUrl = full.backdrop_path?.let { TmdbConfig.BACKDROP_BASE_URL + it },
         rating = full.vote_average,
-        ageRating = null,
+        ageRating = extractSeriesCertification(full.content_ratings),
         runtimeMinutes = null,
         genres = full.genres?.map { it.name } ?: emptyList(),
         director = extractDirector(full.credits),
