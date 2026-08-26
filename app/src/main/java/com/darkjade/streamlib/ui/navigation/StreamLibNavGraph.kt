@@ -23,9 +23,6 @@ import com.darkjade.streamlib.AppContainer
 import com.darkjade.streamlib.player.ExternalPlayerLauncher
 import com.darkjade.streamlib.player.PlaybackLaunchResult
 import com.darkjade.streamlib.ui.components.VaultBottomBar
-import com.darkjade.streamlib.ui.player.MiniPlayerBar
-import com.darkjade.streamlib.ui.player.MusicPlayerScreen
-import com.darkjade.streamlib.ui.player.MusicPlayerViewModel
 import com.darkjade.streamlib.ui.screens.account.AccountScreen
 import com.darkjade.streamlib.ui.screens.account.AccountViewModel
 import com.darkjade.streamlib.ui.screens.browse.BrowseScreen
@@ -53,7 +50,7 @@ import com.darkjade.streamlib.ui.screens.settings.SettingsViewModel
 import com.darkjade.streamlib.ui.util.SimpleViewModelFactory
 import kotlinx.coroutines.launch
 
-private val topLevelRoutes = setOf(Routes.HOME, Routes.MY_LISTS, Routes.BROWSE, Routes.NEWS, Routes.SEARCH, Routes.MUSIC)
+private val topLevelRoutes = setOf(Routes.HOME, Routes.MY_LISTS, Routes.BROWSE, Routes.NEWS, Routes.SEARCH)
 
 @Composable
 fun StreamLibNavGraph(container: AppContainer) {
@@ -73,25 +70,12 @@ fun StreamLibNavGraph(container: AppContainer) {
     }
 
     // Created once here (Activity-scoped via LocalViewModelStoreOwner default),
-    // so it survives navigation between Home/Movies/Series/Music/etc. and
+    // so it survives navigation between Home/Movies/Series/etc. and
     // keeps the mini-player controllable everywhere.
-    val musicPlayerViewModel: MusicPlayerViewModel = viewModel(factory = SimpleViewModelFactory {
-        MusicPlayerViewModel(context.applicationContext, container.musicRepository)
-    })
-    val musicPlayerState by musicPlayerViewModel.uiState.collectAsState()
 
     Scaffold(
         bottomBar = {
             if (currentRoute in topLevelRoutes) {
-                androidx.compose.foundation.layout.Column {
-                    if (musicPlayerState.currentSong != null) {
-                        MiniPlayerBar(
-                            state = musicPlayerState,
-                            onTogglePlayPause = { musicPlayerViewModel.togglePlayPause() },
-                            onNext = { musicPlayerViewModel.next() },
-                            onTap = { navController.navigate(Routes.MUSIC_PLAYER) },
-                        )
-                    }
                     VaultBottomBar(
                         currentRoute = currentRoute,
                         onNavigate = { route ->
@@ -103,7 +87,6 @@ fun StreamLibNavGraph(container: AppContainer) {
                         }
                     )
                 }
-            }
         }
     ) { padding ->
         NavHost(
@@ -120,7 +103,6 @@ fun StreamLibNavGraph(container: AppContainer) {
                         container.watchRepository,
                         container.profileRepository,
                         container.comicRepository,
-                        container.musicRepository,
                     )
                 })
                 HomeScreen(
@@ -132,7 +114,6 @@ fun StreamLibNavGraph(container: AppContainer) {
                     onOpenNews = { navController.navigate(Routes.NEWS) },
                     onOpenBrowse = { navController.navigate(Routes.BROWSE) },
                     onOpenAccount = { navController.navigate(Routes.ACCOUNT) },
-                    onOpenMusic = { navController.navigate(Routes.MUSIC) },
                 )
             }
 
@@ -152,44 +133,6 @@ fun StreamLibNavGraph(container: AppContainer) {
                     onOpenDetails = { navController.navigate(Routes.details(it)) },
                     onOpenComicDetails = { navController.navigate(Routes.comicDetails(it)) },
                 )
-            }
-
-            composable(Routes.MUSIC) {
-                val vm: com.darkjade.streamlib.ui.screens.music.MusicViewModel = viewModel(factory = SimpleViewModelFactory {
-                    com.darkjade.streamlib.ui.screens.music.MusicViewModel(container.musicRepository)
-                })
-                val musicState by vm.uiState.collectAsState()
-                com.darkjade.streamlib.ui.screens.music.MusicScreen(
-                    viewModel = vm,
-                    onOpenAlbum = { _, _ -> },
-                    onOpenArtist = { },
-                    onOpenPlaylist = { playlistId -> navController.navigate(Routes.playlistDetail(playlistId)) },
-                    onPlaySong = { song -> musicPlayerViewModel.playSong(song, musicState.allSongs) },
-                )
-            }
-
-            composable(
-                Routes.PLAYLIST_DETAIL,
-                arguments = listOf(navArgument("playlistId") { type = NavType.LongType }),
-            ) { backStackEntry ->
-                val playlistId = backStackEntry.arguments?.getLong("playlistId") ?: -1L
-                val vm: com.darkjade.streamlib.ui.screens.music.PlaylistDetailViewModel = viewModel(factory = SimpleViewModelFactory {
-                    com.darkjade.streamlib.ui.screens.music.PlaylistDetailViewModel(playlistId, container.musicRepository)
-                })
-                com.darkjade.streamlib.ui.screens.music.PlaylistDetailScreen(
-                    viewModel = vm,
-                    onBack = { navController.popBackStack() },
-                    onPlaySong = { song, queue -> musicPlayerViewModel.playSong(song, queue) },
-                    onPlayShuffled = { songs ->
-                        if (songs.isNotEmpty()) {
-                            musicPlayerViewModel.playSong(songs.random(), songs)
-                        }
-                    },
-                )
-            }
-
-            composable(Routes.MUSIC_PLAYER) {
-                MusicPlayerScreen(viewModel = musicPlayerViewModel, onBack = { navController.popBackStack() })
             }
 
             composable(Routes.SEARCH) {
@@ -217,7 +160,6 @@ fun StreamLibNavGraph(container: AppContainer) {
                         container.libraryRepository,
                         container.comicRepository,
                         container.preferencesRepository,
-                        container.musicRepository,
                     )
                 })
                 SettingsScreen(viewModel = vm, onBack = { navController.popBackStack() })

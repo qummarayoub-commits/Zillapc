@@ -111,11 +111,18 @@ fun PlayerScreen(
     // bugs (seek bar/rewind/forward not responding, controls stuck visible).
     var controlsVisible by remember { mutableStateOf(true) }
     var unlockButtonVisible by remember { mutableStateOf(false) }
+    // Declared here (was further below) so the auto-hide timer can see it —
+    // this is the actual fix: while the user is mid-drag on the seek bar,
+    // auto-hide must NOT yank the controls away, since that cancels the
+    // drag gesture before onValueChangeFinished ever fires (which is what
+    // actually calls seekTo). This was why the seek bar and, less often,
+    // the 10-second buttons appeared to do nothing.
+    var isDraggingSeek by remember { mutableStateOf(false) }
 
     // Auto-hide controls after a few seconds while playing, same as any
     // standard video player. Any tap toggles this back on/off immediately.
-    LaunchedEffect(controlsVisible, state.isPlaying) {
-        if (controlsVisible && state.isPlaying) {
+    LaunchedEffect(controlsVisible, state.isPlaying, isDraggingSeek) {
+        if (controlsVisible && state.isPlaying && !isDraggingSeek) {
             delay(3500)
             controlsVisible = false
         }
@@ -137,7 +144,6 @@ fun PlayerScreen(
 
     // While the user is actively dragging the seek bar, show the drag
     // position instead of fighting with the live position updates.
-    var isDraggingSeek by remember { mutableStateOf(false) }
     var dragPositionMs by remember { mutableStateOf(0L) }
 
     DisposableEffect(Unit) {

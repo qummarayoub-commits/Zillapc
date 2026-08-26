@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.CheckCircleOutline
 import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material.icons.filled.Delete
@@ -109,6 +110,48 @@ private fun RottenTomatoIcon(size: androidx.compose.ui.unit.Dp = 14.dp) {
             topLeft = androidx.compose.ui.geometry.Offset(center.x - r * 0.28f, center.y - r * 1.05f),
             size = androidx.compose.ui.geometry.Size(r * 0.56f, r * 0.4f),
         )
+    }
+}
+
+/** Minimal list-view mark: three horizontal rounded lines with three small
+ * circular dots aligned vertically on the left — a clean modern outline
+ * icon, drawn rather than pulled from a specific icon pack, matching the
+ * requested Lucide/Material list-icon style. */
+@Composable
+private fun ListViewIcon(size: androidx.compose.ui.unit.Dp = 22.dp, color: Color = Color(0xFF1A1A1A)) {
+    androidx.compose.foundation.Canvas(modifier = Modifier.size(size)) {
+        val w = this.size.width
+        val h = this.size.height
+        val strokeWidth = w * 0.09f
+        val dotRadius = w * 0.06f
+        val dotX = w * 0.13f
+        val lineStartX = w * 0.32f
+        val lineEndX = w * 0.92f
+        val rowYs = listOf(h * 0.22f, h * 0.5f, h * 0.78f)
+
+        rowYs.forEach { y ->
+            drawCircle(color = color, radius = dotRadius, center = androidx.compose.ui.geometry.Offset(dotX, y))
+            drawLine(
+                color = color,
+                start = androidx.compose.ui.geometry.Offset(lineStartX, y),
+                end = androidx.compose.ui.geometry.Offset(lineEndX, y),
+                strokeWidth = strokeWidth,
+                cap = androidx.compose.ui.graphics.StrokeCap.Round,
+            )
+        }
+    }
+}
+
+/** Small drawn "TMDB" mark — a simple circular badge in TMDB's brand teal,
+ * not the literal trademarked logo (which I can't reproduce), just a
+ * recognizable colored film-reel-style badge for "our own score". */
+@Composable
+private fun TmdbIcon(size: androidx.compose.ui.unit.Dp = 16.dp) {
+    Box(
+        modifier = Modifier.size(size).clip(RoundedCornerShape(4.dp)).background(Color(0xFF01B4E4)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(Icons.Filled.Movie, contentDescription = "TMDB", tint = Color.White, modifier = Modifier.size(size * 0.65f))
     }
 }
 
@@ -461,9 +504,10 @@ fun DetailsScreen(
                                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = VaultSpacing.xs)) {
                                         media.imdbRating?.let {
                                             Box(
-                                                modifier = Modifier.clip(RoundedCornerShape(3.dp)).background(Color(0xFFF5C518)).padding(horizontal = 4.dp, vertical = 1.dp)
+                                                modifier = Modifier.size(16.dp).clip(RoundedCornerShape(3.dp)).background(Color(0xFFF5C518)),
+                                                contentAlignment = Alignment.Center,
                                             ) {
-                                                Text("IMDb", style = MaterialTheme.typography.labelSmall, color = Color.Black)
+                                                Icon(Icons.Filled.Star, contentDescription = "IMDb", tint = Color.Black, modifier = Modifier.size(11.dp))
                                             }
                                             Text(" ${"%.1f".format(it)}", style = MaterialTheme.typography.labelMedium, color = VaultColors.TextPrimary, modifier = Modifier.padding(start = 4.dp, end = VaultSpacing.sm))
                                         }
@@ -471,118 +515,105 @@ fun DetailsScreen(
                                             RottenTomatoIcon()
                                             Text(" $it%", style = MaterialTheme.typography.labelMedium, color = VaultColors.TextPrimary, modifier = Modifier.padding(start = 3.dp, end = VaultSpacing.sm))
                                         }
-                                        // Our own TMDB score — clearly labeled, never confused with IMDb.
                                         media.rating?.let {
-                                            Text("TMDB", style = MaterialTheme.typography.labelSmall, color = VaultColors.Orange)
-                                            Text(" ${"%.1f".format(it)}", style = MaterialTheme.typography.labelMedium, color = VaultColors.TextPrimary, modifier = Modifier.padding(start = 2.dp, end = VaultSpacing.sm))
+                                            TmdbIcon()
+                                            Text(" ${"%.1f".format(it)}", style = MaterialTheme.typography.labelMedium, color = VaultColors.TextPrimary, modifier = Modifier.padding(start = 4.dp, end = VaultSpacing.sm))
                                         }
                                         media.metacriticScore?.let {
                                             Box(
-                                                modifier = Modifier.clip(RoundedCornerShape(3.dp)).background(
+                                                modifier = Modifier.size(16.dp).clip(RoundedCornerShape(3.dp)).background(
                                                     when {
                                                         it >= 61 -> Color(0xFF66CC33)
                                                         it >= 40 -> Color(0xFFFFCC33)
                                                         else -> Color(0xFFFF0000)
                                                     }
-                                                ).padding(horizontal = 4.dp, vertical = 1.dp)
+                                                ),
+                                                contentAlignment = Alignment.Center,
                                             ) {
-                                                Text("$it", style = MaterialTheme.typography.labelSmall, color = Color.Black)
+                                                Text("M", style = MaterialTheme.typography.labelSmall, color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 10.sp)
                                             }
-                                            Text(" Metacritic", style = MaterialTheme.typography.labelSmall, color = VaultColors.TextSecondary, modifier = Modifier.padding(start = 3.dp))
+                                            Text(" $it", style = MaterialTheme.typography.labelMedium, color = VaultColors.TextPrimary, modifier = Modifier.padding(start = 4.dp))
                                         }
                                     }
                                 }
 
-                                // "Add to List" — exact pill spec: solid white background,
-                                // #1A1A1A icon/text, 60-65% row width, 48-52px height,
-                                // subtle shadow. Right side ("Watch in Velora") unchanged —
-                                // styling only, no functionality touched.
+                                // Add to List (single circle icon) + Velora play capsule —
+                                // both grouped together on the right side.
                                 Row(modifier = Modifier.fillMaxWidth().padding(top = VaultSpacing.sm), verticalAlignment = Alignment.CenterVertically) {
-                                    Button(
-                                        onClick = { viewModel.toggleWatchlist() },
-                                        shape = RoundedCornerShape(percent = 50),
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = Color.White,
-                                            contentColor = Color(0xFF1A1A1A),
-                                        ),
-                                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 20.dp),
-                                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 3.dp),
+                                    Spacer(Modifier.weight(1f))
+
+                                    // Add to List — single circular icon button (custom minimal
+                                    // list-view mark: three rounded lines + three dots on the left).
+                                    Box(
                                         modifier = Modifier
-                                            .height(50.dp)
-                                            .fillMaxWidth(0.625f)
+                                            .size(44.dp)
+                                            .clip(CircleShape)
+                                            .background(Color.White)
+                                            .clickable { viewModel.toggleWatchlist() },
+                                        contentAlignment = Alignment.Center,
                                     ) {
-                                        androidx.compose.foundation.layout.Row(
-                                            horizontalArrangement = Arrangement.Center,
-                                            verticalAlignment = Alignment.CenterVertically,
-                                        ) {
-                                            Icon(
-                                                if (state.isInWatchlist) Icons.Filled.Bookmark else Icons.Outlined.BookmarkAdd,
-                                                contentDescription = null,
-                                                tint = Color(0xFF1A1A1A),
-                                                modifier = Modifier.size(22.dp)
-                                            )
-                                            Text(
-                                                if (state.isInWatchlist) "Added to List" else "Add to List",
-                                                fontSize = 15.sp,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = Color(0xFF1A1A1A),
-                                                modifier = Modifier.padding(start = 8.dp)
-                                            )
+                                        if (state.isInWatchlist) {
+                                            Icon(Icons.Filled.Bookmark, contentDescription = "Added to List", tint = Color(0xFF1A1A1A), modifier = Modifier.size(20.dp))
+                                        } else {
+                                            ListViewIcon(size = 22.dp, color = Color(0xFF1A1A1A))
                                         }
                                     }
-                                    Spacer(Modifier.weight(1f))
+
+                                    Spacer(Modifier.width(VaultSpacing.sm))
+
+                                    // Velora play capsule — the V-mark icon attached to a pill
+                                    // reading "Watch in Velora", or the honest "No Streaming
+                                    // Availability" state when nothing is actually playable.
                                     if (state.nextUpUri != null) {
-                                        Column(
-                                            horizontalAlignment = Alignment.CenterHorizontally,
-                                            modifier = Modifier.clickable {
-                                                viewModel.recordOpened(state.nextUpEpisodeId)
-                                                onPlay(state.nextUpUri.toString(), state.nextUpEpisodeId)
-                                            }
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(percent = 50))
+                                                .background(VaultColors.Orange)
+                                                .clickable {
+                                                    viewModel.recordOpened(state.nextUpEpisodeId)
+                                                    onPlay(state.nextUpUri.toString(), state.nextUpEpisodeId)
+                                                }
+                                                .padding(start = 6.dp, end = 16.dp, top = 6.dp, bottom = 6.dp)
                                         ) {
                                             Box(
-                                                modifier = Modifier
-                                                    .size(48.dp)
-                                                    .clip(CircleShape)
-                                                    .background(VaultColors.Orange),
+                                                modifier = Modifier.size(32.dp).clip(CircleShape).background(VaultColors.Background),
                                                 contentAlignment = Alignment.Center,
                                             ) {
                                                 androidx.compose.foundation.Image(
                                                     painter = androidx.compose.ui.res.painterResource(id = com.darkjade.streamlib.R.drawable.logo_v_mark),
-                                                    contentDescription = "Play in Velora",
-                                                    colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(VaultColors.Background),
-                                                    modifier = Modifier.size(24.dp),
+                                                    contentDescription = "Velora",
+                                                    colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(VaultColors.Orange),
+                                                    modifier = Modifier.size(16.dp),
                                                 )
                                             }
                                             Text(
                                                 "Watch in Velora",
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = VaultColors.TextTertiary,
-                                                modifier = Modifier.padding(top = 2.dp)
+                                                style = MaterialTheme.typography.labelLarge,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = VaultColors.Background,
+                                                modifier = Modifier.padding(start = 8.dp)
                                             )
                                         }
                                     } else {
-                                        // No local file actually available to play — a subtle,
-                                        // honest state instead of a broken/disabled-looking button.
-                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(percent = 50))
+                                                .background(Color.White.copy(alpha = 0.08f))
+                                                .padding(start = 6.dp, end = 16.dp, top = 6.dp, bottom = 6.dp)
+                                        ) {
                                             Box(
-                                                modifier = Modifier
-                                                    .size(48.dp)
-                                                    .clip(CircleShape)
-                                                    .background(Color.White.copy(alpha = 0.08f)),
+                                                modifier = Modifier.size(32.dp).clip(CircleShape).background(VaultColors.SurfaceVariant),
                                                 contentAlignment = Alignment.Center,
                                             ) {
-                                                Icon(
-                                                    Icons.Filled.CloudOff,
-                                                    contentDescription = null,
-                                                    tint = VaultColors.TextTertiary,
-                                                    modifier = Modifier.size(20.dp),
-                                                )
+                                                Icon(Icons.Filled.CloudOff, contentDescription = null, tint = VaultColors.TextTertiary, modifier = Modifier.size(16.dp))
                                             }
                                             Text(
                                                 "No Streaming Availability",
                                                 style = MaterialTheme.typography.labelSmall,
                                                 color = VaultColors.TextTertiary,
-                                                modifier = Modifier.padding(top = 2.dp)
+                                                modifier = Modifier.padding(start = 8.dp)
                                             )
                                         }
                                     }

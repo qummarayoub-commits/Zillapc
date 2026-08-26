@@ -22,7 +22,6 @@ class AppContainer(context: Context) {
     val metadataProvider: MetadataProvider = TmdbMetadataProvider()
     val omdbMetadataProvider = OmdbMetadataProvider()
     val libraryRepository = LibraryRepository(context, metadataProvider, omdbMetadataProvider)
-    val musicRepository = com.darkjade.streamlib.data.repository.MusicRepository(context)
     val profileRepository = ProfileRepository(context)
     val watchRepository = WatchRepository(context)
     val preferencesRepository = PreferencesRepository(context)

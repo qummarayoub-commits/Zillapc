@@ -83,7 +83,6 @@ fun HomeScreen(
     onOpenSearch: () -> Unit,
     onOpenNews: () -> Unit,
     onOpenBrowse: () -> Unit,
-    onOpenMusic: () -> Unit = {},
     onOpenAccount: () -> Unit,
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -157,55 +156,6 @@ fun HomeScreen(
                     }
                     item {
                         MediaRail("Recently Added", state.recentlyAdded, onItemClick = { onOpenDetails(it.id) }, onAddToList = viewModel::addToWatchlist, onRemoveFromLibrary = viewModel::removeFromLibrary)
-                    }
-
-                    // Small horizontal Music section — hidden entirely if there's no music.
-                    if (state.recentSongs.isNotEmpty()) {
-                        item {
-                            Column(modifier = Modifier.padding(top = 40.dp)) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth().padding(horizontal = VaultSpacing.md, vertical = VaultSpacing.sm),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    Text("Music", style = MaterialTheme.typography.titleMedium, color = VaultColors.TextPrimary)
-                                    Text(
-                                        "See All",
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = VaultColors.Orange,
-                                        modifier = Modifier.clickable(onClick = onOpenMusic)
-                                    )
-                                }
-                                LazyRow(
-                                    horizontalArrangement = Arrangement.spacedBy(VaultSpacing.sm),
-                                    contentPadding = PaddingValues(horizontal = VaultSpacing.md)
-                                ) {
-                                    items(state.recentSongs, key = { it.id }) { song ->
-                                        Column(modifier = Modifier.width(100.dp).clickable { onOpenMusic() }) {
-                                            Box(
-                                                modifier = Modifier.size(100.dp).clip(RoundedCornerShape(6.dp)).background(VaultColors.SurfaceVariant),
-                                                contentAlignment = Alignment.Center,
-                                            ) {
-                                                if (song.artworkPath != null) {
-                                                    SubcomposeAsyncImage(
-                                                        model = song.artworkPath,
-                                                        contentDescription = song.title,
-                                                        contentScale = ContentScale.Crop,
-                                                        modifier = Modifier.fillMaxSize(),
-                                                        loading = { Icon(Icons.Filled.MusicNote, contentDescription = null, tint = VaultColors.TextTertiary) },
-                                                        error = { Icon(Icons.Filled.MusicNote, contentDescription = null, tint = VaultColors.TextTertiary) },
-                                                    )
-                                                } else {
-                                                    Icon(Icons.Filled.MusicNote, contentDescription = null, tint = VaultColors.TextTertiary)
-                                                }
-                                            }
-                                            Text(song.title, style = MaterialTheme.typography.bodySmall, color = VaultColors.TextPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = VaultSpacing.xxs))
-                                            Text(song.artist, style = MaterialTheme.typography.labelSmall, color = VaultColors.TextTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                        }
-                                    }
-                                }
-                            }
-                        }
                     }
 
                     // Movies: banner ABOVE the content row, then the row itself.
