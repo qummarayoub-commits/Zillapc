@@ -122,6 +122,14 @@ fun MusicPlayerScreen(
                 color = VaultColors.TextSecondary,
                 modifier = Modifier.padding(top = VaultSpacing.xxs)
             )
+            state.errorMessage?.let {
+                Text(
+                    it,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = VaultColors.Error,
+                    modifier = Modifier.padding(top = VaultSpacing.sm)
+                )
+            }
 
             Slider(
                 value = state.positionMs.toFloat(),

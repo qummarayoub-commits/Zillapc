@@ -1,5 +1,6 @@
 package com.darkjade.streamlib.data.scanner
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -29,7 +30,7 @@ class MusicClassifierTest {
     )
 
     @Test
-    fun `real song with full metadata is accepted`() {
+    fun `real song with full metadata is accepted as HIGH`() {
         val c = candidate(
             fileName = "Shape of You",
             title = "Shape of You",
@@ -39,36 +40,31 @@ class MusicClassifierTest {
             genre = "Pop",
             hasArtwork = true,
         )
+        assertEquals(MusicClassifier.Confidence.HIGH, MusicClassifier.classify(c))
         assertTrue(MusicClassifier.isLikelyMusic(c))
     }
 
     @Test
-    fun `track-numbered song with artist and album is accepted`() {
-        val c = candidate(
-            fileName = "01 - Believer",
-            title = "Believer",
-            artist = "Imagine Dragons",
-            album = "Evolve",
-            trackNumber = 1,
-        )
+    fun `song with only a title tag is still accepted`() {
+        val c = candidate(fileName = "01", title = "Believer")
         assertTrue(MusicClassifier.isLikelyMusic(c))
     }
 
     @Test
-    fun `generic filename with complete music metadata is still accepted`() {
-        val c = candidate(
-            fileName = "song",
-            title = "Real Song Title",
-            artist = "Real Artist",
-            album = "Real Album",
-            genre = "Rock",
-            hasArtwork = true,
-        )
+    fun `generic filename with zero metadata is still accepted (MEDIUM, not rejected)`() {
+        val c = candidate(fileName = "01")
         assertTrue(MusicClassifier.isLikelyMusic(c))
+        assertEquals(MusicClassifier.Confidence.MEDIUM, MusicClassifier.classify(c))
     }
 
     @Test
-    fun `whatsapp audio is rejected even with no other signal`() {
+    fun `a whole folder of untagged mp3s is never reduced to one song`() {
+        val songs = listOf("01", "02", "03", "04", "05").map { candidate(fileName = it) }
+        songs.forEach { assertTrue(MusicClassifier.isLikelyMusic(it)) }
+    }
+
+    @Test
+    fun `whatsapp audio is rejected`() {
         val c = candidate(fileName = "WhatsApp Audio 2026-08-26 at 10.15.00")
         assertFalse(MusicClassifier.isLikelyMusic(c))
     }
@@ -107,30 +103,14 @@ class MusicClassifierTest {
     }
 
     @Test
-    fun `completely generic filename with no metadata at all is rejected`() {
-        val c = candidate(fileName = "audio", artist = null, title = null, album = null)
-        assertFalse(MusicClassifier.isLikelyMusic(c))
+    fun `a song legitimately titled Voices is NOT rejected`() {
+        val c = candidate(fileName = "Voices", title = "Voices", artist = "Some Band")
+        assertTrue(MusicClassifier.isLikelyMusic(c))
     }
 
     @Test
     fun `very short clip is rejected even with a title`() {
         val c = candidate(fileName = "clip", title = "Something", durationMs = 3000)
         assertFalse(MusicClassifier.isLikelyMusic(c))
-    }
-
-    @Test
-    fun `file in a Music folder gets a confidence boost`() {
-        val withFolder = candidate(
-            fileName = "track1",
-            title = "Track One",
-            artist = "Some Artist",
-            pathSegments = listOf("Music", "MyAlbum"),
-        )
-        val withoutFolder = candidate(
-            fileName = "track1",
-            title = "Track One",
-            artist = "Some Artist",
-        )
-        assertTrue(MusicClassifier.score(withFolder) > MusicClassifier.score(withoutFolder))
     }
 }

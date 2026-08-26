@@ -7,9 +7,12 @@ import androidx.documentfile.provider.DocumentFile
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 
-/** Extensions the scanner treats as (potential) music. */
+/** Extensions the scanner treats as (potential) music — broad support per spec. */
 object SupportedMusicExtensions {
-    val DEFAULT = setOf("mp3", "flac", "m4a", "aac", "ogg", "wav", "opus")
+    val DEFAULT = setOf(
+        "mp3", "m4a", "mp4", "aac", "flac", "wav", "ogg", "oga", "opus",
+        "aiff", "aif", "amr", "3gp", "3gpp", "mid", "midi",
+    )
 }
 
 data class ScannedSong(
@@ -74,7 +77,11 @@ class MusicScanner(private val context: Context) {
                 } else if (child.isFile) {
                     val name = child.name.orEmpty()
                     val ext = name.substringAfterLast('.', "").lowercase()
-                    if (ext in supportedExtensions) {
+                    // Extension OR MIME type — SAF providers sometimes return a
+                    // generic/incorrect MIME, and some files have no extension
+                    // at all, so either signal being audio is enough to try it.
+                    val looksLikeAudio = ext in supportedExtensions || child.type?.startsWith("audio/") == true
+                    if (looksLikeAudio) {
                         found++
                         val event = classifyAndExtract(child.uri, name, pathSegments)
                         emit(event)
@@ -169,7 +176,14 @@ class MusicScanner(private val context: Context) {
                 durationMs = durationMs,
             )
 
-            if (!MusicClassifier.isLikelyMusic(candidate)) {
+            val confidence = MusicClassifier.classify(candidate)
+            android.util.Log.d(
+                "MusicScanner",
+                "FOUND AUDIO: $displayName | TITLE=$rawTitle ARTIST=$rawArtist ALBUM=$rawAlbum DURATION=${durationMs}ms | RESULT=$confidence"
+            )
+
+            if (confidence == MusicClassifier.Confidence.LOW) {
+                android.util.Log.d("MusicScanner", "SKIPPED: $displayName | REASON: matched non-music pattern or too short")
                 return MusicScanEvent.SkippedLowConfidence(uri, displayName)
             }
 
@@ -189,6 +203,7 @@ class MusicScanner(private val context: Context) {
                 )
             )
         } catch (e: Exception) {
+            android.util.Log.d("MusicScanner", "SKIPPED: $displayName | REASON: metadata read failed (${e.message})")
             MusicScanEvent.SkippedLowConfidence(uri, displayName)
         } finally {
             try {

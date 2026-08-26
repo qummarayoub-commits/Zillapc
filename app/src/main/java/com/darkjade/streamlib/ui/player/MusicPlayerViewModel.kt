@@ -1,16 +1,16 @@
 package com.darkjade.streamlib.ui.player
 
-import android.content.ComponentName
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.media3.common.AudioAttributes
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
-import androidx.media3.session.MediaController
-import androidx.media3.session.SessionToken
+import androidx.media3.exoplayer.ExoPlayer
 import com.darkjade.streamlib.data.db.entity.SongEntity
 import com.darkjade.streamlib.data.repository.MusicRepository
-import com.google.common.util.concurrent.MoreExecutors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -22,26 +22,35 @@ data class MusicPlayerUiState(
     val positionMs: Long = 0,
     val durationMs: Long = 0,
     val shuffleEnabled: Boolean = false,
-    val repeatMode: Int = Player.REPEAT_MODE_OFF, // OFF / ONE / ALL
+    val repeatMode: Int = Player.REPEAT_MODE_OFF,
+    val errorMessage: String? = null,
 )
 
 /**
- * Talks to MusicPlaybackService (a real foreground MediaSessionService) via
- * a MediaController instead of owning an ExoPlayer directly — this is what
- * lets playback keep going in the background/screen-off, and lets this
- * ViewModel be created fresh per navigation without interrupting playback,
- * since the actual player lives in the service, not here.
+ * Owns a direct ExoPlayer instance — same proven, reliable pattern as the
+ * video PlayerViewModel (which has worked correctly this whole project),
+ * instead of the previous MediaController/MediaSessionService indirection.
+ * That async service-binding split was the most likely source of the
+ * "shows Playing but no audio" bug (a race between the controller resolving
+ * and the UI issuing play commands). Trading background-playback
+ * continuity for reliability, per explicit priority: get real audio output
+ * working correctly first.
  */
 class MusicPlayerViewModel(
     appContext: Context,
     private val musicRepository: MusicRepository? = null,
 ) : ViewModel() {
 
-    private var controller: MediaController? = null
-    private val controllerFuture = MediaController.Builder(
-        appContext,
-        SessionToken(appContext, ComponentName(appContext, MusicPlaybackService::class.java))
-    ).buildAsync()
+    val player: ExoPlayer = ExoPlayer.Builder(appContext)
+        .setAudioAttributes(
+            AudioAttributes.Builder()
+                .setUsage(C.USAGE_MEDIA)
+                .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+                .build(),
+            /* handleAudioFocus = */ true
+        )
+        .build()
+        .apply { volume = 1f }
 
     private val _uiState = MutableStateFlow(MusicPlayerUiState())
     val uiState: StateFlow<MusicPlayerUiState> = _uiState
@@ -51,33 +60,38 @@ class MusicPlayerViewModel(
     private var lastSaveTick = 0L
 
     init {
-        controllerFuture.addListener({
-            val c = controllerFuture.get()
-            controller = c
-            c.addListener(object : Player.Listener {
-                override fun onIsPlayingChanged(isPlaying: Boolean) {
-                    _uiState.value = _uiState.value.copy(isPlaying = isPlaying)
-                }
-                override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
-                    _uiState.value = _uiState.value.copy(shuffleEnabled = shuffleModeEnabled)
-                }
-                override fun onRepeatModeChanged(repeatMode: Int) {
-                    _uiState.value = _uiState.value.copy(repeatMode = repeatMode)
-                }
-            })
-        }, MoreExecutors.directExecutor())
+        player.addListener(object : Player.Listener {
+            override fun onIsPlayingChanged(isPlaying: Boolean) {
+                _uiState.value = _uiState.value.copy(isPlaying = isPlaying)
+            }
+            override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
+                _uiState.value = _uiState.value.copy(shuffleEnabled = shuffleModeEnabled)
+            }
+            override fun onRepeatModeChanged(repeatMode: Int) {
+                _uiState.value = _uiState.value.copy(repeatMode = repeatMode)
+            }
+            // The UI must reflect what ExoPlayer actually did — never show
+            // "Playing" if playback genuinely failed.
+            override fun onPlayerError(error: PlaybackException) {
+                android.util.Log.e("MusicPlayer", "Playback error for ${_uiState.value.currentSong?.title}: ${error.errorCodeName} - ${error.message}", error)
+                _uiState.value = _uiState.value.copy(
+                    isPlaying = false,
+                    errorMessage = "Couldn't play this file (${error.errorCodeName}). It may use an unsupported format.",
+                )
+            }
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                android.util.Log.d("MusicPlayer", "playbackState=$playbackState for ${_uiState.value.currentSong?.title}")
+            }
+        })
 
-        // Position ticker — also periodically persists playback position so
-        // resuming a song later can continue from where the user left off.
         viewModelScope.launch {
             while (true) {
-                delay(1000)
-                val c = controller ?: continue
-                if (c.isPlaying || c.playbackState == Player.STATE_READY) {
-                    val pos = c.currentPosition.coerceAtLeast(0)
+                delay(500)
+                if (player.isPlaying || player.playbackState == Player.STATE_READY) {
+                    val pos = player.currentPosition.coerceAtLeast(0)
                     _uiState.value = _uiState.value.copy(
                         positionMs = pos,
-                        durationMs = c.duration.coerceAtLeast(0),
+                        durationMs = player.duration.coerceAtLeast(0),
                     )
                     val song = _uiState.value.currentSong
                     if (song != null && musicRepository != null && System.currentTimeMillis() - lastSaveTick > 4000) {
@@ -92,21 +106,17 @@ class MusicPlayerViewModel(
     fun playSong(song: SongEntity, playQueue: List<SongEntity> = listOf(song)) {
         queue = playQueue
         currentIndex = playQueue.indexOfFirst { it.id == song.id }.takeIf { it >= 0 } ?: 0
-        val c = controller ?: return
-        c.setMediaItem(MediaItem.fromUri(song.localFileUri))
-        c.prepare()
-        // Continue from previous position where it makes sense (not right
-        // at the very end — that's effectively "finished").
+        _uiState.value = _uiState.value.copy(currentSong = song, positionMs = song.lastPositionMs, durationMs = 0, errorMessage = null)
+        player.setMediaItem(MediaItem.fromUri(song.localFileUri))
+        player.prepare()
         if (song.lastPositionMs > 0 && song.durationMs > 0 && song.lastPositionMs < song.durationMs - 5000) {
-            c.seekTo(song.lastPositionMs)
+            player.seekTo(song.lastPositionMs)
         }
-        c.playWhenReady = true
-        _uiState.value = _uiState.value.copy(currentSong = song, positionMs = song.lastPositionMs, durationMs = 0)
+        player.playWhenReady = true
     }
 
     fun togglePlayPause() {
-        val c = controller ?: return
-        if (c.isPlaying) c.pause() else c.play()
+        if (player.isPlaying) player.pause() else player.play()
     }
 
     fun next() {
@@ -128,18 +138,15 @@ class MusicPlayerViewModel(
     }
 
     fun seekTo(positionMs: Long) {
-        controller?.seekTo(positionMs)
+        player.seekTo(positionMs)
     }
 
     fun toggleShuffle() {
-        val c = controller ?: return
-        c.shuffleModeEnabled = !c.shuffleModeEnabled
+        player.shuffleModeEnabled = !player.shuffleModeEnabled
     }
 
-    /** Cycles OFF -> ALL -> ONE -> OFF. */
     fun cycleRepeatMode() {
-        val c = controller ?: return
-        c.repeatMode = when (c.repeatMode) {
+        player.repeatMode = when (player.repeatMode) {
             Player.REPEAT_MODE_OFF -> Player.REPEAT_MODE_ALL
             Player.REPEAT_MODE_ALL -> Player.REPEAT_MODE_ONE
             else -> Player.REPEAT_MODE_OFF
@@ -148,15 +155,14 @@ class MusicPlayerViewModel(
 
     private fun playCurrentIndex() {
         val song = queue.getOrNull(currentIndex) ?: return
-        val c = controller ?: return
-        c.setMediaItem(MediaItem.fromUri(song.localFileUri))
-        c.prepare()
-        c.playWhenReady = true
-        _uiState.value = _uiState.value.copy(currentSong = song, positionMs = 0, durationMs = 0)
+        _uiState.value = _uiState.value.copy(currentSong = song, positionMs = 0, durationMs = 0, errorMessage = null)
+        player.setMediaItem(MediaItem.fromUri(song.localFileUri))
+        player.prepare()
+        player.playWhenReady = true
     }
 
     override fun onCleared() {
-        MediaController.releaseFuture(controllerFuture)
+        player.release()
         super.onCleared()
     }
 }

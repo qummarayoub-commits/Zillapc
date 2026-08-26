@@ -1,9 +1,13 @@
 package com.darkjade.streamlib.data.db.entity
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "songs")
+@Entity(
+    tableName = "songs",
+    indices = [Index(value = ["localFileUri"], unique = true)],
+)
 data class SongEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val localFileUri: String, // SAF content:// URI — used to dedupe on rescan

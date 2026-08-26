@@ -50,7 +50,7 @@ import com.darkjade.streamlib.data.db.entity.WatchlistEntity
         PlaylistEntity::class,
         PlaylistSongEntity::class,
     ],
-    version = 19,
+    version = 20,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
