@@ -453,26 +453,34 @@ fun DetailsScreen(
                                         onClick = { viewModel.toggleWatchlist() },
                                         shape = VaultShapes.button,
                                         colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = VaultColors.Background),
-                                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = VaultSpacing.md, vertical = VaultSpacing.xs),
-                                        modifier = Modifier.height(40.dp)
+                                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = VaultSpacing.lg, vertical = VaultSpacing.sm),
+                                        modifier = Modifier.height(48.dp)
                                     ) {
-                                        Icon(if (state.isInWatchlist) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder, contentDescription = null, modifier = Modifier.size(16.dp))
-                                        Text(if (state.isInWatchlist) " In List" else " Add to List", style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(start = 4.dp))
+                                        Icon(if (state.isInWatchlist) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder, contentDescription = null, modifier = Modifier.size(20.dp))
+                                        Text(if (state.isInWatchlist) " In List" else " Add to List", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(start = 6.dp))
                                     }
                                     Spacer(Modifier.weight(1f))
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        modifier = Modifier.clickable(enabled = state.nextUpUri != null) {
+                                            if (state.nextUpUri != null) {
+                                                viewModel.recordOpened(state.nextUpEpisodeId)
+                                                onPlay(state.nextUpUri.toString(), state.nextUpEpisodeId)
+                                            }
+                                        }
+                                    ) {
                                         Box(
                                             modifier = Modifier
-                                                .size(40.dp)
+                                                .size(48.dp)
                                                 .clip(CircleShape)
                                                 .background(VaultColors.Orange),
                                             contentAlignment = Alignment.Center,
                                         ) {
                                             androidx.compose.foundation.Image(
                                                 painter = androidx.compose.ui.res.painterResource(id = com.darkjade.streamlib.R.drawable.logo_v_mark),
-                                                contentDescription = "Velora",
+                                                contentDescription = "Play in Velora",
                                                 colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(VaultColors.Background),
-                                                modifier = Modifier.size(20.dp),
+                                                modifier = Modifier.size(24.dp),
                                             )
                                         }
                                         Text(
