@@ -23,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CreateNewFolder
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.MenuBook
@@ -403,6 +404,15 @@ fun SettingsScreen(
                 ) {
                     Icon(Icons.Filled.LibraryMusic, contentDescription = null)
                     Text(" Scan Device for Music", modifier = Modifier.padding(start = 4.dp))
+                }
+                OutlinedButton(
+                    onClick = { viewModel.fetchMissingArtworkOnline() },
+                    shape = VaultShapes.button,
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = VaultColors.TextPrimary),
+                    modifier = Modifier.fillMaxWidth().padding(top = VaultSpacing.sm)
+                ) {
+                    Icon(Icons.Filled.Image, contentDescription = null)
+                    Text(" Fetch Missing Artwork Online", modifier = Modifier.padding(start = 4.dp))
                 }
             }
 

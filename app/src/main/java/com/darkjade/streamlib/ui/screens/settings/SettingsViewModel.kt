@@ -182,6 +182,21 @@ class SettingsViewModel(
         }
     }
 
+    /** Priority-3 online artwork lookup (MusicBrainz + Cover Art Archive)
+     * for whatever still has no embedded/folder art after scanning. */
+    fun fetchMissingArtworkOnline() {
+        val repo = musicRepository ?: return
+        viewModelScope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    repo.fetchMissingArtworkOnline()
+                }
+            } catch (e: Throwable) {
+                // Never crash.
+            }
+        }
+    }
+
     fun rescanComics() {
         viewModelScope.launch {
             _uiState.value.comicFolderSources.forEach { source ->

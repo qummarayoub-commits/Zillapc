@@ -8,7 +8,9 @@ import com.darkjade.streamlib.data.db.dao.ArtistSummary
 import com.darkjade.streamlib.data.db.entity.SongEntity
 import com.darkjade.streamlib.data.scanner.MusicScanEvent
 import com.darkjade.streamlib.data.scanner.MusicScanner
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import java.io.File
 import java.security.MessageDigest
 
@@ -16,6 +18,7 @@ class MusicRepository(private val context: Context) {
     private val songDao = StreamLibDatabase.getInstance(context).songDao()
     private val playlistDao = StreamLibDatabase.getInstance(context).playlistDao()
     private val scanner = MusicScanner(context)
+    private val artworkProvider = com.darkjade.streamlib.data.metadata.musicbrainz.MusicArtworkProvider()
 
     fun observeAllSongs(): Flow<List<SongEntity>> = songDao.observeAll()
     fun observeRecentlyAdded(limit: Int = 20): Flow<List<SongEntity>> = songDao.observeRecentlyAdded(limit)
@@ -63,6 +66,33 @@ class MusicRepository(private val context: Context) {
         orderedSongIds.forEachIndexed { index, songId ->
             playlistDao.updateSongPosition(playlistId, songId, index)
         }
+    }
+
+    /** Priority 3 — for songs still missing artwork after embedded/folder
+     * lookup, tries MusicBrainz + Cover Art Archive by Artist+Album (never
+     * by song title alone, and never invents artwork — silently leaves
+     * artworkPath null on any miss). One lookup per distinct album, with a
+     * small delay between requests per MusicBrainz's rate-limit etiquette.
+     * Run as a separate step after a scan, so a slow network doesn't stall
+     * the local scan itself. */
+    suspend fun fetchMissingArtworkOnline(): Int {
+        var updated = 0
+        val allSongs = songDao.observeAll().first()
+        val missingAlbums = allSongs
+            .filter { it.artworkPath == null }
+            .groupBy { it.artist to it.album }
+
+        for ((key, songsInAlbum) in missingAlbums) {
+            val (artist, album) = key
+            val bytes = artworkProvider.fetchAlbumArt(artist, album) ?: continue
+            val path = cacheArtwork("$artist|$album", bytes) ?: continue
+            songsInAlbum.forEach { song ->
+                songDao.update(song.copy(artworkPath = path))
+                updated++
+            }
+            kotlinx.coroutines.delay(1100) // be polite to MusicBrainz's free service
+        }
+        return updated
     }
 
     /**
