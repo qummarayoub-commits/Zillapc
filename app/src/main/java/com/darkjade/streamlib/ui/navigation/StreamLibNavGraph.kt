@@ -103,6 +103,7 @@ fun StreamLibNavGraph(container: AppContainer) {
                         container.watchRepository,
                         container.profileRepository,
                         container.comicRepository,
+                        container.playbackRepository,
                     )
                 })
                 HomeScreen(

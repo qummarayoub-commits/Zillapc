@@ -104,7 +104,7 @@ fun PosterCard(
                 Icon(
                     Icons.Filled.PlayArrow,
                     contentDescription = null,
-                    tint = VaultColors.TextPrimary,
+                    tint = VaultColors.Orange,
                     modifier = Modifier.size(16.dp)
                 )
             }

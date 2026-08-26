@@ -19,6 +19,10 @@ class PlaybackRepository(context: Context) {
 
     suspend fun getAllForMedia(mediaItemId: Long) = dao.getAllForMedia(mediaItemId)
 
+    /** All progress rows, live — used to drive the Home screen's Continue
+     * Watching progress bars. */
+    fun observeAllProgress() = dao.observeAll()
+
     /** Used by "Play from Beginning" — discards saved position so the player starts fresh. */
     suspend fun clearProgress(mediaItemId: Long, episodeId: Long?) = dao.clear(mediaItemId, episodeId)
 

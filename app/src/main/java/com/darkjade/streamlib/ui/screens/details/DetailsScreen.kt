@@ -170,6 +170,7 @@ private fun ActionIconButton(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
     tint: Color = VaultColors.TextPrimary,
+    labelColor: Color = VaultColors.TextSecondary,
     onClick: () -> Unit,
 ) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable(onClick = onClick).widthIn(max = 76.dp)) {
@@ -182,7 +183,7 @@ private fun ActionIconButton(
         Text(
             label,
             style = MaterialTheme.typography.labelSmall,
-            color = VaultColors.TextSecondary,
+            color = labelColor,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
             maxLines = 2,
             modifier = Modifier.padding(top = 2.dp)
@@ -630,8 +631,18 @@ fun DetailsScreen(
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
                                     Row(horizontalArrangement = Arrangement.spacedBy(VaultSpacing.lg)) {
-                                        if (state.hasResumeProgress && state.nextUpUri != null) {
-                                            ActionIconButton(Icons.Filled.PlayCircle, "Resume Where You Left Off") {
+                                        // Always shown once something is playable - not hidden
+                                        // until the title has been watched. Normal color when
+                                        // there's no resume position yet; the same Velora orange
+                                        // once real progress exists, so the color itself signals
+                                        // "you have somewhere to resume to".
+                                        if (state.nextUpUri != null) {
+                                            ActionIconButton(
+                                                Icons.Filled.PlayCircle,
+                                                "Resume Where You Left Off",
+                                                tint = if (state.hasResumeProgress) VaultColors.Orange else VaultColors.TextPrimary,
+                                                labelColor = if (state.hasResumeProgress) VaultColors.Orange else VaultColors.TextSecondary,
+                                            ) {
                                                 viewModel.recordOpened(state.nextUpEpisodeId)
                                                 onPlay(state.nextUpUri.toString(), state.nextUpEpisodeId)
                                             }

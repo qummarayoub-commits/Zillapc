@@ -7,6 +7,7 @@ import com.darkjade.streamlib.data.db.entity.MediaItemEntity
 import com.darkjade.streamlib.data.db.entity.MediaType
 import com.darkjade.streamlib.data.repository.ComicRepository
 import com.darkjade.streamlib.data.repository.LibraryRepository
+import com.darkjade.streamlib.data.repository.PlaybackRepository
 import com.darkjade.streamlib.data.repository.ProfileRepository
 import com.darkjade.streamlib.data.repository.WatchRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,6 +26,7 @@ data class HomeUiState(
     val animeBanners: List<MediaItemEntity> = emptyList(),
     val comicsBanners: List<ComicEntity> = emptyList(),
     val continueWatching: List<MediaItemEntity> = emptyList(),
+    val continueWatchingProgress: Map<Long, Float> = emptyMap(),
     val recentlyAdded: List<MediaItemEntity> = emptyList(),
     val movies: List<MediaItemEntity> = emptyList(),
     val series: List<MediaItemEntity> = emptyList(),
@@ -51,6 +53,7 @@ class HomeViewModel(
     private val watchRepository: WatchRepository,
     private val profileRepository: ProfileRepository,
     private val comicRepository: ComicRepository,
+    private val playbackRepository: PlaybackRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -79,7 +82,7 @@ class HomeViewModel(
                 MediaFlows(recentlyAdded, movies, series, anime, continueWatching)
             }
 
-            mediaFlows.combine(comicRepository.observeRecentlyAdded(20)) { flows, comics ->
+            combine(mediaFlows, comicRepository.observeRecentlyAdded(20), playbackRepository.observeAllProgress()) { flows, comics, progressRows ->
                 val heroPool = buildList {
                     addAll(flows.recentlyAdded.map { HeroCandidate.Media(it) })
                     addAll(flows.movies.map { HeroCandidate.Media(it) })
@@ -93,6 +96,13 @@ class HomeViewModel(
                 val animeBanners = pickPinnedHomogeneous(flows.anime, pinnedAnimeBannerIds) { it.id }
                 val comicsBanners = pickPinnedHomogeneous(comics, pinnedComicsBannerIds) { it.id }
 
+                // One progress fraction per media item, for the Continue
+                // Watching row's Netflix-style bar — a series can have many
+                // per-episode rows, so the most recently played one wins.
+                val continueWatchingProgress = progressRows
+                    .groupBy { it.mediaItemId }
+                    .mapValues { (_, rows) -> rows.maxByOrNull { it.lastPlayedAt }?.watchedPercentage ?: 0f }
+
                 HomeUiState(
                     isLoading = false,
                     heroItems = heroItems,
@@ -101,6 +111,7 @@ class HomeViewModel(
                     animeBanners = animeBanners,
                     comicsBanners = comicsBanners,
                     continueWatching = flows.continueWatching,
+                    continueWatchingProgress = continueWatchingProgress,
                     recentlyAdded = flows.recentlyAdded,
                     movies = flows.movies,
                     series = flows.series,

@@ -148,7 +148,7 @@ fun HomeScreen(
                                     contentPadding = PaddingValues(horizontal = VaultSpacing.md)
                                 ) {
                                     items(state.continueWatching, key = { it.id }) { item ->
-                                        ContinueWatchingCard(item = item, watchedFraction = null, onClick = { onOpenDetails(item.id) })
+                                        ContinueWatchingCard(item = item, watchedFraction = state.continueWatchingProgress[item.id], onClick = { onOpenDetails(item.id) })
                                     }
                                 }
                             }
