@@ -633,6 +633,23 @@ class PlayerViewModel(
         }
     }
 
+    /** Real fix for the seek bar / rewind-forward "always jumps to 0" bug:
+     * player.duration reports C.TIME_UNSET (a large negative sentinel) until
+     * the format has fully resolved its duration - which for some
+     * codecs/containers takes a moment or arrives late. The old code did
+     * .coerceAtLeast(0) on that negative sentinel, turning it into 0, so
+     * coerceIn(0, 0) forced every seek target to 0 - working fine on files
+     * whose duration happened to already be known, and always snapping back
+     * to 0 on files where it wasn't yet. Now falls back to the last known
+     * duration from uiState (kept fresh by startPositionPoll), and if even
+     * that isn't known yet, doesn't clamp the upper bound at all - letting
+     * ExoPlayer itself safely handle/clamp an out-of-range seek. */
+    private fun safeSeekDuration(): Long {
+        val rawDuration = player.duration
+        val known = if (rawDuration != C.TIME_UNSET && rawDuration > 0) rawDuration else _uiState.value.durationMs
+        return if (known > 0) known else Long.MAX_VALUE
+    }
+
     fun seekBy(deltaMs: Long) {
 
         val target =
@@ -641,7 +658,7 @@ class PlayerViewModel(
                     deltaMs
             ).coerceIn(
                 0,
-                player.duration.coerceAtLeast(0)
+                safeSeekDuration()
             )
 
         player.seekTo(target)
@@ -658,7 +675,7 @@ class PlayerViewModel(
         val target =
             positionMs.coerceIn(
                 0,
-                player.duration.coerceAtLeast(0)
+                safeSeekDuration()
             )
 
         player.seekTo(target)

@@ -473,21 +473,12 @@ fun DetailsScreen(
                                     )
                                 }
 
-                                // Year — its own line, directly under the title, centered.
-                                media.year?.let {
-                                    Text(
-                                        it.toString(),
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        color = VaultColors.TextSecondary,
-                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                                        modifier = Modifier.padding(top = 2.dp).fillMaxWidth()
-                                    )
-                                }
-
-                                // Duration • Genres, age-cert badge — one clean row underneath,
-                                // centered as a whole block (neither left- nor right-aligned).
-                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = VaultSpacing.xxs)) {
+                                // Year + Duration • Genres, age-cert badge — all on one
+                                // clean metadata line together, sitting with real breathing
+                                // room below the title (not cramped directly underneath).
+                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = VaultSpacing.lg)) {
                                     val infoBits = buildList {
+                                        media.year?.let { add(it.toString()) }
                                         formatRuntimeLong(media.runtimeMinutes)?.let { add(it) }
                                         media.genres.split(",").map { it.trim() }.filter { it.isNotBlank() }.take(2).let {
                                             if (it.isNotEmpty()) add(it.joinToString(", "))
@@ -536,29 +527,10 @@ fun DetailsScreen(
                                     }
                                 }
 
-                                // Add to List (single circle icon) + Velora play capsule —
-                                // both grouped together on the right side.
+                                // Watch in Velora capsule (left) + Add to List capsule (right) —
+                                // same pill shape/spacing/sizing on both sides so the row reads
+                                // as one balanced line with no extra/uneven space.
                                 Row(modifier = Modifier.fillMaxWidth().padding(top = VaultSpacing.sm), verticalAlignment = Alignment.CenterVertically) {
-                                    Spacer(Modifier.weight(1f))
-
-                                    // Add to List — single circular icon button (custom minimal
-                                    // list-view mark: three rounded lines + three dots on the left).
-                                    Box(
-                                        modifier = Modifier
-                                            .size(44.dp)
-                                            .clip(CircleShape)
-                                            .background(Color.White)
-                                            .clickable { viewModel.toggleWatchlist() },
-                                        contentAlignment = Alignment.Center,
-                                    ) {
-                                        if (state.isInWatchlist) {
-                                            Icon(Icons.Filled.Bookmark, contentDescription = "Added to List", tint = Color(0xFF1A1A1A), modifier = Modifier.size(20.dp))
-                                        } else {
-                                            ListViewIcon(size = 22.dp, color = Color(0xFF1A1A1A))
-                                        }
-                                    }
-
-                                    Spacer(Modifier.width(VaultSpacing.sm))
 
                                     // Velora play capsule — the V-mark icon attached to a pill
                                     // reading "Watch in Velora", or the honest "No Streaming
@@ -615,6 +587,38 @@ fun DetailsScreen(
                                                 modifier = Modifier.padding(start = 8.dp)
                                             )
                                         }
+                                    }
+
+                                    Spacer(Modifier.weight(1f))
+
+                                    // Add to List capsule — same pill shape, padding, icon-circle
+                                    // size and font weight as the Velora capsule (white background,
+                                    // black icon/text) so the two sides match exactly.
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(percent = 50))
+                                            .background(Color.White)
+                                            .clickable { viewModel.toggleWatchlist() }
+                                            .padding(start = 6.dp, end = 16.dp, top = 6.dp, bottom = 6.dp)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier.size(32.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.08f)),
+                                            contentAlignment = Alignment.Center,
+                                        ) {
+                                            if (state.isInWatchlist) {
+                                                Icon(Icons.Filled.Bookmark, contentDescription = "Added to List", tint = Color(0xFF1A1A1A), modifier = Modifier.size(16.dp))
+                                            } else {
+                                                ListViewIcon(size = 16.dp, color = Color(0xFF1A1A1A))
+                                            }
+                                        }
+                                        Text(
+                                            "Add to List",
+                                            style = MaterialTheme.typography.labelLarge,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = Color(0xFF1A1A1A),
+                                            modifier = Modifier.padding(start = 8.dp)
+                                        )
                                     }
                                 }
 
