@@ -444,35 +444,44 @@ fun DetailsScreen(
                                     }
                                 }
 
-                                // "Add to List" pill + "No Streaming Availability" — the latter is
-                                // genuinely always true here (this is a local media library, never
-                                // a streaming source), not a fake/decorative indicator.
+                                // "Add to List" (compact, content-sized — matches Plex's smaller
+                                // pill, not full-width) + a "Watch in Velora" badge instead of
+                                // "No Streaming Availability" — genuinely accurate here, since
+                                // this title IS playable, in this app, from local storage.
                                 Row(modifier = Modifier.fillMaxWidth().padding(top = VaultSpacing.sm), verticalAlignment = Alignment.CenterVertically) {
                                     Button(
                                         onClick = { viewModel.toggleWatchlist() },
                                         shape = VaultShapes.button,
                                         colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = VaultColors.Background),
-                                        modifier = Modifier.weight(1f).height(48.dp)
+                                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = VaultSpacing.md, vertical = VaultSpacing.xs),
+                                        modifier = Modifier.height(40.dp)
                                     ) {
-                                        Icon(if (state.isInWatchlist) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder, contentDescription = null, modifier = Modifier.size(18.dp))
-                                        Text(if (state.isInWatchlist) " In List" else " Add to List", modifier = Modifier.padding(start = 4.dp))
+                                        Icon(if (state.isInWatchlist) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder, contentDescription = null, modifier = Modifier.size(16.dp))
+                                        Text(if (state.isInWatchlist) " In List" else " Add to List", style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(start = 4.dp))
                                     }
-                                    Box(
-                                        modifier = Modifier
-                                            .padding(start = VaultSpacing.sm)
-                                            .size(48.dp)
-                                            .clip(CircleShape)
-                                            .background(Color.Black.copy(alpha = 0.3f)),
-                                    )
-                                }
-                                Row(modifier = Modifier.fillMaxWidth()) {
                                     Spacer(Modifier.weight(1f))
-                                    Text(
-                                        "No Streaming Availability",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = VaultColors.TextTertiary,
-                                        modifier = Modifier.padding(top = 2.dp)
-                                    )
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(40.dp)
+                                                .clip(CircleShape)
+                                                .background(VaultColors.Orange),
+                                            contentAlignment = Alignment.Center,
+                                        ) {
+                                            androidx.compose.foundation.Image(
+                                                painter = androidx.compose.ui.res.painterResource(id = com.darkjade.streamlib.R.drawable.logo_v_mark),
+                                                contentDescription = "Velora",
+                                                colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(VaultColors.Background),
+                                                modifier = Modifier.size(20.dp),
+                                            )
+                                        }
+                                        Text(
+                                            "Watch in Velora",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = VaultColors.TextTertiary,
+                                            modifier = Modifier.padding(top = 2.dp)
+                                        )
+                                    }
                                 }
 
                                 // Action row — Watch Trailer / Rate / Mark as Watched / More.
@@ -526,18 +535,6 @@ fun DetailsScreen(
                                         modifier = Modifier.padding(top = VaultSpacing.xs)
                                     )
                                 }
-
-                                    // Step 6: big "Watch Trailer" button, still on the backdrop.
-                                    if (!media.trailerYoutubeKey.isNullOrBlank()) {
-                                        Button(
-                                            onClick = { showTrailer = true },
-                                            shape = VaultShapes.button,
-                                            colors = ButtonDefaults.buttonColors(containerColor = VaultColors.Orange, contentColor = VaultColors.Background),
-                                            modifier = Modifier.fillMaxWidth().height(52.dp).padding(top = VaultSpacing.md)
-                                        ) {
-                                            Text("Watch Trailer", style = MaterialTheme.typography.titleMedium, color = VaultColors.Background)
-                                        }
-                                    }
                                 }
                             }
                         }
