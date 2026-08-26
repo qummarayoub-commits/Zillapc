@@ -94,7 +94,7 @@ class MusicRepository(private val context: Context) {
                             artworkPath = artworkPath,
                             folderSourceId = null,
                         )
-                        songDao.insert(entity)
+                        songDao.upsert(entity)
                         presentUris.add(event.song.uri.toString())
                         found++
                     }
@@ -142,7 +142,7 @@ class MusicRepository(private val context: Context) {
                             artworkPath = artworkPath,
                             folderSourceId = folderSourceId,
                         )
-                        songDao.insert(entity)
+                        songDao.upsert(entity)
                         presentUris.add(event.song.uri.toString())
                         found++
                     }

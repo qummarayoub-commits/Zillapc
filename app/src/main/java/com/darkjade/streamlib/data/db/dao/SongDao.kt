@@ -27,6 +27,26 @@ interface SongDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(song: SongEntity): Long
 
+    @Query("SELECT * FROM songs WHERE localFileUri = :uri")
+    suspend fun getByUri(uri: String): SongEntity?
+
+    @androidx.room.Update
+    suspend fun update(song: SongEntity)
+
+    /** Proper upsert: new file -> insert; already-known file (by its stable
+     * URI) -> update its metadata in place, keeping the same id (so
+     * playlist references and lastPositionMs survive a rescan) rather than
+     * silently doing nothing or creating a duplicate row. */
+    @androidx.room.Transaction
+    suspend fun upsert(song: SongEntity) {
+        val existing = getByUri(song.localFileUri)
+        if (existing != null) {
+            update(song.copy(id = existing.id, lastPositionMs = existing.lastPositionMs, dateAdded = existing.dateAdded))
+        } else {
+            insert(song)
+        }
+    }
+
     @Query("SELECT localFileUri FROM songs WHERE folderSourceId = :folderSourceId")
     suspend fun getUrisForFolder(folderSourceId: Long): List<String>
 
