@@ -23,6 +23,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.outlined.BookmarkAdd
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CloudOff
@@ -39,6 +40,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Replay
+import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -73,6 +75,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.font.FontWeight
 import coil.compose.AsyncImage
 import coil.compose.SubcomposeAsyncImage
 import com.darkjade.streamlib.data.db.entity.EpisodeEntity
@@ -115,14 +119,21 @@ private fun ActionIconButton(
     tint: Color = VaultColors.TextPrimary,
     onClick: () -> Unit,
 ) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable(onClick = onClick)) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable(onClick = onClick).widthIn(max = 76.dp)) {
         Box(
             modifier = Modifier.size(48.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.35f)),
             contentAlignment = Alignment.Center,
         ) {
             Icon(icon, contentDescription = label, tint = tint)
         }
-        Text(label, style = MaterialTheme.typography.labelSmall, color = VaultColors.TextSecondary, modifier = Modifier.padding(top = 2.dp))
+        Text(
+            label,
+            style = MaterialTheme.typography.labelSmall,
+            color = VaultColors.TextSecondary,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            maxLines = 2,
+            modifier = Modifier.padding(top = 2.dp)
+        )
     }
 }
 
@@ -346,15 +357,7 @@ fun DetailsScreen(
                                     Icon(Icons.Filled.ArrowBack, contentDescription = "Back", tint = Color.White, modifier = Modifier.padding(6.dp))
                                 }
                             }
-                            Box(modifier = Modifier.align(Alignment.TopEnd).padding(VaultSpacing.xs)) {
-                                IconButton(onClick = { showOverflowMenu = true }) {
-                                    Box(
-                                        modifier = Modifier.clip(CircleShape).background(Color.Black.copy(alpha = 0.4f)),
-                                        contentAlignment = Alignment.Center,
-                                    ) {
-                                        Icon(Icons.Filled.MoreVert, contentDescription = "More options", tint = Color.White, modifier = Modifier.padding(6.dp))
-                                    }
-                                }
+                            Box(modifier = Modifier.align(Alignment.TopEnd)) {
                                 DropdownMenu(expanded = showOverflowMenu, onDismissRequest = { showOverflowMenu = false }) {
                                     DropdownMenuItem(
                                         text = { Text("Add Info") },
@@ -375,29 +378,12 @@ fun DetailsScreen(
                                 }
                             }
 
-                            // Step 2: play button + steps 3-6 content, structured so the
-                            // button always gets exactly the leftover space above the
-                            // content block (weight-based, not percentage guesswork) —
-                            // this guarantees they can never visually collide/overlap,
-                            // regardless of screen size or content length.
+                            // Step 2: reserved leftover space above the content block
+                            // (weight-based) — kept empty now that the center play
+                            // button has been removed, so the content below still
+                            // never overlaps/collides regardless of screen size.
                             Column(modifier = Modifier.fillMaxSize()) {
-                                Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                                    if (state.nextUpUri != null) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(64.dp)
-                                                .clip(CircleShape)
-                                                .background(Color.White.copy(alpha = 0.92f))
-                                                .clickable {
-                                                    viewModel.recordOpened(state.nextUpEpisodeId)
-                                                    onPlay(state.nextUpUri.toString(), state.nextUpEpisodeId)
-                                                },
-                                            contentAlignment = Alignment.Center,
-                                        ) {
-                                            Icon(Icons.Filled.PlayArrow, contentDescription = "Play", tint = VaultColors.Orange, modifier = Modifier.size(32.dp))
-                                        }
-                                    }
-                                }
+                                Box(modifier = Modifier.weight(1f).fillMaxWidth())
 
                                 // Large title directly on the backdrop — no small poster
                                 // thumbnail block, matching the reference exactly.
@@ -431,10 +417,19 @@ fun DetailsScreen(
                                     )
                                 }
 
-                                // Year • Duration • Genres, age-cert badge.
+                                // Year — its own line, directly under the title.
+                                media.year?.let {
+                                    Text(
+                                        it.toString(),
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = VaultColors.TextSecondary,
+                                        modifier = Modifier.padding(top = 2.dp)
+                                    )
+                                }
+
+                                // Duration • Genres, age-cert badge — one clean row underneath.
                                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = VaultSpacing.xxs)) {
                                     val infoBits = buildList {
-                                        media.year?.let { add(it.toString()) }
                                         formatRuntimeLong(media.runtimeMinutes)?.let { add(it) }
                                         media.genres.split(",").map { it.trim() }.filter { it.isNotBlank() }.take(2).let {
                                             if (it.isNotEmpty()) add(it.joinToString(", "))
@@ -460,7 +455,8 @@ fun DetailsScreen(
                                     }
                                 }
 
-                                // Ratings row — only real, fetched data; nothing invented.
+                                // Ratings row — its own clean, aligned row underneath. Only
+                                // real, fetched data; nothing invented.
                                 if (media.imdbRating != null || media.rottenTomatoesPercent != null || media.rating != null) {
                                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = VaultSpacing.xs)) {
                                         media.imdbRating?.let {
@@ -497,27 +493,42 @@ fun DetailsScreen(
                                     }
                                 }
 
-                                // "Add to List" (compact, content-sized — matches Plex's smaller
-                                // pill, not full-width) + a "Watch in Velora" badge instead of
-                                // "No Streaming Availability" — genuinely accurate here, since
-                                // this title IS playable, in this app, from local storage.
+                                // "Add to List" — exact pill spec: solid white background,
+                                // #1A1A1A icon/text, 60-65% row width, 48-52px height,
+                                // subtle shadow. Right side ("Watch in Velora") unchanged —
+                                // styling only, no functionality touched.
                                 Row(modifier = Modifier.fillMaxWidth().padding(top = VaultSpacing.sm), verticalAlignment = Alignment.CenterVertically) {
                                     Button(
                                         onClick = { viewModel.toggleWatchlist() },
-                                        shape = VaultShapes.button,
+                                        shape = RoundedCornerShape(percent = 50),
                                         colors = ButtonDefaults.buttonColors(
-                                            containerColor = Color.White.copy(alpha = 0.14f),
-                                            contentColor = VaultColors.TextPrimary,
+                                            containerColor = Color.White,
+                                            contentColor = Color(0xFF1A1A1A),
                                         ),
-                                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = VaultSpacing.md),
-                                        modifier = Modifier.height(46.dp).widthIn(min = 140.dp, max = 170.dp)
+                                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 20.dp),
+                                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 3.dp),
+                                        modifier = Modifier
+                                            .height(50.dp)
+                                            .fillMaxWidth(0.625f)
                                     ) {
-                                        Icon(if (state.isInWatchlist) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder, contentDescription = null, modifier = Modifier.size(18.dp))
-                                        Text(
-                                            if (state.isInWatchlist) " Added to List" else " Add to List",
-                                            style = MaterialTheme.typography.labelLarge,
-                                            modifier = Modifier.padding(start = 6.dp)
-                                        )
+                                        androidx.compose.foundation.layout.Row(
+                                            horizontalArrangement = Arrangement.Center,
+                                            verticalAlignment = Alignment.CenterVertically,
+                                        ) {
+                                            Icon(
+                                                if (state.isInWatchlist) Icons.Filled.Bookmark else Icons.Outlined.BookmarkAdd,
+                                                contentDescription = null,
+                                                tint = Color(0xFF1A1A1A),
+                                                modifier = Modifier.size(22.dp)
+                                            )
+                                            Text(
+                                                if (state.isInWatchlist) "Added to List" else "Add to List",
+                                                fontSize = 15.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = Color(0xFF1A1A1A),
+                                                modifier = Modifier.padding(start = 8.dp)
+                                            )
+                                        }
                                     }
                                     Spacer(Modifier.weight(1f))
                                     if (state.nextUpUri != null) {
@@ -577,27 +588,34 @@ fun DetailsScreen(
                                     }
                                 }
 
-                                // Action row — Watch Trailer / Rate / Mark as Watched / More.
+                                // Action row — Resume/Watch From Beginning on the left,
+                                // Watch Trailer + More grouped together on the right.
                                 Row(
                                     modifier = Modifier.fillMaxWidth().padding(top = VaultSpacing.md),
-                                    horizontalArrangement = Arrangement.SpaceEvenly,
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically,
                                 ) {
-                                    if (!media.trailerYoutubeKey.isNullOrBlank()) {
-                                        ActionIconButton(Icons.Filled.PlayCircle, "Watch Trailer") { showTrailer = true }
+                                    Row(horizontalArrangement = Arrangement.spacedBy(VaultSpacing.lg)) {
+                                        if (state.hasResumeProgress && state.nextUpUri != null) {
+                                            ActionIconButton(Icons.Filled.PlayCircle, "Resume Where You Left Off") {
+                                                viewModel.recordOpened(state.nextUpEpisodeId)
+                                                onPlay(state.nextUpUri.toString(), state.nextUpEpisodeId)
+                                            }
+                                        }
+                                        if (state.nextUpUri != null) {
+                                            ActionIconButton(Icons.Filled.RestartAlt, "Watch From Beginning") {
+                                                viewModel.playFromBeginning(state.nextUpEpisodeId) {
+                                                    onPlay(state.nextUpUri.toString(), state.nextUpEpisodeId)
+                                                }
+                                            }
+                                        }
                                     }
-                                    ActionIconButton(
-                                        if ((state.media?.userRating ?: 0) > 0) Icons.Filled.Star else Icons.Filled.StarBorder,
-                                        "Rate",
-                                        tint = if ((state.media?.userRating ?: 0) > 0) VaultColors.Orange else VaultColors.TextPrimary,
-                                    ) { showRateDialog = true }
-                                    if (!media.type.isSeriesLike()) {
-                                        ActionIconButton(
-                                            if (state.hasResumeProgress) Icons.Filled.CheckCircle else Icons.Filled.CheckCircleOutline,
-                                            "Mark as Watched",
-                                            tint = if (state.hasResumeProgress) VaultColors.Orange else VaultColors.TextPrimary,
-                                        ) { viewModel.markAsWatched() }
+                                    Row(horizontalArrangement = Arrangement.spacedBy(VaultSpacing.lg)) {
+                                        if (!media.trailerYoutubeKey.isNullOrBlank()) {
+                                            ActionIconButton(Icons.Filled.PlayCircle, "Watch Trailer") { showTrailer = true }
+                                        }
+                                        ActionIconButton(Icons.Filled.MoreHoriz, "More") { showOverflowMenu = true }
                                     }
-                                    ActionIconButton(Icons.Filled.MoreHoriz, "More") { showOverflowMenu = true }
                                 }
 
                                 // Description, then "Directed by X" — matching the reference's placement.

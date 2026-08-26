@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Star
@@ -79,14 +80,16 @@ fun ContinueWatchingCard(
             ) {
                 Icon(Icons.Filled.PlayArrow, contentDescription = "Resume", tint = VaultColors.Orange, modifier = Modifier.size(22.dp))
             }
-            if (watchedFraction != null && watchedFraction > 0f) {
-                LinearProgressIndicator(
-                    progress = watchedFraction.coerceIn(0f, 1f),
-                    color = VaultColors.Orange,
-                    trackColor = Color.Black.copy(alpha = 0.4f),
-                    modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(3.dp)
-                )
-            }
+        }
+        // Seek/progress bar shown underneath the thumbnail (not overlaid on
+        // the image) — the standard streaming-app "continue watching" treatment.
+        if (watchedFraction != null && watchedFraction > 0f) {
+            LinearProgressIndicator(
+                progress = watchedFraction.coerceIn(0f, 1f),
+                color = VaultColors.Orange,
+                trackColor = VaultColors.SurfaceVariant,
+                modifier = Modifier.fillMaxWidth().height(3.dp).padding(top = 4.dp).clip(RoundedCornerShape(2.dp))
+            )
         }
         Text(
             item.title,

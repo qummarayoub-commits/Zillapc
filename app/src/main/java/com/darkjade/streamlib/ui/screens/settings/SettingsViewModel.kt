@@ -28,6 +28,7 @@ data class SettingsUiState(
     val comicVineApiKey: String = "",
     val preferredPlayerPackage: String? = null,
     val installedPlayers: List<InstalledPlayerApp> = emptyList(),
+    val musicScanResult: String? = null,
 )
 
 class SettingsViewModel(
@@ -171,14 +172,21 @@ class SettingsViewModel(
      * pattern as scanDeviceForVideos(). MusicClassifier keeps it clean. */
     fun scanDeviceForMusic() {
         val repo = musicRepository ?: return
+        _uiState.value = _uiState.value.copy(musicScanResult = "Scanning\u2026")
         viewModelScope.launch {
-            try {
+            val result = try {
                 withContext(Dispatchers.IO) {
                     repo.scanDeviceForMusic()
                 }
             } catch (e: Throwable) {
-                // Never crash.
+                Result.failure(e)
             }
+            _uiState.value = _uiState.value.copy(
+                musicScanResult = result.fold(
+                    onSuccess = { count -> if (count > 0) "Found $count song${if (count == 1) "" else "s"}." else "No music found on this device." },
+                    onFailure = { e -> "Scan failed: ${e.message ?: "unknown error"}" },
+                )
+            )
         }
     }
 
@@ -186,14 +194,18 @@ class SettingsViewModel(
      * for whatever still has no embedded/folder art after scanning. */
     fun fetchMissingArtworkOnline() {
         val repo = musicRepository ?: return
+        _uiState.value = _uiState.value.copy(musicScanResult = "Fetching artwork\u2026")
         viewModelScope.launch {
-            try {
+            val count = try {
                 withContext(Dispatchers.IO) {
                     repo.fetchMissingArtworkOnline()
                 }
             } catch (e: Throwable) {
-                // Never crash.
+                -1
             }
+            _uiState.value = _uiState.value.copy(
+                musicScanResult = if (count >= 0) "Updated artwork for $count song${if (count == 1) "" else "s"}." else "Artwork fetch failed."
+            )
         }
     }
 

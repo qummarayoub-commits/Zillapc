@@ -64,6 +64,10 @@ private fun videoPermission(): String =
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) Manifest.permission.READ_MEDIA_VIDEO
     else Manifest.permission.READ_EXTERNAL_STORAGE
 
+private fun audioPermission(): String =
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) Manifest.permission.READ_MEDIA_AUDIO
+    else Manifest.permission.READ_EXTERNAL_STORAGE
+
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel,
@@ -83,6 +87,28 @@ fun SettingsScreen(
             viewModel.scanDeviceForVideos()
         } else {
             permissionDenied = true
+        }
+    }
+
+    var musicPermissionDenied by remember { mutableStateOf(false) }
+    val musicPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            musicPermissionDenied = false
+            viewModel.scanDeviceForMusic()
+        } else {
+            musicPermissionDenied = true
+        }
+    }
+
+    fun requestMusicScan() {
+        val permission = audioPermission()
+        val alreadyGranted = ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
+        if (alreadyGranted) {
+            viewModel.scanDeviceForMusic()
+        } else {
+            musicPermissionLauncher.launch(permission)
         }
     }
 
@@ -397,13 +423,29 @@ fun SettingsScreen(
                     modifier = Modifier.padding(bottom = VaultSpacing.sm)
                 )
                 Button(
-                    onClick = { viewModel.scanDeviceForMusic() },
+                    onClick = { requestMusicScan() },
                     shape = VaultShapes.button,
                     colors = ButtonDefaults.buttonColors(containerColor = VaultColors.Orange, contentColor = VaultColors.Background),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Icon(Icons.Filled.LibraryMusic, contentDescription = null)
                     Text(" Scan Device for Music", modifier = Modifier.padding(start = 4.dp))
+                }
+                if (musicPermissionDenied) {
+                    Text(
+                        "Audio permission was denied — Velora can't scan for music without it. Please allow it in your device's app settings.",
+                        color = VaultColors.Error,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = VaultSpacing.xxs)
+                    )
+                }
+                state.musicScanResult?.let {
+                    Text(
+                        it,
+                        color = if (it.startsWith("Scan failed") || it.startsWith("Artwork fetch failed")) VaultColors.Error else VaultColors.TextSecondary,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = VaultSpacing.xxs)
+                    )
                 }
                 OutlinedButton(
                     onClick = { viewModel.fetchMissingArtworkOnline() },
