@@ -94,23 +94,35 @@ import com.darkjade.streamlib.ui.util.ArtworkTintExtractor
 /** "Add Info" — search TMDB manually and pick the correct match, for
  * titles that auto-matched wrong (or not at all, e.g. a censor-certificate
  * image instead of a real poster). */
-/** A small drawn tomato-shape mark for the Rotten Tomatoes score — not the
- * system emoji font (which renders inconsistently across devices/looks
- * unpolished) and not a copied trademark logo asset; just a simple round
- * red shape with a leaf, recognizable as "tomato" without claiming to be
- * the official RT logo. */
+/** Real Rotten Tomatoes tomato mark (bundled logo asset). */
 @Composable
 private fun RottenTomatoIcon(size: androidx.compose.ui.unit.Dp = 14.dp) {
-    androidx.compose.foundation.Canvas(modifier = Modifier.size(size)) {
-        val r = this.size.minDimension / 2f
-        drawCircle(color = Color(0xFFFA320A), radius = r * 0.85f, center = center)
-        // Small leaf notch at the top.
-        drawOval(
-            color = Color(0xFF4CAF50),
-            topLeft = androidx.compose.ui.geometry.Offset(center.x - r * 0.28f, center.y - r * 1.05f),
-            size = androidx.compose.ui.geometry.Size(r * 0.56f, r * 0.4f),
-        )
-    }
+    androidx.compose.foundation.Image(
+        painter = androidx.compose.ui.res.painterResource(id = com.darkjade.streamlib.R.drawable.logo_rotten_tomatoes),
+        contentDescription = "Rotten Tomatoes",
+        modifier = Modifier.size(size),
+    )
+}
+
+/** Real IMDb logo mark (bundled logo asset), height-constrained so it sits
+ * inline with the score text at the right rating-row size. */
+@Composable
+private fun ImdbIcon(height: androidx.compose.ui.unit.Dp = 16.dp) {
+    androidx.compose.foundation.Image(
+        painter = androidx.compose.ui.res.painterResource(id = com.darkjade.streamlib.R.drawable.logo_imdb),
+        contentDescription = "IMDb",
+        modifier = Modifier.height(height),
+    )
+}
+
+/** Real Metacritic "M" mark (bundled logo asset). */
+@Composable
+private fun MetacriticIcon(size: androidx.compose.ui.unit.Dp = 16.dp) {
+    androidx.compose.foundation.Image(
+        painter = androidx.compose.ui.res.painterResource(id = com.darkjade.streamlib.R.drawable.logo_metacritic),
+        contentDescription = "Metacritic",
+        modifier = Modifier.size(size),
+    )
 }
 
 /** Minimal list-view mark: three horizontal rounded lines with three small
@@ -142,17 +154,15 @@ private fun ListViewIcon(size: androidx.compose.ui.unit.Dp = 22.dp, color: Color
     }
 }
 
-/** Small drawn "TMDB" mark — a simple circular badge in TMDB's brand teal,
- * not the literal trademarked logo (which I can't reproduce), just a
- * recognizable colored film-reel-style badge for "our own score". */
+/** Real TMDB logo mark (bundled logo asset), height-constrained so it sits
+ * inline with the score text at the right rating-row size. */
 @Composable
-private fun TmdbIcon(size: androidx.compose.ui.unit.Dp = 16.dp) {
-    Box(
-        modifier = Modifier.size(size).clip(RoundedCornerShape(4.dp)).background(Color(0xFF01B4E4)),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(Icons.Filled.Movie, contentDescription = "TMDB", tint = Color.White, modifier = Modifier.size(size * 0.65f))
-    }
+private fun TmdbIcon(height: androidx.compose.ui.unit.Dp = 14.dp) {
+    androidx.compose.foundation.Image(
+        painter = androidx.compose.ui.res.painterResource(id = com.darkjade.streamlib.R.drawable.logo_tmdb),
+        contentDescription = "TMDB",
+        modifier = Modifier.height(height),
+    )
 }
 
 @Composable
@@ -433,7 +443,8 @@ fun DetailsScreen(
                                 Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(VaultSpacing.md)
+                                        .padding(VaultSpacing.md),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
                                 ) {
                                 if (!media.titleLogoUrl.isNullOrBlank()) {
                                     // The movie's actual stylized title-logo artwork — not
@@ -457,20 +468,24 @@ fun DetailsScreen(
                                         style = MaterialTheme.typography.headlineLarge,
                                         color = VaultColors.TextPrimary,
                                         maxLines = 2,
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                        modifier = Modifier.fillMaxWidth(),
                                     )
                                 }
 
-                                // Year — its own line, directly under the title.
+                                // Year — its own line, directly under the title, centered.
                                 media.year?.let {
                                     Text(
                                         it.toString(),
                                         style = MaterialTheme.typography.bodyLarge,
                                         color = VaultColors.TextSecondary,
-                                        modifier = Modifier.padding(top = 2.dp)
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                        modifier = Modifier.padding(top = 2.dp).fillMaxWidth()
                                     )
                                 }
 
-                                // Duration • Genres, age-cert badge — one clean row underneath.
+                                // Duration • Genres, age-cert badge — one clean row underneath,
+                                // centered as a whole block (neither left- nor right-aligned).
                                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = VaultSpacing.xxs)) {
                                     val infoBits = buildList {
                                         formatRuntimeLong(media.runtimeMinutes)?.let { add(it) }
@@ -503,12 +518,7 @@ fun DetailsScreen(
                                 if (media.imdbRating != null || media.rottenTomatoesPercent != null || media.rating != null) {
                                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = VaultSpacing.xs)) {
                                         media.imdbRating?.let {
-                                            Box(
-                                                modifier = Modifier.size(16.dp).clip(RoundedCornerShape(3.dp)).background(Color(0xFFF5C518)),
-                                                contentAlignment = Alignment.Center,
-                                            ) {
-                                                Icon(Icons.Filled.Star, contentDescription = "IMDb", tint = Color.Black, modifier = Modifier.size(11.dp))
-                                            }
+                                            ImdbIcon(height = 15.dp)
                                             Text(" ${"%.1f".format(it)}", style = MaterialTheme.typography.labelMedium, color = VaultColors.TextPrimary, modifier = Modifier.padding(start = 4.dp, end = VaultSpacing.sm))
                                         }
                                         media.rottenTomatoesPercent?.let {
@@ -520,18 +530,7 @@ fun DetailsScreen(
                                             Text(" ${"%.1f".format(it)}", style = MaterialTheme.typography.labelMedium, color = VaultColors.TextPrimary, modifier = Modifier.padding(start = 4.dp, end = VaultSpacing.sm))
                                         }
                                         media.metacriticScore?.let {
-                                            Box(
-                                                modifier = Modifier.size(16.dp).clip(RoundedCornerShape(3.dp)).background(
-                                                    when {
-                                                        it >= 61 -> Color(0xFF66CC33)
-                                                        it >= 40 -> Color(0xFFFFCC33)
-                                                        else -> Color(0xFFFF0000)
-                                                    }
-                                                ),
-                                                contentAlignment = Alignment.Center,
-                                            ) {
-                                                Text("M", style = MaterialTheme.typography.labelSmall, color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 10.sp)
-                                            }
+                                            MetacriticIcon(size = 16.dp)
                                             Text(" $it", style = MaterialTheme.typography.labelMedium, color = VaultColors.TextPrimary, modifier = Modifier.padding(start = 4.dp))
                                         }
                                     }
@@ -899,40 +898,26 @@ private fun InfoSection(media: MediaItemEntity) {
                 Column {
                     media.imdbRating?.let {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier.clip(RoundedCornerShape(3.dp)).background(Color(0xFFF5C518)).padding(horizontal = 4.dp, vertical = 1.dp)
-                            ) {
-                                Text("IMDb", style = MaterialTheme.typography.labelSmall, color = Color.Black)
-                            }
+                            ImdbIcon(height = 18.dp)
                             Text(" ${"%.1f".format(it)}", style = MaterialTheme.typography.bodyMedium, color = VaultColors.TextPrimary, modifier = Modifier.padding(start = 6.dp))
                         }
                     }
                     media.rottenTomatoesPercent?.let {
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
-                            RottenTomatoIcon(size = 16.dp)
+                            RottenTomatoIcon(size = 18.dp)
                             Text(" $it%", style = MaterialTheme.typography.bodyMedium, color = VaultColors.TextPrimary, modifier = Modifier.padding(start = 5.dp))
                         }
                     }
                     media.rating?.let {
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
-                            Text("TMDB", style = MaterialTheme.typography.labelSmall, color = VaultColors.Orange)
-                            Text(" ${"%.1f".format(it)}", style = MaterialTheme.typography.bodyMedium, color = VaultColors.TextPrimary, modifier = Modifier.padding(start = 4.dp))
+                            TmdbIcon(height = 16.dp)
+                            Text(" ${"%.1f".format(it)}", style = MaterialTheme.typography.bodyMedium, color = VaultColors.TextPrimary, modifier = Modifier.padding(start = 6.dp))
                         }
                     }
                     media.metacriticScore?.let {
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
-                            Box(
-                                modifier = Modifier.clip(RoundedCornerShape(3.dp)).background(
-                                    when {
-                                        it >= 61 -> Color(0xFF66CC33)
-                                        it >= 40 -> Color(0xFFFFCC33)
-                                        else -> Color(0xFFFF0000)
-                                    }
-                                ).padding(horizontal = 4.dp, vertical = 1.dp)
-                            ) {
-                                Text("$it", style = MaterialTheme.typography.labelSmall, color = Color.Black)
-                            }
-                            Text(" Metacritic", style = MaterialTheme.typography.bodyMedium, color = VaultColors.TextPrimary, modifier = Modifier.padding(start = 5.dp))
+                            MetacriticIcon(size = 18.dp)
+                            Text(" $it", style = MaterialTheme.typography.bodyMedium, color = VaultColors.TextPrimary, modifier = Modifier.padding(start = 6.dp))
                         }
                     }
                 }
