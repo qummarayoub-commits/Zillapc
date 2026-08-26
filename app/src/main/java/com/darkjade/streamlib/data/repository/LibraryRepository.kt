@@ -78,7 +78,7 @@ class LibraryRepository(
     /** "Remove from here" — removes an entire movie/show (and its seasons/episodes) from the library. */
     suspend fun removeMediaItem(mediaItemId: Long) = mediaDao.deleteById(mediaItemId)
 
-    suspend fun addFolderSource(treeUri: String, displayName: String, isComicSource: Boolean = false): Long {
+    suspend fun addFolderSource(treeUri: String, displayName: String, isComicSource: Boolean = false, isMusicSource: Boolean = false): Long {
         val existing = folderSourceDao.findByUri(treeUri)
         if (existing != null) return existing.id
         return folderSourceDao.insert(
@@ -86,6 +86,7 @@ class LibraryRepository(
                 treeUri = treeUri,
                 displayName = displayName,
                 isComicSource = isComicSource,
+                isMusicSource = isMusicSource,
             )
         )
     }
@@ -327,6 +328,7 @@ class LibraryRepository(
                     cast = result.cast.joinToString(","),
                     castMembers = serializeCastMembers(result.castMembers),
                     alternatePosterUrls = result.alternatePosterUrls.joinToString(","),
+                    titleLogoUrl = result.titleLogoUrl,
                     trailerYoutubeKey = result.trailerYoutubeKey,
                     productionCountry = result.productionCountry,
                     originalLanguage = result.originalLanguage,
@@ -361,6 +363,7 @@ class LibraryRepository(
                     cast = result.cast.joinToString(","),
                     castMembers = serializeCastMembers(result.castMembers),
                     alternatePosterUrls = result.alternatePosterUrls.joinToString(","),
+                    titleLogoUrl = result.titleLogoUrl,
                     trailerYoutubeKey = result.trailerYoutubeKey,
                     productionCountry = result.productionCountry,
                     originalLanguage = result.originalLanguage,
@@ -404,6 +407,7 @@ class LibraryRepository(
                 cast = result.cast.joinToString(","),
                 castMembers = serializeCastMembers(result.castMembers),
                 alternatePosterUrls = result.alternatePosterUrls.joinToString(","),
+                    titleLogoUrl = result.titleLogoUrl,
                 trailerYoutubeKey = result.trailerYoutubeKey,
                 productionCountry = result.productionCountry,
                 originalLanguage = result.originalLanguage,

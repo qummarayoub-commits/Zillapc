@@ -59,8 +59,12 @@ data class TmdbContentRatingCountryDto(val iso_3166_1: String, val rating: Strin
 
 data class TmdbCountryDto(val name: String)
 
-data class TmdbImagesDto(val posters: List<TmdbPosterDto> = emptyList())
+data class TmdbImagesDto(
+    val posters: List<TmdbPosterDto> = emptyList(),
+    val logos: List<TmdbLogoDto> = emptyList(),
+)
 data class TmdbPosterDto(val file_path: String)
+data class TmdbLogoDto(val file_path: String, val iso_639_1: String? = null)
 
 data class TmdbGenreDto(val id: Int, val name: String)
 
@@ -115,6 +119,7 @@ interface TmdbApi {
         @Path("id") id: Int,
         @Query("api_key") apiKey: String,
         @Query("append_to_response") append: String = "credits,images,videos,external_ids,release_dates",
+        @Query("include_image_language") includeImageLanguage: String = "en,null",
     ): TmdbMovieDto
 
     @GET("search/tv")
@@ -129,6 +134,7 @@ interface TmdbApi {
         @Path("id") id: Int,
         @Query("api_key") apiKey: String,
         @Query("append_to_response") append: String = "credits,images,videos,external_ids,content_ratings",
+        @Query("include_image_language") includeImageLanguage: String = "en,null",
     ): TmdbSeriesDto
 
     @GET("tv/{id}/season/{seasonNumber}")

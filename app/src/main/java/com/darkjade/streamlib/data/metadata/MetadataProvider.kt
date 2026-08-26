@@ -18,6 +18,7 @@ data class MetadataResult(
     val cast: List<String> = emptyList(),
     val castMembers: List<CastMember> = emptyList(),
     val alternatePosterUrls: List<String> = emptyList(),
+    val titleLogoUrl: String? = null, // TMDB's official stylized title-logo artwork, when available
     val trailerYoutubeKey: String? = null,
     val imdbId: String? = null,
     val productionCountry: String? = null,

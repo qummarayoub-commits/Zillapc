@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -24,6 +25,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.CheckCircleOutline
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.Star
@@ -87,6 +89,25 @@ import com.darkjade.streamlib.ui.util.ArtworkTintExtractor
 /** "Add Info" — search TMDB manually and pick the correct match, for
  * titles that auto-matched wrong (or not at all, e.g. a censor-certificate
  * image instead of a real poster). */
+/** A small drawn tomato-shape mark for the Rotten Tomatoes score — not the
+ * system emoji font (which renders inconsistently across devices/looks
+ * unpolished) and not a copied trademark logo asset; just a simple round
+ * red shape with a leaf, recognizable as "tomato" without claiming to be
+ * the official RT logo. */
+@Composable
+private fun RottenTomatoIcon(size: androidx.compose.ui.unit.Dp = 14.dp) {
+    androidx.compose.foundation.Canvas(modifier = Modifier.size(size)) {
+        val r = this.size.minDimension / 2f
+        drawCircle(color = Color(0xFFFA320A), radius = r * 0.85f, center = center)
+        // Small leaf notch at the top.
+        drawOval(
+            color = Color(0xFF4CAF50),
+            topLeft = androidx.compose.ui.geometry.Offset(center.x - r * 0.28f, center.y - r * 1.05f),
+            size = androidx.compose.ui.geometry.Size(r * 0.56f, r * 0.4f),
+        )
+    }
+}
+
 @Composable
 private fun ActionIconButton(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
@@ -385,12 +406,30 @@ fun DetailsScreen(
                                         .fillMaxWidth()
                                         .padding(VaultSpacing.md)
                                 ) {
-                                Text(
-                                    media.title,
-                                    style = MaterialTheme.typography.headlineMedium,
-                                    color = VaultColors.TextPrimary,
-                                    maxLines = 2,
-                                )
+                                if (!media.titleLogoUrl.isNullOrBlank()) {
+                                    // The movie's actual stylized title-logo artwork — not
+                                    // manually rendered text — matching what appears on the
+                                    // poster/marketing art itself.
+                                    SubcomposeAsyncImage(
+                                        model = media.titleLogoUrl,
+                                        contentDescription = media.title,
+                                        contentScale = ContentScale.Fit,
+                                        modifier = Modifier.fillMaxWidth().heightIn(max = 90.dp),
+                                        loading = {
+                                            Text(media.title, style = MaterialTheme.typography.headlineLarge, color = VaultColors.TextPrimary, maxLines = 2)
+                                        },
+                                        error = {
+                                            Text(media.title, style = MaterialTheme.typography.headlineLarge, color = VaultColors.TextPrimary, maxLines = 2)
+                                        },
+                                    )
+                                } else {
+                                    Text(
+                                        media.title,
+                                        style = MaterialTheme.typography.headlineLarge,
+                                        color = VaultColors.TextPrimary,
+                                        maxLines = 2,
+                                    )
+                                }
 
                                 // Year • Duration • Genres, age-cert badge.
                                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = VaultSpacing.xxs)) {
@@ -433,8 +472,8 @@ fun DetailsScreen(
                                             Text(" ${"%.1f".format(it)}", style = MaterialTheme.typography.labelMedium, color = VaultColors.TextPrimary, modifier = Modifier.padding(start = 4.dp, end = VaultSpacing.sm))
                                         }
                                         media.rottenTomatoesPercent?.let {
-                                            Text("\uD83C\uDF45", style = MaterialTheme.typography.labelMedium)
-                                            Text(" $it%", style = MaterialTheme.typography.labelMedium, color = VaultColors.TextPrimary, modifier = Modifier.padding(start = 2.dp, end = VaultSpacing.sm))
+                                            RottenTomatoIcon()
+                                            Text(" $it%", style = MaterialTheme.typography.labelMedium, color = VaultColors.TextPrimary, modifier = Modifier.padding(start = 3.dp, end = VaultSpacing.sm))
                                         }
                                         // Our own TMDB score — clearly labeled, never confused with IMDb.
                                         media.rating?.let {
@@ -466,43 +505,75 @@ fun DetailsScreen(
                                     Button(
                                         onClick = { viewModel.toggleWatchlist() },
                                         shape = VaultShapes.button,
-                                        colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = VaultColors.Background),
-                                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = VaultSpacing.lg, vertical = VaultSpacing.sm),
-                                        modifier = Modifier.height(48.dp)
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = Color.White.copy(alpha = 0.14f),
+                                            contentColor = VaultColors.TextPrimary,
+                                        ),
+                                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = VaultSpacing.md),
+                                        modifier = Modifier.height(46.dp).widthIn(min = 140.dp, max = 170.dp)
                                     ) {
-                                        Icon(if (state.isInWatchlist) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder, contentDescription = null, modifier = Modifier.size(20.dp))
-                                        Text(if (state.isInWatchlist) " In List" else " Add to List", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(start = 6.dp))
+                                        Icon(if (state.isInWatchlist) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder, contentDescription = null, modifier = Modifier.size(18.dp))
+                                        Text(
+                                            if (state.isInWatchlist) " Added to List" else " Add to List",
+                                            style = MaterialTheme.typography.labelLarge,
+                                            modifier = Modifier.padding(start = 6.dp)
+                                        )
                                     }
                                     Spacer(Modifier.weight(1f))
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        modifier = Modifier.clickable(enabled = state.nextUpUri != null) {
-                                            if (state.nextUpUri != null) {
+                                    if (state.nextUpUri != null) {
+                                        Column(
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            modifier = Modifier.clickable {
                                                 viewModel.recordOpened(state.nextUpEpisodeId)
                                                 onPlay(state.nextUpUri.toString(), state.nextUpEpisodeId)
                                             }
-                                        }
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(48.dp)
-                                                .clip(CircleShape)
-                                                .background(VaultColors.Orange),
-                                            contentAlignment = Alignment.Center,
                                         ) {
-                                            androidx.compose.foundation.Image(
-                                                painter = androidx.compose.ui.res.painterResource(id = com.darkjade.streamlib.R.drawable.logo_v_mark),
-                                                contentDescription = "Play in Velora",
-                                                colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(VaultColors.Background),
-                                                modifier = Modifier.size(24.dp),
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(48.dp)
+                                                    .clip(CircleShape)
+                                                    .background(VaultColors.Orange),
+                                                contentAlignment = Alignment.Center,
+                                            ) {
+                                                androidx.compose.foundation.Image(
+                                                    painter = androidx.compose.ui.res.painterResource(id = com.darkjade.streamlib.R.drawable.logo_v_mark),
+                                                    contentDescription = "Play in Velora",
+                                                    colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(VaultColors.Background),
+                                                    modifier = Modifier.size(24.dp),
+                                                )
+                                            }
+                                            Text(
+                                                "Watch in Velora",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = VaultColors.TextTertiary,
+                                                modifier = Modifier.padding(top = 2.dp)
                                             )
                                         }
-                                        Text(
-                                            "Watch in Velora",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = VaultColors.TextTertiary,
-                                            modifier = Modifier.padding(top = 2.dp)
-                                        )
+                                    } else {
+                                        // No local file actually available to play — a subtle,
+                                        // honest state instead of a broken/disabled-looking button.
+                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(48.dp)
+                                                    .clip(CircleShape)
+                                                    .background(Color.White.copy(alpha = 0.08f)),
+                                                contentAlignment = Alignment.Center,
+                                            ) {
+                                                Icon(
+                                                    Icons.Filled.CloudOff,
+                                                    contentDescription = null,
+                                                    tint = VaultColors.TextTertiary,
+                                                    modifier = Modifier.size(20.dp),
+                                                )
+                                            }
+                                            Text(
+                                                "No Streaming Availability",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = VaultColors.TextTertiary,
+                                                modifier = Modifier.padding(top = 2.dp)
+                                            )
+                                        }
                                     }
                                 }
 
@@ -774,7 +845,7 @@ private fun InfoSection(media: MediaItemEntity) {
             .background(VaultColors.Surface)
             .padding(VaultSpacing.md)
     ) {
-        if (media.imdbRating != null || media.rottenTomatoesPercent != null) {
+        if (media.imdbRating != null || media.rottenTomatoesPercent != null || media.rating != null || media.metacriticScore != null) {
             CapsInfoRow("RATING") {
                 Column {
                     media.imdbRating?.let {
@@ -789,8 +860,30 @@ private fun InfoSection(media: MediaItemEntity) {
                     }
                     media.rottenTomatoesPercent?.let {
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
-                            Text("\uD83C\uDF45", style = MaterialTheme.typography.bodyMedium)
-                            Text(" $it%", style = MaterialTheme.typography.bodyMedium, color = VaultColors.TextPrimary, modifier = Modifier.padding(start = 4.dp))
+                            RottenTomatoIcon(size = 16.dp)
+                            Text(" $it%", style = MaterialTheme.typography.bodyMedium, color = VaultColors.TextPrimary, modifier = Modifier.padding(start = 5.dp))
+                        }
+                    }
+                    media.rating?.let {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
+                            Text("TMDB", style = MaterialTheme.typography.labelSmall, color = VaultColors.Orange)
+                            Text(" ${"%.1f".format(it)}", style = MaterialTheme.typography.bodyMedium, color = VaultColors.TextPrimary, modifier = Modifier.padding(start = 4.dp))
+                        }
+                    }
+                    media.metacriticScore?.let {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
+                            Box(
+                                modifier = Modifier.clip(RoundedCornerShape(3.dp)).background(
+                                    when {
+                                        it >= 61 -> Color(0xFF66CC33)
+                                        it >= 40 -> Color(0xFFFFCC33)
+                                        else -> Color(0xFFFF0000)
+                                    }
+                                ).padding(horizontal = 4.dp, vertical = 1.dp)
+                            ) {
+                                Text("$it", style = MaterialTheme.typography.labelSmall, color = Color.Black)
+                            }
+                            Text(" Metacritic", style = MaterialTheme.typography.bodyMedium, color = VaultColors.TextPrimary, modifier = Modifier.padding(start = 5.dp))
                         }
                     }
                 }

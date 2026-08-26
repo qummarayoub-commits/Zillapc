@@ -90,6 +90,15 @@ class TmdbMetadataProvider : MetadataProvider {
     private fun extractAlternatePosters(images: TmdbImagesDto?, limit: Int = 5): List<String> =
         images?.posters.orEmpty().take(limit).map { TmdbConfig.IMAGE_BASE_URL + it.file_path }
 
+    // Prefer the English title-logo treatment (the actual stylized wordmark
+    // artwork, e.g. the "SPIDER-MAN" logo graphic) over a plain rendered
+    // text title; fall back to a language-less logo if no English one exists.
+    private fun extractTitleLogo(images: TmdbImagesDto?): String? {
+        val logos = images?.logos.orEmpty()
+        val chosen = logos.firstOrNull { it.iso_639_1 == "en" } ?: logos.firstOrNull { it.iso_639_1 == null }
+        return chosen?.let { TmdbConfig.IMAGE_BASE_URL + it.file_path }
+    }
+
     override suspend fun searchMovie(title: String, year: Int?): MetadataResult? {
         if (TmdbConfig.apiKey.isBlank()) return null
         return runCatching {
@@ -162,6 +171,7 @@ class TmdbMetadataProvider : MetadataProvider {
         cast = extractCast(full.credits),
         castMembers = extractCastMembers(full.credits),
         alternatePosterUrls = extractAlternatePosters(full.images),
+        titleLogoUrl = extractTitleLogo(full.images),
         trailerYoutubeKey = extractTrailerKey(full.videos),
         imdbId = full.external_ids?.imdb_id,
         productionCountry = full.production_countries?.firstOrNull()?.name,
@@ -183,6 +193,7 @@ class TmdbMetadataProvider : MetadataProvider {
         cast = extractCast(full.credits),
         castMembers = extractCastMembers(full.credits),
         alternatePosterUrls = extractAlternatePosters(full.images),
+        titleLogoUrl = extractTitleLogo(full.images),
         trailerYoutubeKey = extractTrailerKey(full.videos),
         imdbId = full.external_ids?.imdb_id,
         productionCountry = full.production_countries?.firstOrNull()?.name,

@@ -14,4 +14,5 @@ data class FolderSourceEntity(
     // Persisted so video vs comics folder sources stay correctly separated
     // across app restarts (not just in-memory for the current session).
     val isComicSource: Boolean = false,
+    val isMusicSource: Boolean = false,
 )

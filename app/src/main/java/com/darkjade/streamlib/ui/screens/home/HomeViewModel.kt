@@ -19,6 +19,7 @@ import kotlinx.coroutines.launch
 
 data class HomeUiState(
     val isLoading: Boolean = true,
+    val recentSongs: List<com.darkjade.streamlib.data.db.entity.SongEntity> = emptyList(),
     val heroItems: List<HeroCandidate> = emptyList(),
     val movieBanners: List<MediaItemEntity> = emptyList(),
     val seriesBanners: List<MediaItemEntity> = emptyList(),
@@ -51,6 +52,7 @@ class HomeViewModel(
     private val watchRepository: WatchRepository,
     private val profileRepository: ProfileRepository,
     private val comicRepository: ComicRepository,
+    private val musicRepository: com.darkjade.streamlib.data.repository.MusicRepository? = null,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -109,6 +111,8 @@ class HomeViewModel(
                     libraryEmpty = flows.recentlyAdded.isEmpty() && flows.movies.isEmpty() &&
                         flows.series.isEmpty() && flows.anime.isEmpty() && comics.isEmpty(),
                 )
+            }.combine(musicRepository?.observeRecentlyAdded(10) ?: kotlinx.coroutines.flow.flowOf(emptyList())) { homeState, songs ->
+                homeState.copy(recentSongs = songs)
             }.onEach { _uiState.value = it }.launchIn(viewModelScope)
         }
     }

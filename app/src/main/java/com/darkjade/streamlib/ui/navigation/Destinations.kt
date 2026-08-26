@@ -6,12 +6,14 @@ import androidx.compose.material.icons.filled.Article
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.Article
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.LibraryMusic
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.ui.graphics.vector.ImageVector
 
@@ -20,6 +22,11 @@ object Routes {
     const val MY_LISTS = "my_lists"
     const val BROWSE = "browse"
     const val SEARCH = "search"
+    const val MUSIC = "music"
+    const val MUSIC_PLAYER = "music_player"
+    const val PLAYLIST_DETAIL = "playlist/{playlistId}"
+
+    fun playlistDetail(playlistId: Long) = "playlist/$playlistId"
     const val ACCOUNT = "account"
     const val SETTINGS = "settings"
     const val ONBOARDING = "onboarding"
@@ -50,4 +57,5 @@ val bottomNavItems = listOf(
     BottomNavItem(Routes.MY_LISTS, "My Lists", Icons.Filled.Bookmark, Icons.Outlined.BookmarkBorder),
     BottomNavItem(Routes.BROWSE, "Browse", Icons.Filled.GridView, Icons.Outlined.GridView),
     BottomNavItem(Routes.SEARCH, "Search", Icons.Filled.Search, Icons.Outlined.Search),
+    BottomNavItem(Routes.MUSIC, "Music", Icons.Filled.LibraryMusic, Icons.Outlined.LibraryMusic),
 )

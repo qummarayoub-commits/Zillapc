@@ -31,6 +31,7 @@ data class MediaItemEntity(
     val director: String? = null,
     val cast: String = "", // comma-separated top cast names
     val alternatePosterUrls: String = "", // comma-separated — TMDB has multiple posters per title
+    val titleLogoUrl: String? = null, // TMDB's official stylized title-logo artwork, when available
     // Cast with photo+character, serialized as "name|character|photoUrl;;name2|..." —
     // kept as a simple string (like genres/cast) rather than a join table.
     val castMembers: String = "",

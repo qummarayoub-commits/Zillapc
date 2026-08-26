@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.Flow
 data class AlbumSummary(
     val album: String,
     val artist: String,
-    val albumId: Long?,
+    val artworkPath: String?,
     val trackCount: Int,
 )
 
@@ -24,11 +24,14 @@ interface SongDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertAll(songs: List<SongEntity>): List<Long>
 
-    @Query("SELECT mediaStoreId FROM songs")
-    suspend fun getAllMediaStoreIds(): List<Long>
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insert(song: SongEntity): Long
 
-    @Query("DELETE FROM songs WHERE mediaStoreId NOT IN (:presentIds)")
-    suspend fun deleteMissing(presentIds: List<Long>)
+    @Query("SELECT localFileUri FROM songs WHERE folderSourceId = :folderSourceId")
+    suspend fun getUrisForFolder(folderSourceId: Long): List<String>
+
+    @Query("DELETE FROM songs WHERE folderSourceId = :folderSourceId AND localFileUri NOT IN (:presentUris)")
+    suspend fun deleteMissingInFolder(folderSourceId: Long, presentUris: List<String>)
 
     @Query("SELECT * FROM songs ORDER BY title COLLATE NOCASE ASC")
     fun observeAll(): Flow<List<SongEntity>>
@@ -42,7 +45,7 @@ interface SongDao {
     @Query("SELECT * FROM songs WHERE artist = :artist ORDER BY album ASC, trackNumber ASC")
     fun observeByArtist(artist: String): Flow<List<SongEntity>>
 
-    @Query("SELECT album, artist, albumId, COUNT(*) as trackCount FROM songs GROUP BY album, artist ORDER BY album COLLATE NOCASE ASC")
+    @Query("SELECT album, artist, MAX(artworkPath) as artworkPath, COUNT(*) as trackCount FROM songs GROUP BY album, artist ORDER BY album COLLATE NOCASE ASC")
     fun observeAlbums(): Flow<List<AlbumSummary>>
 
     @Query("SELECT artist, COUNT(*) as trackCount FROM songs GROUP BY artist ORDER BY artist COLLATE NOCASE ASC")
@@ -53,4 +56,7 @@ interface SongDao {
 
     @Query("SELECT * FROM songs WHERE id = :id")
     suspend fun getById(id: Long): SongEntity?
+
+    @Query("UPDATE songs SET lastPositionMs = :positionMs WHERE id = :id")
+    suspend fun updatePosition(id: Long, positionMs: Long)
 }
