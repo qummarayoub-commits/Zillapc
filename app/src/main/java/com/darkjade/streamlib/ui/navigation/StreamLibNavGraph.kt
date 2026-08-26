@@ -217,6 +217,7 @@ fun StreamLibNavGraph(container: AppContainer) {
                         container.libraryRepository,
                         container.comicRepository,
                         container.preferencesRepository,
+                        container.musicRepository,
                     )
                 })
                 SettingsScreen(viewModel = vm, onBack = { navController.popBackStack() })

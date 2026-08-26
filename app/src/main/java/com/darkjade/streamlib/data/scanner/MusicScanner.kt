@@ -89,6 +89,53 @@ class MusicScanner(private val context: Context) {
         emit(MusicScanEvent.Completed(found))
     }
 
+    /**
+     * Scans the WHOLE device for music — the primary, simple flow (matches
+     * how "Scan Device for Videos" works for movies): no folder picker
+     * needed. Uses MediaStore.Audio to find candidate files device-wide
+     * (just needs READ_MEDIA_AUDIO, not All Files Access), then reads real
+     * tags via MediaMetadataRetriever and runs every candidate through
+     * MusicClassifier — so this still only imports real songs, not every
+     * WhatsApp voice note or call recording on the device.
+     */
+    fun scanDevice(): Flow<MusicScanEvent> = flow {
+        val collection = android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+        val projection = arrayOf(
+            android.provider.MediaStore.Audio.Media._ID,
+            android.provider.MediaStore.Audio.Media.DISPLAY_NAME,
+            android.provider.MediaStore.Audio.Media.RELATIVE_PATH,
+        )
+        var found = 0
+        var processed = 0
+        try {
+            val selection = "${android.provider.MediaStore.Audio.Media.IS_MUSIC} != 0"
+            context.contentResolver.query(collection, projection, selection, null, null)?.use { cursor ->
+                val idCol = cursor.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media._ID)
+                val nameCol = cursor.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media.DISPLAY_NAME)
+                val pathCol = cursor.getColumnIndex(android.provider.MediaStore.Audio.Media.RELATIVE_PATH)
+
+                while (cursor.moveToNext()) {
+                    val id = cursor.getLong(idCol)
+                    val name = cursor.getString(nameCol) ?: continue
+                    val ext = name.substringAfterLast('.', "").lowercase()
+                    if (ext !in SupportedMusicExtensions.DEFAULT) continue
+
+                    val relativePath = if (pathCol >= 0) cursor.getString(pathCol) else null
+                    val pathSegments = relativePath?.trim('/')?.split('/').orEmpty()
+                    val uri = android.content.ContentUris.withAppendedId(collection, id)
+
+                    found++
+                    emit(classifyAndExtract(uri, name, pathSegments))
+                    processed++
+                    emit(MusicScanEvent.Progress(found, processed, name))
+                }
+            }
+            emit(MusicScanEvent.Completed(found))
+        } catch (e: Exception) {
+            emit(MusicScanEvent.Failed(e.message ?: "Music scan failed"))
+        }
+    }
+
     /** Reads real embedded tag data, scores it with [MusicClassifier], and
      * only ever returns a [MusicScanEvent.SongFound] for candidates that
      * genuinely look like music — otherwise a [MusicScanEvent.SkippedLowConfidence],

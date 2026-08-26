@@ -35,6 +35,7 @@ class SettingsViewModel(
     private val libraryRepository: LibraryRepository,
     private val comicRepository: ComicRepository,
     private val preferencesRepository: PreferencesRepository,
+    private val musicRepository: com.darkjade.streamlib.data.repository.MusicRepository? = null,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -143,6 +144,37 @@ class SettingsViewModel(
                 val folderSourceId = libraryRepository.addFolderSource(treeUri.toString(), displayName, isComicSource = true)
                 withContext(Dispatchers.IO) {
                     comicRepository.scanFolder(treeUri, folderSourceId) { }
+                }
+            } catch (e: Throwable) {
+                // Never crash.
+            }
+        }
+    }
+
+    /** Music gets its own folder picker, same isolation as comics — never
+     * touches video/comic scanning, and vice versa. */
+    fun onMusicFolderSelected(treeUri: Uri, displayName: String) {
+        val repo = musicRepository ?: return
+        viewModelScope.launch {
+            try {
+                val folderSourceId = libraryRepository.addFolderSource(treeUri.toString(), displayName, isMusicSource = true)
+                withContext(Dispatchers.IO) {
+                    repo.scanMusicFolder(treeUri, folderSourceId)
+                }
+            } catch (e: Throwable) {
+                // Never crash.
+            }
+        }
+    }
+
+    /** Primary music scan — whole device, no folder picker needed, same
+     * pattern as scanDeviceForVideos(). MusicClassifier keeps it clean. */
+    fun scanDeviceForMusic() {
+        val repo = musicRepository ?: return
+        viewModelScope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    repo.scanDeviceForMusic()
                 }
             } catch (e: Throwable) {
                 // Never crash.

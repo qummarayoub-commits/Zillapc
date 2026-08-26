@@ -23,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CreateNewFolder
+import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
@@ -382,6 +383,26 @@ fun SettingsScreen(
                     comicStatus?.errorMessage?.let {
                         Text(it, color = VaultColors.Error, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = VaultSpacing.xxs))
                     }
+                }
+            }
+
+            item {
+                Divider(color = VaultColors.Divider, modifier = Modifier.padding(vertical = VaultSpacing.sm))
+                SectionHeader("Music")
+                Text(
+                    "Scans your whole device for real songs — voice notes, WhatsApp audio, call recordings, and other non-music audio are automatically skipped.",
+                    color = VaultColors.TextSecondary,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(bottom = VaultSpacing.sm)
+                )
+                Button(
+                    onClick = { viewModel.scanDeviceForMusic() },
+                    shape = VaultShapes.button,
+                    colors = ButtonDefaults.buttonColors(containerColor = VaultColors.Orange, contentColor = VaultColors.Background),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Filled.LibraryMusic, contentDescription = null)
+                    Text(" Scan Device for Music", modifier = Modifier.padding(start = 4.dp))
                 }
             }
 

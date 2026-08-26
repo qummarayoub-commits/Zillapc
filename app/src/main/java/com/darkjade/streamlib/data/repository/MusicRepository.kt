@@ -66,11 +66,58 @@ class MusicRepository(private val context: Context) {
     }
 
     /**
+     * Primary flow — scans the whole device (no folder picker needed),
+     * same idea as movies' "Scan Device for Videos". MusicClassifier still
+     * filters out voice notes/call recordings/etc.; only real songs get
+     * inserted, existing entries with no matching device file get removed.
+     */
+    suspend fun scanDeviceForMusic(): Result<Int> {
+        var found = 0
+        var error: String? = null
+        val presentUris = mutableListOf<String>()
+
+        try {
+            scanner.scanDevice().collect { event ->
+                when (event) {
+                    is MusicScanEvent.SongFound -> {
+                        val artworkPath = event.song.embeddedArtwork?.let { bytes -> cacheArtwork(event.song.uri.toString(), bytes) }
+                        val entity = SongEntity(
+                            localFileUri = event.song.uri.toString(),
+                            title = event.song.title,
+                            artist = event.song.artist,
+                            album = event.song.album,
+                            albumArtist = event.song.albumArtist,
+                            trackNumber = event.song.trackNumber,
+                            year = event.song.year,
+                            genre = event.song.genre,
+                            durationMs = event.song.durationMs,
+                            artworkPath = artworkPath,
+                            folderSourceId = null,
+                        )
+                        songDao.insert(entity)
+                        presentUris.add(event.song.uri.toString())
+                        found++
+                    }
+                    is MusicScanEvent.Completed -> {}
+                    is MusicScanEvent.Failed -> error = event.message
+                    is MusicScanEvent.Progress -> {}
+                    is MusicScanEvent.SkippedLowConfidence -> {}
+                }
+            }
+        } catch (e: Exception) {
+            error = e.message ?: "Music scan failed"
+        }
+
+        return if (error != null) Result.failure(Exception(error)) else Result.success(found)
+    }
+
+    /**
      * Scans a user-selected SAF folder tree for music files — same
      * architecture as the existing video LibraryScanner — and syncs the
      * songs table: inserts newly found tracks, removes ones from this
      * folder no longer present. Real embedded tag metadata + artwork only,
-     * never fabricated.
+     * never fabricated. Kept as a secondary/optional path, same as the
+     * "Add Specific Folder" option on Movies/Comics.
      */
     suspend fun scanMusicFolder(treeUri: Uri, folderSourceId: Long): Result<Int> {
         var found = 0
