@@ -12,6 +12,7 @@ data class OmdbResponseDto(
     val Title: String? = null,
     val imdbID: String? = null,
     val imdbRating: String? = null, // e.g. "7.6" or "N/A"
+    val Metascore: String? = null,  // e.g. "67" or "N/A"
     val Ratings: List<OmdbRatingDto> = emptyList(),
     val Response: String? = null, // "True" / "False"
     val Error: String? = null,

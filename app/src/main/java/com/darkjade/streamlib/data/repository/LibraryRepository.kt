@@ -460,6 +460,7 @@ class LibraryRepository(
                 imdbId = result?.imdbId ?: entity.imdbId,
                 imdbRating = result?.imdbRating,
                 rottenTomatoesPercent = result?.rottenTomatoesPercent,
+                metacriticScore = result?.metacriticScore,
                 omdbFetched = true, // mark attempted either way — avoids retrying every time the screen opens
             )
         )

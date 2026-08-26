@@ -439,7 +439,21 @@ fun DetailsScreen(
                                         // Our own TMDB score — clearly labeled, never confused with IMDb.
                                         media.rating?.let {
                                             Text("TMDB", style = MaterialTheme.typography.labelSmall, color = VaultColors.Orange)
-                                            Text(" ${"%.1f".format(it)}", style = MaterialTheme.typography.labelMedium, color = VaultColors.TextPrimary, modifier = Modifier.padding(start = 2.dp))
+                                            Text(" ${"%.1f".format(it)}", style = MaterialTheme.typography.labelMedium, color = VaultColors.TextPrimary, modifier = Modifier.padding(start = 2.dp, end = VaultSpacing.sm))
+                                        }
+                                        media.metacriticScore?.let {
+                                            Box(
+                                                modifier = Modifier.clip(RoundedCornerShape(3.dp)).background(
+                                                    when {
+                                                        it >= 61 -> Color(0xFF66CC33)
+                                                        it >= 40 -> Color(0xFFFFCC33)
+                                                        else -> Color(0xFFFF0000)
+                                                    }
+                                                ).padding(horizontal = 4.dp, vertical = 1.dp)
+                                            ) {
+                                                Text("$it", style = MaterialTheme.typography.labelSmall, color = Color.Black)
+                                            }
+                                            Text(" Metacritic", style = MaterialTheme.typography.labelSmall, color = VaultColors.TextSecondary, modifier = Modifier.padding(start = 3.dp))
                                         }
                                     }
                                 }

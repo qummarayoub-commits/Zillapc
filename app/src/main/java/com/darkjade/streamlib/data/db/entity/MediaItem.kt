@@ -46,6 +46,7 @@ data class MediaItemEntity(
     val imdbId: String? = null,
     val imdbRating: Double? = null,
     val rottenTomatoesPercent: Int? = null,
+    val metacriticScore: Int? = null,
     val omdbFetched: Boolean = false,
     val userRating: Int? = null, // 1-5 stars — the user's own rating (new "Rate" action)
     val tmdbId: String? = null, // remote TMDB id, used to fetch per-episode metadata

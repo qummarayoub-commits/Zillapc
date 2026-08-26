@@ -8,6 +8,7 @@ data class OmdbResult(
     val imdbId: String?,
     val imdbRating: Double?,       // out of 10, genuinely from IMDb via OMDb's "Internet Movie Database" rating source
     val rottenTomatoesPercent: Int?, // 0-100, from OMDb's "Rotten Tomatoes" rating source
+    val metacriticScore: Int?,       // 0-100, from OMDb's own Metascore field
 )
 
 class OmdbMetadataProvider {
@@ -47,10 +48,17 @@ class OmdbMetadataProvider {
         val rtPercent = dto.Ratings.firstOrNull { it.Source == "Rotten Tomatoes" }
             ?.Value?.removeSuffix("%")?.toIntOrNull()
 
+        val metacritic = dto.Metascore
+            ?.takeIf { it != "N/A" }
+            ?.toIntOrNull()
+            ?: dto.Ratings.firstOrNull { it.Source == "Metacritic" }
+                ?.Value?.substringBefore('/')?.toIntOrNull()
+
         return OmdbResult(
             imdbId = dto.imdbID,
             imdbRating = imdbRating,
             rottenTomatoesPercent = rtPercent,
+            metacriticScore = metacritic,
         )
     }
 }

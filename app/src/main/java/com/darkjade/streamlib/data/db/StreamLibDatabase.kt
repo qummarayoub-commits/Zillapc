@@ -14,6 +14,7 @@ import com.darkjade.streamlib.data.db.dao.PlaybackProgressDao
 import com.darkjade.streamlib.data.db.dao.ProfileDao
 import com.darkjade.streamlib.data.db.dao.ScanStatusDao
 import com.darkjade.streamlib.data.db.dao.SeasonDao
+import com.darkjade.streamlib.data.db.dao.SongDao
 import com.darkjade.streamlib.data.db.dao.WatchHistoryDao
 import com.darkjade.streamlib.data.db.dao.WatchlistDao
 import com.darkjade.streamlib.data.db.entity.ComicEntity
@@ -25,6 +26,7 @@ import com.darkjade.streamlib.data.db.entity.PlaybackProgressEntity
 import com.darkjade.streamlib.data.db.entity.ProfileEntity
 import com.darkjade.streamlib.data.db.entity.ScanStatusEntity
 import com.darkjade.streamlib.data.db.entity.SeasonEntity
+import com.darkjade.streamlib.data.db.entity.SongEntity
 import com.darkjade.streamlib.data.db.entity.WatchHistoryEntity
 import com.darkjade.streamlib.data.db.entity.WatchlistEntity
 
@@ -41,8 +43,9 @@ import com.darkjade.streamlib.data.db.entity.WatchlistEntity
         ComicEntity::class,
         PlaybackProgressEntity::class,
         NewsArticleEntity::class,
+        SongEntity::class,
     ],
-    version = 14,
+    version = 15,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -58,6 +61,7 @@ abstract class StreamLibDatabase : RoomDatabase() {
     abstract fun comicDao(): ComicDao
     abstract fun playbackProgressDao(): PlaybackProgressDao
     abstract fun newsArticleDao(): NewsArticleDao
+    abstract fun songDao(): SongDao
 
     companion object {
         @Volatile private var INSTANCE: StreamLibDatabase? = null

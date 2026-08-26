@@ -4,6 +4,7 @@
 
     <!-- Media scanning permissions -->
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
     <!-- Needed for reliable device-wide comic file discovery (.cbz/.cbr/.cb7/.pdf) —
