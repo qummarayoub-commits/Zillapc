@@ -83,7 +83,7 @@ class MusicScanner(private val context: Context) {
                     val looksLikeAudio = ext in supportedExtensions || child.type?.startsWith("audio/") == true
                     if (looksLikeAudio) {
                         found++
-                        val event = classifyAndExtract(child.uri, name, pathSegments)
+                        val event = classifyAndExtract(child.uri, name, pathSegments, dir)
                         emit(event)
                         processed++
                         emit(MusicScanEvent.Progress(found, processed, name))
@@ -132,7 +132,7 @@ class MusicScanner(private val context: Context) {
                     val uri = android.content.ContentUris.withAppendedId(collection, id)
 
                     found++
-                    emit(classifyAndExtract(uri, name, pathSegments))
+                    emit(classifyAndExtract(uri, name, pathSegments, null))
                     processed++
                     emit(MusicScanEvent.Progress(found, processed, name))
                 }
@@ -147,7 +147,7 @@ class MusicScanner(private val context: Context) {
      * only ever returns a [MusicScanEvent.SongFound] for candidates that
      * genuinely look like music — otherwise a [MusicScanEvent.SkippedLowConfidence],
      * never fabricating title/artist for a low-confidence file just to import it. */
-    private fun classifyAndExtract(uri: Uri, displayName: String, pathSegments: List<String>): MusicScanEvent {
+    private fun classifyAndExtract(uri: Uri, displayName: String, pathSegments: List<String>, parentFolder: DocumentFile?): MusicScanEvent {
         val retriever = MediaMetadataRetriever()
         return try {
             retriever.setDataSource(context, uri)
@@ -162,7 +162,10 @@ class MusicScanner(private val context: Context) {
             val year = yearRaw?.take(4)?.toIntOrNull()
             val genre = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_GENRE)
             val durationMs = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
-            val artwork = retriever.embeddedPicture
+            // Priority 1: embedded artwork. Priority 2: cover.jpg/folder.jpg
+            // etc. in the same folder — only checked when embedded art is
+            // absent, and only for the SAF-tree path (has folder access).
+            val artwork = retriever.embeddedPicture ?: findFolderArtwork(parentFolder)
 
             val candidate = MusicClassifier.Candidate(
                 fileNameWithoutExtension = displayName.substringBeforeLast('.'),
@@ -210,6 +213,21 @@ class MusicScanner(private val context: Context) {
                 retriever.release()
             } catch (e: Exception) {
             }
+        }
+    }
+
+    /** Local-folder-artwork fallback (priority 2, when the file itself has
+     * no embedded picture) — looks for common cover-art filenames next to
+     * the song, inside its own parent folder. */
+    private fun findFolderArtwork(parentFolder: DocumentFile?): ByteArray? {
+        if (parentFolder == null) return null
+        val names = setOf("cover.jpg", "cover.jpeg", "cover.png", "folder.jpg", "folder.jpeg", "album.jpg", "album.png")
+        return try {
+            parentFolder.listFiles()
+                .firstOrNull { it.isFile && it.name?.lowercase() in names }
+                ?.let { context.contentResolver.openInputStream(it.uri)?.use { stream -> stream.readBytes() } }
+        } catch (e: Exception) {
+            null
         }
     }
 }

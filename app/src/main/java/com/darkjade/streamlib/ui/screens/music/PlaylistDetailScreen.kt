@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -48,6 +49,22 @@ import com.darkjade.streamlib.ui.theme.VaultShapes
 import com.darkjade.streamlib.ui.theme.VaultSpacing
 
 @Composable
+private fun CollageCell(artworkPath: String?, modifier: Modifier) {
+    Box(modifier = modifier.background(VaultColors.Background.copy(alpha = 0.3f))) {
+        if (artworkPath != null) {
+            SubcomposeAsyncImage(
+                model = artworkPath,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+                loading = {},
+                error = {},
+            )
+        }
+    }
+}
+
+@Composable
 fun PlaylistDetailScreen(
     viewModel: PlaylistDetailViewModel,
     onBack: () -> Unit,
@@ -79,22 +96,38 @@ fun PlaylistDetailScreen(
             LazyColumn(modifier = Modifier.fillMaxSize()) {
                 item {
                     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth().padding(VaultSpacing.lg)) {
-                        val coverArt = state.songs.firstOrNull { it.artworkPath != null }?.artworkPath
+                        val distinctArtworks = state.songs.mapNotNull { it.artworkPath }.distinct().take(4)
                         Box(
                             modifier = Modifier.size(180.dp).clip(RoundedCornerShape(12.dp)).background(VaultColors.SurfaceVariant),
                             contentAlignment = Alignment.Center,
                         ) {
-                            if (coverArt != null) {
-                                SubcomposeAsyncImage(
-                                    model = coverArt,
-                                    contentDescription = null,
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.fillMaxSize(),
-                                    loading = { Icon(Icons.Filled.QueueMusic, contentDescription = null, tint = VaultColors.TextTertiary, modifier = Modifier.size(48.dp)) },
-                                    error = { Icon(Icons.Filled.QueueMusic, contentDescription = null, tint = VaultColors.TextTertiary, modifier = Modifier.size(48.dp)) },
-                                )
-                            } else {
-                                Icon(Icons.Filled.QueueMusic, contentDescription = null, tint = VaultColors.TextTertiary, modifier = Modifier.size(48.dp))
+                            when {
+                                distinctArtworks.size >= 2 -> {
+                                    // Simple collage — up to 4 artworks in a 2x2 grid.
+                                    Column(modifier = Modifier.fillMaxSize()) {
+                                        Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                                            CollageCell(distinctArtworks.getOrNull(0), Modifier.weight(1f).fillMaxHeight())
+                                            CollageCell(distinctArtworks.getOrNull(1), Modifier.weight(1f).fillMaxHeight())
+                                        }
+                                        Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                                            CollageCell(distinctArtworks.getOrNull(2), Modifier.weight(1f).fillMaxHeight())
+                                            CollageCell(distinctArtworks.getOrNull(3), Modifier.weight(1f).fillMaxHeight())
+                                        }
+                                    }
+                                }
+                                distinctArtworks.size == 1 -> {
+                                    SubcomposeAsyncImage(
+                                        model = distinctArtworks[0],
+                                        contentDescription = null,
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize(),
+                                        loading = { Icon(Icons.Filled.QueueMusic, contentDescription = null, tint = VaultColors.TextTertiary, modifier = Modifier.size(48.dp)) },
+                                        error = { Icon(Icons.Filled.QueueMusic, contentDescription = null, tint = VaultColors.TextTertiary, modifier = Modifier.size(48.dp)) },
+                                    )
+                                }
+                                else -> {
+                                    Icon(Icons.Filled.QueueMusic, contentDescription = null, tint = VaultColors.TextTertiary, modifier = Modifier.size(48.dp))
+                                }
                             }
                         }
                         Text(

@@ -80,7 +80,7 @@ class MusicRepository(private val context: Context) {
             scanner.scanDevice().collect { event ->
                 when (event) {
                     is MusicScanEvent.SongFound -> {
-                        val artworkPath = event.song.embeddedArtwork?.let { bytes -> cacheArtwork(event.song.uri.toString(), bytes) }
+                        val artworkPath = event.song.embeddedArtwork?.let { bytes -> cacheArtwork("${event.song.artist}|${event.song.album}", bytes) }
                         val entity = SongEntity(
                             localFileUri = event.song.uri.toString(),
                             title = event.song.title,
@@ -128,7 +128,7 @@ class MusicRepository(private val context: Context) {
             scanner.scanTree(treeUri).collect { event ->
                 when (event) {
                     is MusicScanEvent.SongFound -> {
-                        val artworkPath = event.song.embeddedArtwork?.let { bytes -> cacheArtwork(event.song.uri.toString(), bytes) }
+                        val artworkPath = event.song.embeddedArtwork?.let { bytes -> cacheArtwork("${event.song.artist}|${event.song.album}", bytes) }
                         val entity = SongEntity(
                             localFileUri = event.song.uri.toString(),
                             title = event.song.title,
@@ -163,18 +163,21 @@ class MusicRepository(private val context: Context) {
         return if (error != null) Result.failure(Exception(error)) else Result.success(found)
     }
 
-    /** Writes embedded album art to the app's cache dir, keyed by a hash of
-     * the file's own URI so re-scanning the same song reuses the same file
-     * instead of endlessly duplicating images on disk. */
-    private fun cacheArtwork(key: String, bytes: ByteArray): String? {
+    /** Writes embedded album art to the app's cache dir, keyed by ALBUM (not
+     * per-song URI) so every song from the same album shares one cached
+     * file instead of duplicating identical bytes per-track. Returns a
+     * proper "file://" URI string — Coil's default String→data resolution
+     * parses via Uri.parse(), and a schemeless raw path silently fails to
+     * load (this was the actual root cause of "no artwork showing"). */
+    private fun cacheArtwork(albumKey: String, bytes: ByteArray): String? {
         return try {
             val dir = File(context.cacheDir, "album_art").apply { mkdirs() }
-            val hash = MessageDigest.getInstance("MD5").digest(key.toByteArray()).joinToString("") { "%02x".format(it) }
+            val hash = MessageDigest.getInstance("MD5").digest(albumKey.toByteArray()).joinToString("") { "%02x".format(it) }
             val file = File(dir, "$hash.jpg")
-            if (!file.exists()) {
+            if (!file.exists() || file.length() == 0L) {
                 file.writeBytes(bytes)
             }
-            file.absolutePath
+            android.net.Uri.fromFile(file).toString()
         } catch (e: Exception) {
             null
         }
