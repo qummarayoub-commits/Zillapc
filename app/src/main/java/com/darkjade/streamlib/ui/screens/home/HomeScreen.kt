@@ -418,10 +418,11 @@ private fun MainHeroCarousel(
                             modifier = Modifier.padding(top = VaultSpacing.xxs)
                         )
                     }
-                    // Watch in Velora capsule + Add to List — the exact same
-                    // capsule design used inside Movies/Series Details (V-mark
-                    // in a circle, orange pill, dark text), not a separate
-                    // banner-only button style.
+                    // Watch in Velora capsule + Add to List — same capsule
+                    // design as Movies/Series Details (V-mark in a circle,
+                    // orange pill, dark text), kept at the banner's original
+                    // larger size (52dp tall) rather than the smaller Details
+                    // sizing - design changed, size unchanged.
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(top = VaultSpacing.sm),
                         verticalAlignment = Alignment.CenterVertically,
@@ -430,34 +431,35 @@ private fun MainHeroCarousel(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
                                 .weight(1f)
+                                .height(52.dp)
                                 .clip(RoundedCornerShape(percent = 50))
                                 .background(VaultColors.Orange)
                                 .clickable { onWatch(hero) }
-                                .padding(start = 6.dp, end = 16.dp, top = 6.dp, bottom = 6.dp)
+                                .padding(start = 8.dp, end = 20.dp)
                         ) {
                             Box(
-                                modifier = Modifier.size(32.dp).clip(CircleShape).background(VaultColors.Background),
+                                modifier = Modifier.size(38.dp).clip(CircleShape).background(VaultColors.Background),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 if (hero is HeroCandidate.Comic) {
-                                    Icon(Icons.Filled.PlayArrow, contentDescription = null, tint = VaultColors.Orange, modifier = Modifier.size(16.dp))
+                                    Icon(Icons.Filled.PlayArrow, contentDescription = null, tint = VaultColors.Orange, modifier = Modifier.size(20.dp))
                                 } else {
                                     androidx.compose.foundation.Image(
                                         painter = androidx.compose.ui.res.painterResource(id = com.darkjade.streamlib.R.drawable.logo_v_mark),
                                         contentDescription = "Velora",
                                         colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(VaultColors.Orange),
-                                        modifier = Modifier.size(16.dp),
+                                        modifier = Modifier.size(20.dp),
                                     )
                                 }
                             }
                             Text(
                                 text = if (hero is HeroCandidate.Comic) "Read Now" else "Watch in Velora",
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.SemiBold,
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
                                 color = VaultColors.Background,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.padding(start = 8.dp)
+                                modifier = Modifier.padding(start = 10.dp)
                             )
                         }
                         Box(
