@@ -1,7 +1,7 @@
 name: Build FFmpeg Audio Decoder Extension
 
 # Manually triggered, deliberately separate from the main app build workflow.
-# Goal: prove the Media3 1.4.1 FFmpeg extension actually compiles for
+# Goal: prove the Media3 1.11.0 FFmpeg extension actually compiles for
 # arm64-v8a with the specific decoders we need (ac3, eac3, dca/DTS-core,
 # flac, opus, vorbis, alac) BEFORE touching the app's player integration at
 # all. If this fails, the main app build is completely unaffected.
@@ -27,11 +27,11 @@ jobs:
     timeout-minutes: 90
 
     steps:
-      - name: Checkout androidx/media at the Media3 1.4.1 tag
+      - name: Checkout androidx/media at the Media3 1.11.0 tag
         uses: actions/checkout@v4
         with:
           repository: androidx/media
-          ref: "1.4.1"
+          ref: "1.11.0"
           path: media3-source
 
       - name: Set up JDK 17

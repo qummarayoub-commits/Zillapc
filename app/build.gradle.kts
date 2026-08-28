@@ -117,10 +117,19 @@ dependencies {
     implementation("androidx.palette:palette-ktx:1.0.0")
 
     // Media3 / ExoPlayer — internal video player
-    implementation("androidx.media3:media3-exoplayer:1.4.1")
-    implementation("androidx.media3:media3-ui:1.4.1")
-    implementation("androidx.media3:media3-common:1.4.1")
-    implementation("androidx.media3:media3-session:1.4.1")
+    // Bumped 1.4.1 -> 1.11.0: real fix for MP4/MKV seeking. Upstream media3
+    // had a known MatroskaExtractor bug where Cue points weren't correctly
+    // associated with their track for multi-track files, and DefaultExtractorsFactory's
+    // handling of MP4/MKV seek maps has had several accuracy fixes since 1.4.1
+    // (release notes: "Fix an issue in MatroskaExtractor where seeking could be
+    // inaccurate for files with multiple tracks"). This is the actual root cause
+    // behind "seek works on some files, not others" for real local movie files -
+    // the earlier setConstantBitrateSeekingEnabled fix only ever applied to
+    // MP3/ADTS/AMR audio containers, never to MP4/MKV video containers.
+    implementation("androidx.media3:media3-exoplayer:1.11.0")
+    implementation("androidx.media3:media3-ui:1.11.0")
+    implementation("androidx.media3:media3-common:1.11.0")
+    implementation("androidx.media3:media3-session:1.11.0")
 
     // FFmpeg audio decoder extension — built via a dedicated GitHub Actions
     // workflow (ffmpeg-extension-build.yml), not a Maven dependency (Google

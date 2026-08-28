@@ -43,9 +43,9 @@ dependencies {
     // Published Maven artifacts — this module is built standalone against
     // Media3's public API, not as part of the androidx/media monorepo
     // (which uses internal project() references we don't have).
-    implementation("androidx.media3:media3-decoder:1.4.1")
-    implementation("androidx.media3:media3-exoplayer:1.4.1")
-    implementation("androidx.media3:media3-common:1.4.1")
+    implementation("androidx.media3:media3-decoder:1.11.0")
+    implementation("androidx.media3:media3-exoplayer:1.11.0")
+    implementation("androidx.media3:media3-common:1.11.0")
     implementation("androidx.annotation:annotation:1.8.0")
     compileOnly("org.checkerframework:checker-qual:3.42.0")
 }
