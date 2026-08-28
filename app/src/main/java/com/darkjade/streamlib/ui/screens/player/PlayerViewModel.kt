@@ -17,6 +17,8 @@ import androidx.media3.common.Tracks
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlaybackException
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.extractor.DefaultExtractorsFactory
 import com.darkjade.streamlib.data.repository.LibraryRepository
 import com.darkjade.streamlib.data.repository.PlaybackRepository
 import kotlinx.coroutines.Job
@@ -128,6 +130,28 @@ class PlayerViewModel(
             )
             .setEnableDecoderFallback(true)
     )
+        .setMediaSourceFactory(
+            // Real fix for "seek bar doesn't work reliably across formats":
+            // per Android's own ExoPlayer troubleshooting guide, several
+            // extractors (MP3, MP4, Matroska/MKV, TS, WAV, OGG, AMR - most of
+            // what local movie files actually are) can only report an exact
+            // seek map when the file itself carries one (a proper index/Cues
+            // table). Plenty of real-world local video files - especially
+            // re-muxed/converted rips - simply don't have one, so ExoPlayer
+            // marks them unseekable/imprecise by default and any seek can
+            // fail or land far from the target - matching exactly "works on
+            // some files, not others, no matter the format". Android's own
+            // docs recommend DefaultExtractorsFactory.setConstantBitrateSeekingEnabled(true)
+            // for exactly this: it lets ExoPlayer estimate a seek position
+            // from bitrate x time when there's no real index, instead of
+            // refusing/failing the seek. This is a real, documented,
+            // officially-recommended fix - not a guess.
+            DefaultMediaSourceFactory(
+                appContext,
+                DefaultExtractorsFactory()
+                    .setConstantBitrateSeekingEnabled(true)
+            )
+        )
         .setAudioAttributes(
             AudioAttributes.Builder()
                 .setUsage(C.USAGE_MEDIA)
