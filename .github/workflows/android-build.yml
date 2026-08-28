@@ -75,7 +75,7 @@ jobs:
         if: steps.extract.outputs.did_extract != 'true'
         uses: gradle/actions/setup-gradle@v3
         with:
-          gradle-version: 8.7
+          gradle-version: 8.13
           # GitHub's Actions cache service has been having outages that were
           # blocking every build attempt (cache restore/save failing with
           # "Our services aren't available right now"). Disabling the cache
@@ -84,7 +84,7 @@ jobs:
 
       - name: Generate Gradle wrapper
         if: steps.extract.outputs.did_extract != 'true'
-        run: gradle wrapper --gradle-version 8.7
+        run: gradle wrapper --gradle-version 8.13
 
       - name: Grant execute permission for gradlew
         if: steps.extract.outputs.did_extract != 'true'

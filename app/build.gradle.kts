@@ -24,12 +24,16 @@ val omdbApiKey: String = (localProperties.getProperty("OMDB_API_KEY")
 
 android {
     namespace = "com.darkjade.streamlib"
-    compileSdk = 34
+    // Bumped 34 -> 36: media3 1.11.0's AAR metadata requires compiling
+    // against API 35+ (AGP 8.13's max supported level is 36.1) - the actual
+    // cause of the checkDebugAarMetadata failure when the Media3 upgrade
+    // first landed.
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.darkjade.streamlib"
         minSdk = 26
-        targetSdk = 34
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0.0"
 

@@ -4,7 +4,7 @@ plugins {
 
 android {
     namespace = "androidx.media3.decoder.ffmpeg"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         minSdk = 26
