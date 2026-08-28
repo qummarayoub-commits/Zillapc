@@ -484,7 +484,7 @@ fun PlayerScreen(
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    IconButton(onClick = { viewModel.seekBy(-10_000) }) {
+                    IconButton(onClick = { viewModel.seekBy(-10_000) }, enabled = state.durationMs > 0) {
                         Icon(Icons.Filled.Replay10, contentDescription = "Rewind 10 seconds", tint = Color.White)
                     }
                     IconButton(
@@ -498,7 +498,7 @@ fun PlayerScreen(
                             modifier = Modifier.size(40.dp)
                         )
                     }
-                    IconButton(onClick = { viewModel.seekBy(10_000) }) {
+                    IconButton(onClick = { viewModel.seekBy(10_000) }, enabled = state.durationMs > 0) {
                         Icon(Icons.Filled.Forward10, contentDescription = "Forward 10 seconds", tint = Color.White)
                     }
                 }
