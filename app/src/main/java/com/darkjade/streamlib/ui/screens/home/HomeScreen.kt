@@ -37,9 +37,6 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -364,24 +361,6 @@ private fun MainHeroCarousel(
                             )
                         )
                 )
-                hero.rating?.let { rating ->
-                    Row(
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(top = VaultSpacing.xl, end = VaultSpacing.md)
-                            .clip(VaultShapes.chip)
-                            .background(Color.Black.copy(alpha = 0.45f))
-                            .padding(horizontal = VaultSpacing.sm, vertical = VaultSpacing.xxs),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Icon(Icons.Filled.Star, contentDescription = null, tint = VaultColors.PremiumGold, modifier = Modifier.size(14.dp))
-                        Text(
-                            " ${"%.1f".format(rating)}",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = VaultColors.TextPrimary,
-                        )
-                    }
-                }
                 Column(
                     modifier = Modifier
                         .align(Alignment.BottomStart)
@@ -389,15 +368,6 @@ private fun MainHeroCarousel(
                         .padding(VaultSpacing.md)
                         .padding(bottom = VaultSpacing.lg)
                 ) {
-                    hero.metaLine?.let {
-                        Text(
-                            text = it,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = VaultColors.TextSecondary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
                     // The movie/show's real stylized title-logo artwork from
                     // TMDB (same source used on Details) - not manually
                     // rendered text - with a plain-text fallback only if
@@ -426,6 +396,18 @@ private fun MainHeroCarousel(
                             modifier = Modifier.padding(top = 2.dp)
                         )
                     }
+                    // Age-rating/genres line — now under the title (was above
+                    // it before, together with the removed rating badge).
+                    hero.metaLine?.let {
+                        Text(
+                            text = it,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = VaultColors.TextSecondary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(top = VaultSpacing.xxs)
+                        )
+                    }
                     hero.overview?.let {
                         Text(
                             text = it,
@@ -436,27 +418,46 @@ private fun MainHeroCarousel(
                             modifier = Modifier.padding(top = VaultSpacing.xxs)
                         )
                     }
-                    // Watch Now + Add to List — same orange-filled pill/dark-text
-                    // treatment as the "Watch in Velora" capsule on Details,
-                    // placed and sized like the reference (a wide button with
-                    // a circular bookmark button beside it).
+                    // Watch in Velora capsule + Add to List — the exact same
+                    // capsule design used inside Movies/Series Details (V-mark
+                    // in a circle, orange pill, dark text), not a separate
+                    // banner-only button style.
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(top = VaultSpacing.sm),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Button(
-                            onClick = { onWatch(hero) },
-                            shape = VaultShapes.button,
-                            colors = ButtonDefaults.buttonColors(containerColor = VaultColors.Orange, contentColor = VaultColors.Background),
-                            modifier = Modifier.weight(1f).height(52.dp)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(percent = 50))
+                                .background(VaultColors.Orange)
+                                .clickable { onWatch(hero) }
+                                .padding(start = 6.dp, end = 16.dp, top = 6.dp, bottom = 6.dp)
                         ) {
-                            Icon(Icons.Filled.PlayArrow, contentDescription = null, tint = VaultColors.Background)
+                            Box(
+                                modifier = Modifier.size(32.dp).clip(CircleShape).background(VaultColors.Background),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                if (hero is HeroCandidate.Comic) {
+                                    Icon(Icons.Filled.PlayArrow, contentDescription = null, tint = VaultColors.Orange, modifier = Modifier.size(16.dp))
+                                } else {
+                                    androidx.compose.foundation.Image(
+                                        painter = androidx.compose.ui.res.painterResource(id = com.darkjade.streamlib.R.drawable.logo_v_mark),
+                                        contentDescription = "Velora",
+                                        colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(VaultColors.Orange),
+                                        modifier = Modifier.size(16.dp),
+                                    )
+                                }
+                            }
                             Text(
-                                text = if (hero is HeroCandidate.Comic) " Read Now" else " Watch Now",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold,
+                                text = if (hero is HeroCandidate.Comic) "Read Now" else "Watch in Velora",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.SemiBold,
                                 color = VaultColors.Background,
-                                modifier = Modifier.padding(start = 2.dp)
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.padding(start = 8.dp)
                             )
                         }
                         Box(
