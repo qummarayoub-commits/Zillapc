@@ -2,6 +2,7 @@ package com.darkjade.streamlib.ui.screens.home
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -25,6 +27,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Article
+import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Menu
@@ -58,6 +61,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil.compose.SubcomposeAsyncImage
@@ -394,14 +398,34 @@ private fun MainHeroCarousel(
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
-                    Text(
-                        text = hero.title,
-                        style = MaterialTheme.typography.headlineLarge,
-                        color = VaultColors.TextPrimary,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(top = 2.dp)
-                    )
+                    // The movie/show's real stylized title-logo artwork from
+                    // TMDB (same source used on Details) - not manually
+                    // rendered text - with a plain-text fallback only if
+                    // TMDB doesn't have one for this title.
+                    if (!hero.titleLogoUrl.isNullOrBlank()) {
+                        SubcomposeAsyncImage(
+                            model = hero.titleLogoUrl,
+                            contentDescription = hero.title,
+                            contentScale = ContentScale.Fit,
+                            alignment = Alignment.CenterStart,
+                            modifier = Modifier.fillMaxWidth().heightIn(max = 70.dp),
+                            loading = {
+                                Text(hero.title, style = MaterialTheme.typography.headlineLarge, color = VaultColors.TextPrimary, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            },
+                            error = {
+                                Text(hero.title, style = MaterialTheme.typography.headlineLarge, color = VaultColors.TextPrimary, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            },
+                        )
+                    } else {
+                        Text(
+                            text = hero.title,
+                            style = MaterialTheme.typography.headlineLarge,
+                            color = VaultColors.TextPrimary,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(top = 2.dp)
+                        )
+                    }
                     hero.overview?.let {
                         Text(
                             text = it,
@@ -412,6 +436,10 @@ private fun MainHeroCarousel(
                             modifier = Modifier.padding(top = VaultSpacing.xxs)
                         )
                     }
+                    // Watch Now + Add to List — same orange-filled pill/dark-text
+                    // treatment as the "Watch in Velora" capsule on Details,
+                    // placed and sized like the reference (a wide button with
+                    // a circular bookmark button beside it).
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(top = VaultSpacing.sm),
                         verticalAlignment = Alignment.CenterVertically,
@@ -419,27 +447,29 @@ private fun MainHeroCarousel(
                         Button(
                             onClick = { onWatch(hero) },
                             shape = VaultShapes.button,
-                            colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = VaultColors.Orange),
-                            modifier = Modifier.weight(1f).height(48.dp)
+                            colors = ButtonDefaults.buttonColors(containerColor = VaultColors.Orange, contentColor = VaultColors.Background),
+                            modifier = Modifier.weight(1f).height(52.dp)
                         ) {
-                            Icon(Icons.Filled.PlayArrow, contentDescription = null)
+                            Icon(Icons.Filled.PlayArrow, contentDescription = null, tint = VaultColors.Background)
                             Text(
                                 text = if (hero is HeroCandidate.Comic) " Read Now" else " Watch Now",
                                 style = MaterialTheme.typography.titleSmall,
-                                color = VaultColors.Orange,
+                                fontWeight = FontWeight.Bold,
+                                color = VaultColors.Background,
                                 modifier = Modifier.padding(start = 2.dp)
                             )
                         }
                         Box(
                             modifier = Modifier
                                 .padding(start = VaultSpacing.sm)
-                                .size(48.dp)
+                                .size(52.dp)
                                 .clip(CircleShape)
                                 .background(Color.Black.copy(alpha = 0.35f))
+                                .border(1.5.dp, VaultColors.Orange, CircleShape)
                                 .clickable { onOpenDetails(hero) },
                             contentAlignment = Alignment.Center,
                         ) {
-                            Icon(Icons.Filled.Add, contentDescription = "Save to list", tint = Color.White)
+                            Icon(Icons.Filled.BookmarkBorder, contentDescription = "Add to list", tint = VaultColors.Orange)
                         }
                     }
                 }

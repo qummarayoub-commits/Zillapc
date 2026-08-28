@@ -11,6 +11,7 @@ sealed class HeroCandidate {
     abstract val overview: String?
     abstract val rating: Double?
     abstract val metaLine: String? // e.g. "2h 14m • Action • 2019"
+    abstract val titleLogoUrl: String? // TMDB's own stylized title-logo artwork, when available
 
     data class Media(val item: MediaItemEntity) : HeroCandidate() {
         override val id: Long get() = item.id
@@ -18,6 +19,7 @@ sealed class HeroCandidate {
         override val backdropUrl: String? get() = item.backdropUrl
         override val overview: String? get() = item.overview
         override val rating: Double? get() = item.imdbRating ?: item.rating
+        override val titleLogoUrl: String? get() = item.titleLogoUrl
         override val metaLine: String?
             get() {
                 val bits = buildList {
@@ -36,6 +38,7 @@ sealed class HeroCandidate {
         override val backdropUrl: String? get() = item.coverUrl
         override val overview: String? get() = item.overview
         override val rating: Double? get() = null
+        override val titleLogoUrl: String? get() = null
         override val metaLine: String? get() = item.seriesName?.takeIf { it.isNotBlank() }
     }
 }
