@@ -152,6 +152,11 @@ class PlayerViewModel(
     private var currentMediaUriString: String? = null
     private val externalSubtitles = mutableListOf<MediaItem.SubtitleConfiguration>()
 
+    /** Set the instant the user first interacts with seeking (seek bar drag,
+     * tap, or the +/-10s buttons). Guards resumeSavedPosition() below - see
+     * that function's comment for the race it closes. */
+    private var userInitiatedSeek = false
+
     init {
         player.addListener(
             object : Player.Listener {
@@ -318,7 +323,23 @@ class PlayerViewModel(
                     "($mimeLabel) and retrying video-only playback."
             )
 
-            val resumePosition = player.currentPosition
+            // Real third finding from the seek investigation: capturing only
+            // player.currentPosition here can occasionally be stale if this
+            // error fires right as a seek is still settling (the renderer
+            // fails before currentPosition reflects the just-requested
+            // target). Falling back to the last known UI position too and
+            // taking whichever is further along prevents this retry from
+            // ever regressing playback to an earlier point than where the
+            // user actually was.
+            val resumePosition = maxOf(player.currentPosition, _uiState.value.positionMs)
+
+            Log.d(
+                TAG,
+                "handlePlaybackError: audio renderer failure, " +
+                    "player.currentPosition=${player.currentPosition}ms " +
+                    "uiState.positionMs=${_uiState.value.positionMs}ms " +
+                    "resumePosition=${resumePosition}ms"
+            )
 
             player.trackSelectionParameters =
                 player.trackSelectionParameters
@@ -496,9 +517,25 @@ class PlayerViewModel(
                         _uiState.value.durationMs
                     }
 
+                val newPositionMs = player.currentPosition.coerceAtLeast(0)
+
+                // Diagnostic only (per the investigation checklist): if the
+                // engine's own position suddenly collapses to near-zero right
+                // after we were tracking a much later position, that's
+                // ExoPlayer itself reporting the drop - not something in our
+                // seek math - and points at a per-file container/seek-table
+                // issue instead. Left in as a cheap always-on trip-wire.
+                if (_uiState.value.positionMs > 5_000 && newPositionMs < 500) {
+                    Log.w(
+                        TAG,
+                        "startPositionPoll: engine position dropped from " +
+                            "${_uiState.value.positionMs}ms to ${newPositionMs}ms " +
+                            "(duration=${safeDuration}ms, playbackState=${player.playbackState})"
+                    )
+                }
+
                 _uiState.value = _uiState.value.copy(
-                    positionMs =
-                        player.currentPosition.coerceAtLeast(0),
+                    positionMs = newPositionMs,
                     durationMs = safeDuration
                 )
             }
@@ -549,6 +586,25 @@ class PlayerViewModel(
         }
     }
 
+    /**
+     * Resumes the saved playback position once, right after the player
+     * first becomes ready.
+     *
+     * Real second bug found while investigating the "seek forward snaps
+     * back" report: getProgress() is a suspend DB read, so this runs
+     * asynchronously on a coroutine. If the user opens the player (e.g. via
+     * "Resume Where You Left Off" or straight into a title) and immediately
+     * taps/drags the seek bar to a NEW position before this DB read
+     * finishes, the read completes moments later and calls
+     * player.seekTo(saved.positionMs) - silently overwriting the user's own
+     * just-made seek with the OLD saved position. On a long (2h+) movie
+     * that DB read + coroutine dispatch has more time to lose the race
+     * (more tracks/metadata to resolve, slower storage), so it reproduced
+     * exactly as "sometimes works, sometimes not" and could look like a
+     * snap back to an earlier point. Now guarded: if the user has already
+     * initiated any seek by the time this resolves, their seek wins and the
+     * saved-position resume is skipped entirely.
+     */
     private fun resumeSavedPosition() {
 
         viewModelScope.launch {
@@ -559,14 +615,26 @@ class PlayerViewModel(
                     episodeId
                 )
 
+            Log.d(
+                TAG,
+                "resumeSavedPosition: saved=${saved?.positionMs}ms " +
+                    "userInitiatedSeek=$userInitiatedSeek"
+            )
+
             if (
                 saved != null &&
                 saved.positionMs > 0 &&
-                !saved.completed
+                !saved.completed &&
+                !userInitiatedSeek
             ) {
                 player.seekTo(
                     saved.positionMs
                 )
+
+                _uiState.value =
+                    _uiState.value.copy(
+                        positionMs = saved.positionMs
+                    )
             }
         }
     }
@@ -652,16 +720,32 @@ class PlayerViewModel(
 
     fun seekBy(deltaMs: Long) {
 
+        userInitiatedSeek = true
+
+        val currentPosition = player.currentPosition
+        val rawDuration = player.duration
+        val safeDuration = safeSeekDuration()
+
         val target =
             (
-                player.currentPosition +
+                currentPosition +
                     deltaMs
             ).coerceIn(
                 0,
-                safeSeekDuration()
+                safeDuration
             )
 
+        Log.d(
+            TAG,
+            "seekBy: delta=${deltaMs}ms currentPosition=${currentPosition}ms " +
+                "rawDuration=${rawDuration}ms safeDuration=${safeDuration}ms " +
+                "target=${target}ms"
+        )
+
         player.seekTo(target)
+
+        val actualAfterSeek = player.currentPosition
+        Log.d(TAG, "seekBy: position immediately after seekTo=${actualAfterSeek}ms")
 
         _uiState.value =
             _uiState.value.copy(
@@ -669,16 +753,30 @@ class PlayerViewModel(
             )
     }
 
-    /** Used directly by the custom seek bar's drag gesture. */
+    /** Used directly by the custom seek bar's drag/tap gesture. */
     fun seekTo(positionMs: Long) {
+
+        userInitiatedSeek = true
+
+        val rawDuration = player.duration
+        val safeDuration = safeSeekDuration()
 
         val target =
             positionMs.coerceIn(
                 0,
-                safeSeekDuration()
+                safeDuration
             )
 
+        Log.d(
+            TAG,
+            "seekTo: requested=${positionMs}ms rawDuration=${rawDuration}ms " +
+                "safeDuration=${safeDuration}ms target=${target}ms"
+        )
+
         player.seekTo(target)
+
+        val actualAfterSeek = player.currentPosition
+        Log.d(TAG, "seekTo: position immediately after seekTo=${actualAfterSeek}ms")
 
         _uiState.value =
             _uiState.value.copy(
