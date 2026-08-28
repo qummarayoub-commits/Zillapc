@@ -100,9 +100,13 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
 
     // Room
-    implementation("androidx.room:room-runtime:2.6.1")
-    implementation("androidx.room:room-ktx:2.6.1")
-    ksp("androidx.room:room-compiler:2.6.1")
+    // Bumped 2.6.1 -> 2.8.0 (latest 2.x - NOT the breaking Room 3.0 line,
+    // which changes package/artifact IDs and requires all-suspend DAOs):
+    // fixes a real KSP2 bug ("unexpected jvm signature V" on Room DAO
+    // methods) that Kotlin 2.2/KSP 2.2.10-2.0.2 triggers with Room 2.6.1.
+    implementation("androidx.room:room-runtime:2.8.0")
+    implementation("androidx.room:room-ktx:2.8.0")
+    ksp("androidx.room:room-compiler:2.8.0")
 
     // DataStore (settings)
     implementation("androidx.datastore:datastore-preferences:1.1.1")
@@ -154,7 +158,7 @@ dependencies {
     // Paging
     implementation("androidx.paging:paging-runtime-ktx:3.3.0")
     implementation("androidx.paging:paging-compose:3.3.0")
-    implementation("androidx.room:room-paging:2.6.1")
+    implementation("androidx.room:room-paging:2.8.0")
 
     // Testing
     testImplementation("junit:junit:4.13.2")
