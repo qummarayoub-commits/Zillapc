@@ -1,6 +1,7 @@
 package com.darkjade.streamlib.ui.screens.details
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -123,35 +124,6 @@ private fun MetacriticIcon(size: androidx.compose.ui.unit.Dp = 16.dp) {
         contentDescription = "Metacritic",
         modifier = Modifier.size(size),
     )
-}
-
-/** Minimal list-view mark: three horizontal rounded lines with three small
- * circular dots aligned vertically on the left — a clean modern outline
- * icon, drawn rather than pulled from a specific icon pack, matching the
- * requested Lucide/Material list-icon style. */
-@Composable
-private fun ListViewIcon(size: androidx.compose.ui.unit.Dp = 22.dp, color: Color = Color(0xFF1A1A1A)) {
-    androidx.compose.foundation.Canvas(modifier = Modifier.size(size)) {
-        val w = this.size.width
-        val h = this.size.height
-        val strokeWidth = w * 0.09f
-        val dotRadius = w * 0.06f
-        val dotX = w * 0.13f
-        val lineStartX = w * 0.32f
-        val lineEndX = w * 0.92f
-        val rowYs = listOf(h * 0.22f, h * 0.5f, h * 0.78f)
-
-        rowYs.forEach { y ->
-            drawCircle(color = color, radius = dotRadius, center = androidx.compose.ui.geometry.Offset(dotX, y))
-            drawLine(
-                color = color,
-                start = androidx.compose.ui.geometry.Offset(lineStartX, y),
-                end = androidx.compose.ui.geometry.Offset(lineEndX, y),
-                strokeWidth = strokeWidth,
-                cap = androidx.compose.ui.graphics.StrokeCap.Round,
-            )
-        }
-    }
 }
 
 /** Real TMDB logo mark (bundled logo asset), height-constrained so it sits
@@ -506,20 +478,22 @@ fun DetailsScreen(
                                 }
 
                                 // Ratings row — its own clean, aligned row underneath. Only
-                                // real, fetched data; nothing invented.
+                                // real, fetched data; nothing invented. More breathing room
+                                // between each logo+score group, and more space below the row
+                                // so the capsule row underneath doesn't feel cramped against it.
                                 if (media.imdbRating != null || media.rottenTomatoesPercent != null || media.rating != null) {
-                                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = VaultSpacing.xs)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = VaultSpacing.sm)) {
                                         media.imdbRating?.let {
                                             ImdbIcon(height = 15.dp)
-                                            Text(" ${"%.1f".format(it)}", style = MaterialTheme.typography.labelMedium, color = VaultColors.TextPrimary, modifier = Modifier.padding(start = 4.dp, end = VaultSpacing.sm))
+                                            Text(" ${"%.1f".format(it)}", style = MaterialTheme.typography.labelMedium, color = VaultColors.TextPrimary, modifier = Modifier.padding(start = 4.dp, end = VaultSpacing.md))
                                         }
                                         media.rottenTomatoesPercent?.let {
                                             RottenTomatoIcon()
-                                            Text(" $it%", style = MaterialTheme.typography.labelMedium, color = VaultColors.TextPrimary, modifier = Modifier.padding(start = 3.dp, end = VaultSpacing.sm))
+                                            Text(" $it%", style = MaterialTheme.typography.labelMedium, color = VaultColors.TextPrimary, modifier = Modifier.padding(start = 3.dp, end = VaultSpacing.md))
                                         }
                                         media.rating?.let {
                                             TmdbIcon()
-                                            Text(" ${"%.1f".format(it)}", style = MaterialTheme.typography.labelMedium, color = VaultColors.TextPrimary, modifier = Modifier.padding(start = 4.dp, end = VaultSpacing.sm))
+                                            Text(" ${"%.1f".format(it)}", style = MaterialTheme.typography.labelMedium, color = VaultColors.TextPrimary, modifier = Modifier.padding(start = 4.dp, end = VaultSpacing.md))
                                         }
                                         media.metacriticScore?.let {
                                             MetacriticIcon(size = 16.dp)
@@ -528,10 +502,13 @@ fun DetailsScreen(
                                     }
                                 }
 
-                                // Watch in Velora capsule (left) + Add to List capsule (right) —
-                                // same pill shape/spacing/sizing on both sides so the row reads
-                                // as one balanced line with no extra/uneven space.
-                                Row(modifier = Modifier.fillMaxWidth().padding(top = VaultSpacing.sm), verticalAlignment = Alignment.CenterVertically) {
+                                // Watch in Velora capsule (left) + Add to List (right) — same
+                                // size/design as the Home banner's capsule (52dp tall, 38dp
+                                // icon-circle, titleSmall Bold text) instead of a smaller
+                                // Details-only sizing, and Add to List is now the same
+                                // orange-ring bookmark icon button used on the banner instead
+                                // of the old white text pill.
+                                Row(modifier = Modifier.fillMaxWidth().padding(top = VaultSpacing.lg), verticalAlignment = Alignment.CenterVertically) {
 
                                     // Velora play capsule — the V-mark icon attached to a pill
                                     // reading "Watch in Velora", or the honest "No Streaming
@@ -540,86 +517,81 @@ fun DetailsScreen(
                                         Row(
                                             verticalAlignment = Alignment.CenterVertically,
                                             modifier = Modifier
+                                                .weight(1f)
+                                                .height(52.dp)
                                                 .clip(RoundedCornerShape(percent = 50))
                                                 .background(VaultColors.Orange)
                                                 .clickable {
                                                     viewModel.recordOpened(state.nextUpEpisodeId)
                                                     onPlay(state.nextUpUri.toString(), state.nextUpEpisodeId)
                                                 }
-                                                .padding(start = 6.dp, end = 16.dp, top = 6.dp, bottom = 6.dp)
+                                                .padding(start = 8.dp, end = 20.dp)
                                         ) {
                                             Box(
-                                                modifier = Modifier.size(32.dp).clip(CircleShape).background(VaultColors.Background),
+                                                modifier = Modifier.size(38.dp).clip(CircleShape).background(VaultColors.Background),
                                                 contentAlignment = Alignment.Center,
                                             ) {
                                                 androidx.compose.foundation.Image(
                                                     painter = androidx.compose.ui.res.painterResource(id = com.darkjade.streamlib.R.drawable.logo_v_mark),
                                                     contentDescription = "Velora",
                                                     colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(VaultColors.Orange),
-                                                    modifier = Modifier.size(16.dp),
+                                                    modifier = Modifier.size(20.dp),
                                                 )
                                             }
                                             Text(
                                                 "Watch in Velora",
-                                                style = MaterialTheme.typography.labelLarge,
-                                                fontWeight = FontWeight.SemiBold,
+                                                style = MaterialTheme.typography.titleSmall,
+                                                fontWeight = FontWeight.Bold,
                                                 color = VaultColors.Background,
-                                                modifier = Modifier.padding(start = 8.dp)
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                                modifier = Modifier.padding(start = 10.dp)
                                             )
                                         }
                                     } else {
                                         Row(
                                             verticalAlignment = Alignment.CenterVertically,
                                             modifier = Modifier
+                                                .weight(1f)
+                                                .height(52.dp)
                                                 .clip(RoundedCornerShape(percent = 50))
                                                 .background(Color.White.copy(alpha = 0.08f))
-                                                .padding(start = 6.dp, end = 16.dp, top = 6.dp, bottom = 6.dp)
+                                                .padding(start = 8.dp, end = 20.dp)
                                         ) {
                                             Box(
-                                                modifier = Modifier.size(32.dp).clip(CircleShape).background(VaultColors.SurfaceVariant),
+                                                modifier = Modifier.size(38.dp).clip(CircleShape).background(VaultColors.SurfaceVariant),
                                                 contentAlignment = Alignment.Center,
                                             ) {
-                                                Icon(Icons.Filled.CloudOff, contentDescription = null, tint = VaultColors.TextTertiary, modifier = Modifier.size(16.dp))
+                                                Icon(Icons.Filled.CloudOff, contentDescription = null, tint = VaultColors.TextTertiary, modifier = Modifier.size(18.dp))
                                             }
                                             Text(
                                                 "No Streaming Availability",
                                                 style = MaterialTheme.typography.labelSmall,
                                                 color = VaultColors.TextTertiary,
-                                                modifier = Modifier.padding(start = 8.dp)
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                                modifier = Modifier.padding(start = 10.dp)
                                             )
                                         }
                                     }
 
-                                    Spacer(Modifier.weight(1f))
-
-                                    // Add to List capsule — same pill shape, padding, icon-circle
-                                    // size and font weight as the Velora capsule (white background,
-                                    // black icon/text) so the two sides match exactly.
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
+                                    // Add to List — same orange-ring circular bookmark button as
+                                    // the Home banner (was a white "Add to List" text pill before).
+                                    Box(
                                         modifier = Modifier
-                                            .clip(RoundedCornerShape(percent = 50))
-                                            .background(Color.White)
-                                            .clickable { viewModel.toggleWatchlist() }
-                                            .padding(start = 6.dp, end = 16.dp, top = 6.dp, bottom = 6.dp)
+                                            .padding(start = VaultSpacing.sm)
+                                            .size(52.dp)
+                                            .clip(CircleShape)
+                                            .background(Color.Black.copy(alpha = 0.35f))
+                                            .border(1.5.dp, VaultColors.Orange, CircleShape)
+                                            .clickable { viewModel.toggleWatchlist() },
+                                        contentAlignment = Alignment.Center,
                                     ) {
-                                        Box(
-                                            modifier = Modifier.size(32.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.08f)),
-                                            contentAlignment = Alignment.Center,
-                                        ) {
-                                            if (state.isInWatchlist) {
-                                                Icon(Icons.Filled.Bookmark, contentDescription = "Added to List", tint = Color(0xFF1A1A1A), modifier = Modifier.size(16.dp))
-                                            } else {
-                                                ListViewIcon(size = 16.dp, color = Color(0xFF1A1A1A))
-                                            }
+                                        if (state.isInWatchlist) {
+                                            Icon(Icons.Filled.Bookmark, contentDescription = "Added to List", tint = VaultColors.Orange)
+                                        } else {
+                                            Icon(Icons.Filled.BookmarkBorder, contentDescription = "Add to list", tint = VaultColors.Orange)
                                         }
-                                        Text(
-                                            "Add to List",
-                                            style = MaterialTheme.typography.labelLarge,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = Color(0xFF1A1A1A),
-                                            modifier = Modifier.padding(start = 8.dp)
-                                        )
                                     }
                                 }
 
