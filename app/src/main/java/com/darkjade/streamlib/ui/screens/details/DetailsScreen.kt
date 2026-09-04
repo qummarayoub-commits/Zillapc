@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bookmark
@@ -44,6 +45,7 @@ import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -306,6 +308,114 @@ private fun AddInfoDialog(viewModel: DetailsViewModel, onDismiss: () -> Unit) {
     }
 }
 
+/** "Change Poster / Backdrop" — pick a specific image from the TMDB
+ * gallery already fetched with this title, instead of the one TMDB
+ * auto-assigned. Two tabs (Poster/Backdrop), each a grid of thumbnails;
+ * tapping one applies it immediately and closes the dialog. */
+@Composable
+private fun ChangeImageDialog(viewModel: DetailsViewModel, media: MediaItemEntity, onDismiss: () -> Unit) {
+    var showingBackdrops by remember { mutableStateOf(false) }
+
+    val posterUrls = remember(media.alternatePosterUrls, media.posterUrl) {
+        val alts = media.alternatePosterUrls.split(",").filter { it.isNotBlank() }
+        (listOfNotNull(media.posterUrl) + alts).distinct()
+    }
+    val backdropUrls = remember(media.alternateBackdropUrls, media.backdropUrl) {
+        val alts = media.alternateBackdropUrls.split(",").filter { it.isNotBlank() }
+        (listOfNotNull(media.backdropUrl) + alts).distinct()
+    }
+    val urls = if (showingBackdrops) backdropUrls else posterUrls
+    val currentUrl = if (showingBackdrops) media.backdropUrl else media.posterUrl
+
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = 480.dp)
+                .clip(VaultShapes.card)
+                .background(VaultColors.Surface)
+                .padding(VaultSpacing.md)
+        ) {
+            Text("Change Poster / Backdrop", style = MaterialTheme.typography.titleMedium, color = VaultColors.TextPrimary)
+            Spacer(Modifier.height(VaultSpacing.sm))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(VaultSpacing.xs)) {
+                listOf(false to "Poster", true to "Backdrop").forEach { (backdrop, label) ->
+                    val selected = showingBackdrops == backdrop
+                    Text(
+                        label,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                        color = if (selected) VaultColors.Background else VaultColors.TextSecondary,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(50))
+                            .background(if (selected) VaultColors.Orange else VaultColors.SurfaceVariant)
+                            .clickable { showingBackdrops = backdrop }
+                            .padding(vertical = VaultSpacing.xs)
+                    )
+                }
+            }
+            Spacer(Modifier.height(VaultSpacing.md))
+
+            if (urls.isEmpty()) {
+                Text(
+                    if (showingBackdrops) "No alternate backdrops available from TMDB for this title." else "No alternate posters available from TMDB for this title.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = VaultColors.TextTertiary,
+                    modifier = Modifier.padding(vertical = VaultSpacing.lg)
+                )
+            } else {
+                androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
+                    columns = androidx.compose.foundation.lazy.grid.GridCells.Fixed(if (showingBackdrops) 2 else 3),
+                    horizontalArrangement = Arrangement.spacedBy(VaultSpacing.xs),
+                    verticalArrangement = Arrangement.spacedBy(VaultSpacing.xs),
+                    modifier = Modifier.weight(1f, fill = false),
+                ) {
+                    items(urls, key = { it }) { url ->
+                        val isCurrent = url == currentUrl
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .aspectRatio(if (showingBackdrops) 16f / 9f else 2f / 3f)
+                                .clip(VaultShapes.card)
+                                .background(VaultColors.SurfaceVariant)
+                                .then(
+                                    if (isCurrent) Modifier.border(2.dp, VaultColors.Orange, VaultShapes.card)
+                                    else Modifier
+                                )
+                                .clickable {
+                                    if (showingBackdrops) viewModel.setBackdrop(url) else viewModel.setPoster(url)
+                                    onDismiss()
+                                },
+                        ) {
+                            SubcomposeAsyncImage(
+                                model = url,
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize(),
+                                loading = {},
+                                error = {},
+                            )
+                            if (isCurrent) {
+                                Icon(
+                                    Icons.Filled.CheckCircle,
+                                    contentDescription = "Current",
+                                    tint = VaultColors.Orange,
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .padding(4.dp)
+                                        .size(16.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 private data class ParsedCastMember(val name: String, val character: String?, val photoUrl: String?)
 
 private fun parseCastMembers(raw: String): List<ParsedCastMember> {
@@ -344,6 +454,7 @@ fun DetailsScreen(
     var showOverflowMenu by remember { mutableStateOf(false) }
     var showTrailer by remember { mutableStateOf(false) }
     var showAddInfoDialog by remember { mutableStateOf(false) }
+    var showChangeImageDialog by remember { mutableStateOf(false) }
     var showRateDialog by remember { mutableStateOf(false) }
 
     // Dark/subtle tint pulled from this title's own artwork — cached per
@@ -416,6 +527,14 @@ fun DetailsScreen(
                                         onClick = {
                                             showOverflowMenu = false
                                             showAddInfoDialog = true
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Change Poster / Backdrop") },
+                                        leadingIcon = { Icon(Icons.Filled.PhotoLibrary, contentDescription = null) },
+                                        onClick = {
+                                            showOverflowMenu = false
+                                            showChangeImageDialog = true
                                         }
                                     )
                                     DropdownMenuItem(
@@ -816,6 +935,13 @@ fun DetailsScreen(
                     AddInfoDialog(
                         viewModel = viewModel,
                         onDismiss = { showAddInfoDialog = false },
+                    )
+                }
+                if (showChangeImageDialog) {
+                    ChangeImageDialog(
+                        viewModel = viewModel,
+                        media = media,
+                        onDismiss = { showChangeImageDialog = false },
                     )
                 }
                 if (showRateDialog) {

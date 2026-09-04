@@ -24,9 +24,16 @@ data class ParsedMedia(
  */
 object MediaFilenameParser {
 
+    // Real fix: release names very commonly write "S01.E01" (a dot between
+    // season and episode, e.g. Scam.1992.S01.E01...) - after the dot->space
+    // normalization below that becomes "S01 E01", which the old
+    // S(\d{1,2})E(\d{1,4}) pattern (no separator allowed) never matched, so
+    // the file silently fell through to the movie branch instead - one
+    // "movie" per episode, never grouped into a series. The optional
+    // [\s._-]* here tolerates S01E01, S01.E01, S01_E01, S01-E01, and S01 E01.
     private val seasonEpisodeRegexes = listOf(
-        // One.Piece.S01E01.1080p.mkv / Breaking.Bad.S02E05.720p.mkv
-        Regex("""(?i)S(\d{1,2})E(\d{1,4})"""),
+        // One.Piece.S01E01.1080p.mkv / Breaking.Bad.S02E05.720p.mkv / Scam.1992.S01.E01...
+        Regex("""(?i)S(\d{1,2})[\s._-]*E(\d{1,4})"""),
         // One Piece - 001.mkv  /  One Piece 001.mkv
         Regex("""(?i)[\-\s](\d{2,4})(?:\s|\.|$)"""),
         // 1x01 style
@@ -50,7 +57,7 @@ object MediaFilenameParser {
         val year = yearRegex.find(normalized)?.value?.toIntOrNull()
 
         // Try SxxExx pattern first (series/anime)
-        val seasonEpMatch = Regex("""(?i)S(\d{1,2})E(\d{1,4})""").find(normalized)
+        val seasonEpMatch = seasonEpisodeRegexes[0].find(normalized)
         if (seasonEpMatch != null) {
             val season = seasonEpMatch.groupValues[1].toIntOrNull()
             val episode = seasonEpMatch.groupValues[2].toIntOrNull()
@@ -67,7 +74,7 @@ object MediaFilenameParser {
         }
 
         // Try 1x01 pattern
-        val xMatch = Regex("""(?i)(\d{1,2})x(\d{1,4})""").find(normalized)
+        val xMatch = seasonEpisodeRegexes[2].find(normalized)
         if (xMatch != null) {
             val season = xMatch.groupValues[1].toIntOrNull()
             val episode = xMatch.groupValues[2].toIntOrNull()

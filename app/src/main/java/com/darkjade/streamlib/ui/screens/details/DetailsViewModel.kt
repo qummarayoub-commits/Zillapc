@@ -214,6 +214,25 @@ class DetailsViewModel(
         }
     }
 
+    /** "Change Poster" / "Change Backdrop" — pick a specific image from the
+     * TMDB gallery already fetched with this title (alternatePosterUrls /
+     * alternateBackdropUrls) instead of the one TMDB auto-assigned. */
+    fun setPoster(url: String) {
+        viewModelScope.launch {
+            libraryRepository.setPosterUrl(mediaId, url)
+            val refreshed = libraryRepository.getMediaItem(mediaId)
+            if (refreshed != null) _uiState.value = _uiState.value.copy(media = refreshed)
+        }
+    }
+
+    fun setBackdrop(url: String) {
+        viewModelScope.launch {
+            libraryRepository.setBackdropUrl(mediaId, url)
+            val refreshed = libraryRepository.getMediaItem(mediaId)
+            if (refreshed != null) _uiState.value = _uiState.value.copy(media = refreshed)
+        }
+    }
+
     private val _searchResults = kotlinx.coroutines.flow.MutableStateFlow<List<com.darkjade.streamlib.data.metadata.SearchCandidate>>(emptyList())
     val searchResults: kotlinx.coroutines.flow.StateFlow<List<com.darkjade.streamlib.data.metadata.SearchCandidate>> = _searchResults
     private val _searchInProgress = kotlinx.coroutines.flow.MutableStateFlow(false)

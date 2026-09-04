@@ -61,6 +61,7 @@ data class TmdbCountryDto(val name: String)
 
 data class TmdbImagesDto(
     val posters: List<TmdbPosterDto> = emptyList(),
+    val backdrops: List<TmdbPosterDto> = emptyList(),
     val logos: List<TmdbLogoDto> = emptyList(),
 )
 data class TmdbPosterDto(val file_path: String)

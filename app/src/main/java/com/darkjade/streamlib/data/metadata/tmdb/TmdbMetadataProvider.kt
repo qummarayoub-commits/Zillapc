@@ -90,6 +90,9 @@ class TmdbMetadataProvider : MetadataProvider {
     private fun extractAlternatePosters(images: TmdbImagesDto?, limit: Int = 5): List<String> =
         images?.posters.orEmpty().take(limit).map { TmdbConfig.IMAGE_BASE_URL + it.file_path }
 
+    private fun extractAlternateBackdrops(images: TmdbImagesDto?, limit: Int = 5): List<String> =
+        images?.backdrops.orEmpty().take(limit).map { TmdbConfig.BACKDROP_BASE_URL + it.file_path }
+
     // Prefer the English title-logo treatment (the actual stylized wordmark
     // artwork, e.g. the "SPIDER-MAN" logo graphic) over a plain rendered
     // text title; fall back to a language-less logo if no English one exists.
@@ -102,7 +105,16 @@ class TmdbMetadataProvider : MetadataProvider {
     override suspend fun searchMovie(title: String, year: Int?): MetadataResult? {
         if (TmdbConfig.apiKey.isBlank()) return null
         return runCatching {
-            val response = api.searchMovie(TmdbConfig.apiKey, title, year)
+            // Real fix: a year parsed from the filename can genuinely be
+            // part of the title itself, not the release year (e.g. a movie
+            // literally titled with a year in it) - if the year-filtered
+            // search comes back empty, retry the exact same query with no
+            // year filter before giving up, instead of treating an empty
+            // filtered result as "no match".
+            var response = api.searchMovie(TmdbConfig.apiKey, title, year)
+            if (response.results.isEmpty() && year != null) {
+                response = api.searchMovie(TmdbConfig.apiKey, title, null)
+            }
             val match = response.results.firstOrNull() ?: return null
             val full = api.getMovie(match.id, TmdbConfig.apiKey)
             movieDtoToResult(full, title)
@@ -112,7 +124,14 @@ class TmdbMetadataProvider : MetadataProvider {
     override suspend fun searchSeries(title: String, year: Int?): MetadataResult? {
         if (TmdbConfig.apiKey.isBlank()) return null
         return runCatching {
-            val response = api.searchSeries(TmdbConfig.apiKey, title, year)
+            // Same fallback as searchMovie above - this is exactly the "Scam
+            // 1992" case: the real show first aired in 2020, but "1992" is
+            // part of its actual title, so first_air_date_year=1992 finds
+            // nothing even though the title match itself is correct.
+            var response = api.searchSeries(TmdbConfig.apiKey, title, year)
+            if (response.results.isEmpty() && year != null) {
+                response = api.searchSeries(TmdbConfig.apiKey, title, null)
+            }
             val match = response.results.firstOrNull() ?: return null
             val full = api.getSeries(match.id, TmdbConfig.apiKey)
             seriesDtoToResult(full, title)
@@ -171,6 +190,7 @@ class TmdbMetadataProvider : MetadataProvider {
         cast = extractCast(full.credits),
         castMembers = extractCastMembers(full.credits),
         alternatePosterUrls = extractAlternatePosters(full.images),
+        alternateBackdropUrls = extractAlternateBackdrops(full.images),
         titleLogoUrl = extractTitleLogo(full.images),
         trailerYoutubeKey = extractTrailerKey(full.videos),
         imdbId = full.external_ids?.imdb_id,
@@ -193,6 +213,7 @@ class TmdbMetadataProvider : MetadataProvider {
         cast = extractCast(full.credits),
         castMembers = extractCastMembers(full.credits),
         alternatePosterUrls = extractAlternatePosters(full.images),
+        alternateBackdropUrls = extractAlternateBackdrops(full.images),
         titleLogoUrl = extractTitleLogo(full.images),
         trailerYoutubeKey = extractTrailerKey(full.videos),
         imdbId = full.external_ids?.imdb_id,

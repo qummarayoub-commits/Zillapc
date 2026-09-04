@@ -328,6 +328,7 @@ class LibraryRepository(
                     cast = result.cast.joinToString(","),
                     castMembers = serializeCastMembers(result.castMembers),
                     alternatePosterUrls = result.alternatePosterUrls.joinToString(","),
+                    alternateBackdropUrls = result.alternateBackdropUrls.joinToString(","),
                     titleLogoUrl = result.titleLogoUrl,
                     trailerYoutubeKey = result.trailerYoutubeKey,
                     productionCountry = result.productionCountry,
@@ -363,6 +364,7 @@ class LibraryRepository(
                     cast = result.cast.joinToString(","),
                     castMembers = serializeCastMembers(result.castMembers),
                     alternatePosterUrls = result.alternatePosterUrls.joinToString(","),
+                    alternateBackdropUrls = result.alternateBackdropUrls.joinToString(","),
                     titleLogoUrl = result.titleLogoUrl,
                     trailerYoutubeKey = result.trailerYoutubeKey,
                     productionCountry = result.productionCountry,
@@ -407,6 +409,7 @@ class LibraryRepository(
                 cast = result.cast.joinToString(","),
                 castMembers = serializeCastMembers(result.castMembers),
                 alternatePosterUrls = result.alternatePosterUrls.joinToString(","),
+                alternateBackdropUrls = result.alternateBackdropUrls.joinToString(","),
                     titleLogoUrl = result.titleLogoUrl,
                 trailerYoutubeKey = result.trailerYoutubeKey,
                 productionCountry = result.productionCountry,
@@ -433,6 +436,18 @@ class LibraryRepository(
     suspend fun setUserRating(mediaId: Long, stars: Int) {
         val entity = mediaDao.getById(mediaId) ?: return
         mediaDao.update(entity.copy(id = mediaId, userRating = stars.coerceIn(1, 5)))
+    }
+
+    /** "Change Poster" — user picks a specific TMDB poster/backdrop instead
+     * of the auto-assigned default one. */
+    suspend fun setPosterUrl(mediaId: Long, url: String) {
+        val entity = mediaDao.getById(mediaId) ?: return
+        mediaDao.update(entity.copy(id = mediaId, posterUrl = url))
+    }
+
+    suspend fun setBackdropUrl(mediaId: Long, url: String) {
+        val entity = mediaDao.getById(mediaId) ?: return
+        mediaDao.update(entity.copy(id = mediaId, backdropUrl = url))
     }
 
     private fun serializeCastMembers(members: List<com.darkjade.streamlib.data.metadata.CastMember>): String =
