@@ -194,6 +194,7 @@ private fun AddInfoDialog(viewModel: DetailsViewModel, onDismiss: () -> Unit) {
     var query by remember { mutableStateOf("") }
     val results by viewModel.searchResults.collectAsState()
     val loading by viewModel.searchInProgress.collectAsState()
+    val isSeries by viewModel.searchIsSeries.collectAsState()
 
     androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
         Column(
@@ -206,10 +207,34 @@ private fun AddInfoDialog(viewModel: DetailsViewModel, onDismiss: () -> Unit) {
         ) {
             Text("Add Info — search TMDB", style = MaterialTheme.typography.titleMedium, color = VaultColors.TextPrimary)
             Spacer(Modifier.height(VaultSpacing.sm))
+            // Movie/Series toggle — defaults to whatever this item's own
+            // type already is, but overridable: a title can be mis-typed
+            // in the library (a series scanned as a movie or vice versa),
+            // so without this the search could never reach the right TMDB
+            // catalog at all.
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(VaultSpacing.xs)) {
+                listOf(false to "Movie", true to "Series").forEach { (seriesValue, label) ->
+                    val selected = isSeries == seriesValue
+                    Text(
+                        label,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                        color = if (selected) VaultColors.Background else VaultColors.TextSecondary,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(50))
+                            .background(if (selected) VaultColors.Orange else VaultColors.SurfaceVariant)
+                            .clickable { viewModel.setSearchIsSeries(seriesValue) }
+                            .padding(vertical = VaultSpacing.xs)
+                    )
+                }
+            }
+            Spacer(Modifier.height(VaultSpacing.sm))
             androidx.compose.material3.OutlinedTextField(
                 value = query,
                 onValueChange = { query = it },
-                placeholder = { Text("Movie or series title") },
+                placeholder = { Text(if (isSeries) "Series title" else "Movie title") },
                 singleLine = true,
                 trailingIcon = {
                     IconButton(onClick = { viewModel.searchTmdb(query) }) {

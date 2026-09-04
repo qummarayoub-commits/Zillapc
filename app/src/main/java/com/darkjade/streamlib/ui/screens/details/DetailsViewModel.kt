@@ -58,6 +58,7 @@ class DetailsViewModel(
                 _uiState.value = DetailsUiState(isLoading = false)
                 return@launch
             }
+            _searchIsSeries.value = media.type.isSeriesLike()
 
             // Fetch genuine IMDb/Rotten Tomatoes ratings in the background —
             // cached after the first successful/attempted fetch (omdbFetched),
@@ -218,19 +219,35 @@ class DetailsViewModel(
     private val _searchInProgress = kotlinx.coroutines.flow.MutableStateFlow(false)
     val searchInProgress: kotlinx.coroutines.flow.StateFlow<Boolean> = _searchInProgress
 
+    /** Which TMDB catalog "Add Info" searches - Movie or Series. Defaults to
+     * whatever this library item's own type already is, but the user can
+     * flip it explicitly in the dialog. This matters because a title can be
+     * mis-typed in the library (a series scanned/added as a movie or vice
+     * versa) - without an override, search was permanently stuck searching
+     * the wrong TMDB catalog with no way to ever find the right match. */
+    private val _searchIsSeries = kotlinx.coroutines.flow.MutableStateFlow(false)
+    val searchIsSeries: kotlinx.coroutines.flow.StateFlow<Boolean> = _searchIsSeries
+
+    fun setSearchIsSeries(isSeries: Boolean) {
+        if (_searchIsSeries.value == isSeries) return
+        _searchIsSeries.value = isSeries
+        // Clear stale results from the other catalog so they're never shown
+        // mislabeled as if they came from the newly-selected type.
+        _searchResults.value = emptyList()
+    }
+
     /** "Add Info" — user searches TMDB manually to fix a wrong/missing match. */
     fun searchTmdb(query: String) {
         viewModelScope.launch {
             _searchInProgress.value = true
-            val isSeries = _uiState.value.media?.type?.isSeriesLike() ?: false
-            _searchResults.value = libraryRepository.searchMetadataCandidates(query, isSeries)
+            _searchResults.value = libraryRepository.searchMetadataCandidates(query, _searchIsSeries.value)
             _searchInProgress.value = false
         }
     }
 
     fun applyManualMatch(remoteId: String, onApplied: () -> Unit) {
         viewModelScope.launch {
-            val isSeries = _uiState.value.media?.type?.isSeriesLike() ?: false
+            val isSeries = _searchIsSeries.value
             libraryRepository.applyManualMatch(mediaId, remoteId, isSeries)
             val refreshed = libraryRepository.getMediaItem(mediaId)
             if (refreshed != null) {
