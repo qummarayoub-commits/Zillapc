@@ -43,6 +43,12 @@ interface MediaItemDao {
     @Query("SELECT * FROM media_items WHERE type = :type ORDER BY sortTitle ASC")
     fun observeByType(type: MediaType): Flow<List<MediaItemEntity>>
 
+    // "No Info" — items TMDB couldn't match (or that haven't been looked
+    // up yet), surfaced so the user can manually Add Info later instead of
+    // the mismatch/miss silently sitting invisible in the library.
+    @Query("SELECT * FROM media_items WHERE metadataMissing = 1 OR metadataFetched = 0 ORDER BY dateAdded DESC")
+    fun observeMissingMetadata(): Flow<List<MediaItemEntity>>
+
     @Query("SELECT * FROM media_items WHERE type = :type ORDER BY sortTitle ASC")
     fun pagingByType(type: MediaType): PagingSource<Int, MediaItemEntity>
 

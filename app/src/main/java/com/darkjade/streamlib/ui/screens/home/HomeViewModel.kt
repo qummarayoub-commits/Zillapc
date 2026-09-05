@@ -32,6 +32,7 @@ data class HomeUiState(
     val series: List<MediaItemEntity> = emptyList(),
     val anime: List<MediaItemEntity> = emptyList(),
     val comics: List<ComicEntity> = emptyList(),
+    val missingMetadata: List<MediaItemEntity> = emptyList(),
     val libraryEmpty: Boolean = false,
 )
 
@@ -82,7 +83,7 @@ class HomeViewModel(
                 MediaFlows(recentlyAdded, movies, series, anime, continueWatching)
             }
 
-            combine(mediaFlows, comicRepository.observeRecentlyAdded(20), playbackRepository.observeAllProgress()) { flows, comics, progressRows ->
+            combine(mediaFlows, comicRepository.observeRecentlyAdded(20), playbackRepository.observeAllProgress(), libraryRepository.observeMissingMetadata()) { flows, comics, progressRows, missingMetadata ->
                 val heroPool = buildList {
                     addAll(flows.recentlyAdded.map { HeroCandidate.Media(it) })
                     addAll(flows.movies.map { HeroCandidate.Media(it) })
@@ -117,6 +118,7 @@ class HomeViewModel(
                     series = flows.series,
                     anime = flows.anime,
                     comics = comics,
+                    missingMetadata = missingMetadata,
                     libraryEmpty = flows.recentlyAdded.isEmpty() && flows.movies.isEmpty() &&
                         flows.series.isEmpty() && flows.anime.isEmpty() && comics.isEmpty(),
                 )

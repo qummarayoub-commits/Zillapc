@@ -47,6 +47,7 @@ class LibraryRepository(
     fun observeAll(): Flow<List<MediaItemEntity>> = mediaDao.observeAll()
     fun observeRecentlyAdded(limit: Int = 20) = mediaDao.observeRecentlyAdded(limit)
     fun observeByType(type: MediaType) = mediaDao.observeByType(type)
+    fun observeMissingMetadata() = mediaDao.observeMissingMetadata()
     fun observeCount() = mediaDao.observeCount()
     fun pagingByType(type: MediaType): PagingSource<Int, MediaItemEntity> = mediaDao.pagingByType(type)
     fun pagingAll(): PagingSource<Int, MediaItemEntity> = mediaDao.pagingAll()
@@ -208,8 +209,25 @@ class LibraryRepository(
         folderSourceId: Long?,
     ) {
         val parsed = file.parsed
-        val type = com.darkjade.streamlib.data.parser.MediaFilenameParser
-            .folderTypeHint(file.pathSegments) ?: parsed.type
+        // Real fix: a folder hint used to unconditionally win over the
+        // filename's own parsed type. That's backwards for a very common,
+        // sensible layout - e.g. "Movies/Scam 1992.S01/Scam 1992.S01.E01.mkv"
+        // - where "Movies" is just the user's top-level root folder, but its
+        // name happens to contain the substring "movie", so folderTypeHint
+        // force-classified every episode inside as MediaType.MOVIE even
+        // though the filename clearly parsed S01E01. Each subsequent episode
+        // then matched the FIRST episode's now-mistaken "movie" entry on
+        // title+type+year and got silently merged/discarded instead of
+        // creating its own episode - only the first file ever showed up.
+        // A confident filename-level SxxExx/anime-numbering detection (i.e.
+        // parsed.type is SERIES or ANIME) must always win; folder hints only
+        // get a say when the filename parse fell back to the generic movie
+        // branch, to help reclassify genuinely ambiguous cases.
+        val type = if (parsed.type != MediaType.MOVIE) {
+            parsed.type
+        } else {
+            com.darkjade.streamlib.data.parser.MediaFilenameParser.folderTypeHint(file.pathSegments) ?: parsed.type
+        }
         val normalizedTitle = normalizeTitleForMatching(parsed.title)
 
         if (type == MediaType.MOVIE) {

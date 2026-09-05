@@ -158,6 +158,18 @@ fun HomeScreen(
                     item {
                         MediaRail("Recently Added", state.recentlyAdded, onItemClick = { onOpenDetails(it.id) }, onAddToList = viewModel::addToWatchlist, onRemoveFromLibrary = viewModel::removeFromLibrary)
                     }
+                    // "No Info" — items TMDB couldn't match (or hasn't been
+                    // looked up yet for), so you can find them and manually
+                    // Add Info later instead of a silent mismatch/miss
+                    // disappearing into the library unnoticed. Always shown
+                    // regardless of the category filter, right under
+                    // Recently Added, since it's a maintenance/fix-up list
+                    // rather than a genre.
+                    if (state.missingMetadata.isNotEmpty()) {
+                        item {
+                            MediaRail("No Info — Tap to Fix", state.missingMetadata, onItemClick = { onOpenDetails(it.id) }, onAddToList = viewModel::addToWatchlist, onRemoveFromLibrary = viewModel::removeFromLibrary)
+                        }
+                    }
 
                     // Movies: banner ABOVE the content row, then the row itself.
                     val showMovies = selectedCategory == null || selectedCategory == HomeCategoryFilter.MOVIES
