@@ -73,6 +73,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.media3.ui.PlayerView
 import androidx.media3.cast.MediaRouteButton
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.common.DeviceInfo
 import com.darkjade.streamlib.ui.theme.VaultColors
 import kotlinx.coroutines.delay
 import java.util.Locale
@@ -87,6 +88,21 @@ fun PlayerScreen(
     val context = LocalContext.current
     val activity = context as? Activity
     val view = LocalView.current
+    var playerViewRef by remember { mutableStateOf<PlayerView?>(null) }
+
+    // PlayerView must rebind its surface when CastPlayer switches between local and remote output.
+    DisposableEffect(viewModel.player) {
+        val listener = object : androidx.media3.common.Player.Listener {
+            override fun onDeviceInfoChanged(deviceInfo: DeviceInfo) {
+                playerViewRef?.let { playerView ->
+                    playerView.player = null
+                    playerView.player = viewModel.player
+                }
+            }
+        }
+        viewModel.player.addListener(listener)
+        onDispose { viewModel.player.removeListener(listener) }
+    }
 
     val subtitlePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
@@ -192,6 +208,7 @@ fun PlayerScreen(
         AndroidView(
             factory = { ctx ->
                 PlayerView(ctx).apply {
+                    playerViewRef = this
                     player = viewModel.player
                     useController = false // fully custom controls below
                     // Transparent subtitle background (just outlined text, no
