@@ -46,7 +46,7 @@ class LocalMediaHttpServer(private val appContext: Context) : NanoHTTPD(0) {
             if (totalLength < 0L) {
                 source.first.close()
                 return newFixedLengthResponse(
-                    Response.Status.REQUESTED_RANGE_NOT_SATISFIABLE,
+                    Response.Status.RANGE_NOT_SATISFIABLE,
                     MIME_PLAINTEXT,
                     "Media length unavailable"
                 )
