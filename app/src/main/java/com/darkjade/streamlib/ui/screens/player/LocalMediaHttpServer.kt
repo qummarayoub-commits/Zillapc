@@ -24,7 +24,7 @@ class LocalMediaHttpServer(private val appContext: Context) : NanoHTTPD(0) {
     @Synchronized
     fun urlFor(uri: Uri, title: String): String {
         mediaUri = uri
-        mediaName = title
+        mediaName = resolveDisplayName(uri, title)
         accessToken = UUID.randomUUID().toString().replace("-", "")
         if (!isAlive) {
             start(SOCKET_READ_TIMEOUT, false)
@@ -89,6 +89,28 @@ class LocalMediaHttpServer(private val appContext: Context) : NanoHTTPD(0) {
         } catch (_: Exception) {
             // Safe during ViewModel cleanup.
         }
+    }
+
+    private fun resolveDisplayName(uri: Uri, fallback: String): String {
+        if (uri.scheme == "content") {
+            try {
+                appContext.contentResolver.query(
+                    uri,
+                    arrayOf(android.provider.OpenableColumns.DISPLAY_NAME),
+                    null,
+                    null,
+                    null
+                )?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val index = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                        if (index >= 0) cursor.getString(index)?.let { return it }
+                    }
+                }
+            } catch (_: Exception) {
+                // Use the media title when providers don't expose a display name.
+            }
+        }
+        return uri.lastPathSegment?.takeIf { it.contains('.') } ?: fallback
     }
 
     private fun openSource(uri: Uri): Pair<InputStream, Long> {
