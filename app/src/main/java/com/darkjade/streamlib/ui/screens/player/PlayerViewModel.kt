@@ -15,6 +15,7 @@ import androidx.media3.common.Player
 import androidx.media3.cast.CastPlayer
 import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.Tracks
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlaybackException
 import androidx.media3.exoplayer.ExoPlayer
@@ -112,6 +113,7 @@ data class PlayerUiState(
  * Never scans or identifies media itself — it only resolves the existing URI
  * from the existing LibraryRepository by the existing movie/episode ID.
  */
+@OptIn(UnstableApi::class)
 class PlayerViewModel(
     private val mediaId: Long,
     private val episodeId: Long?,
