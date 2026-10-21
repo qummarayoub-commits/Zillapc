@@ -257,17 +257,11 @@ class PlayerViewModel(
                     uriString
                 }
                 currentPlaybackUriString = playbackUriString
-                val extensionSource = originalUri.lastPathSegment.orEmpty().ifBlank { title }
-                val extension = extensionSource.substringAfterLast('.', "").lowercase()
-                val mimeType = MimeTypes.getMediaMimeType(playbackUriString.substringBefore('?'))
-                    ?: when (extension) {
-                        "mp4", "m4v" -> MimeTypes.VIDEO_MP4
-                        "mkv" -> "video/x-matroska"
-                        "webm" -> MimeTypes.VIDEO_WEBM
-                        "mov" -> "video/quicktime"
-                        "avi" -> "video/x-msvideo"
-                        else -> null
-                    }
+                val mimeType = if (originalUri.scheme == "content" || originalUri.scheme == "file") {
+                    castStreamServer.mimeTypeFor(originalUri, title)
+                } else {
+                    MimeTypes.getMediaMimeType(playbackUriString.substringBefore('?'))
+                }
                 player.setMediaItem(
                     MediaItem.Builder()
                         .setUri(Uri.parse(playbackUriString))
