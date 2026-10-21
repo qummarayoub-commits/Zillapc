@@ -71,10 +71,13 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.media3.ui.PlayerView
+import androidx.media3.cast.MediaRouteButton
+import androidx.media3.common.util.UnstableApi
 import com.darkjade.streamlib.ui.theme.VaultColors
 import kotlinx.coroutines.delay
 import java.util.Locale
 
+@OptIn(UnstableApi::class)
 @Composable
 fun PlayerScreen(
     viewModel: PlayerViewModel,
@@ -292,6 +295,8 @@ fun PlayerScreen(
                         modifier = Modifier.weight(1f)
                     )
                 }
+
+                MediaRouteButton(modifier = Modifier.size(44.dp))
 
                 IconButton(onClick = { isLocked = true; controlsVisible = false }) {
                     Icon(Icons.Filled.Lock, contentDescription = "Lock", tint = Color.White)
