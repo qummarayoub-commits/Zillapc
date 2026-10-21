@@ -41,6 +41,7 @@ import androidx.compose.material.icons.filled.PictureInPicture
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay10
 import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -123,6 +124,7 @@ fun PlayerScreen(
     var showSubtitleMenu by remember { mutableStateOf(false) }
     var showVolumeSlider by remember { mutableStateOf(false) }
     var showBrightnessSlider by remember { mutableStateOf(false) }
+    var showDisplaySettings by remember { mutableStateOf(false) }
 
     // Every control (top bar + bottom bar) shows/hides together, driven only
     // by tapping the video — fully owned here instead of depending on
@@ -348,6 +350,10 @@ fun PlayerScreen(
                     }
                 }
 
+                IconButton(onClick = { showDisplaySettings = true }) {
+                    Icon(Icons.Filled.Tune, contentDescription = "Screen and subtitle settings", tint = Color.White)
+                }
+
                 Box {
                     IconButton(onClick = { showSubtitleMenu = true }) {
                         Icon(
@@ -554,6 +560,13 @@ fun PlayerScreen(
                     )
                 }
             }
+        }
+
+        if (showDisplaySettings) {
+            PlayerDisplaySettingsDialog(
+                playerView = playerViewRef,
+                onDismiss = { showDisplaySettings = false },
+            )
         }
     }
 }
