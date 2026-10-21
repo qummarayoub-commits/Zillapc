@@ -5,9 +5,7 @@ import android.graphics.Typeface
 import android.util.TypedValue
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -32,8 +30,6 @@ import androidx.media3.ui.PlayerView
 
 private const val PREFS_NAME = "player_display_settings"
 
-private data class DisplayChoice(val label: String, val value: String)
-
 @OptIn(UnstableApi::class)
 @Composable
 fun PlayerDisplaySettingsDialog(
@@ -46,6 +42,7 @@ fun PlayerDisplaySettingsDialog(
     var screenMode by remember { mutableStateOf(prefs.getString("screen_mode", "Fit") ?: "Fit") }
     var fontSize by remember { mutableStateOf(prefs.getInt("subtitle_size", 22).toFloat()) }
     var fontName by remember { mutableStateOf(prefs.getString("subtitle_font", "Sans-serif") ?: "Sans-serif") }
+    var fontStyle by remember { mutableStateOf(prefs.getString("subtitle_font_style", "Regular") ?: "Regular") }
     var fontColor by remember { mutableStateOf(prefs.getString("subtitle_color", "White") ?: "White") }
     var edgeStyle by remember { mutableStateOf(prefs.getString("subtitle_edge", "Outline") ?: "Outline") }
     var backgroundStyle by remember { mutableStateOf(prefs.getString("subtitle_background", "Transparent") ?: "Transparent") }
@@ -56,6 +53,7 @@ fun PlayerDisplaySettingsDialog(
             .putString("screen_mode", screenMode)
             .putInt("subtitle_size", fontSize.toInt())
             .putString("subtitle_font", fontName)
+            .putString("subtitle_font_style", fontStyle)
             .putString("subtitle_color", fontColor)
             .putString("subtitle_edge", edgeStyle)
             .putString("subtitle_background", backgroundStyle)
@@ -104,14 +102,14 @@ fun PlayerDisplaySettingsDialog(
                 AndroidColor.TRANSPARENT,
                 edgeType,
                 AndroidColor.BLACK,
-                Typeface.create(typeface, Typeface.NORMAL),
+                Typeface.create(typeface, when (fontStyle) { "Bold" -> Typeface.BOLD; "Italic" -> Typeface.ITALIC; "Bold italic" -> Typeface.BOLD_ITALIC; else -> Typeface.NORMAL }),
             ))
             setFixedTextSize(TypedValue.COMPLEX_UNIT_SP, fontSize)
             setBottomPaddingFraction(bottomPosition)
         }
     }
 
-    LaunchedEffect(playerView, screenMode, fontSize, fontName, fontColor, edgeStyle, backgroundStyle, bottomPosition) {
+    LaunchedEffect(playerView, screenMode, fontSize, fontName, fontStyle, fontColor, edgeStyle, backgroundStyle, bottomPosition) {
         applySettings()
     }
 
@@ -134,6 +132,7 @@ fun PlayerDisplaySettingsDialog(
 
                 Text("Subtitle appearance", style = MaterialTheme.typography.titleSmall)
                 ChoiceDropdown("Font type", fontName, listOf("Sans-serif", "Serif", "Monospace", "Casual", "Cursive")) { fontName = it }
+                ChoiceDropdown("Font style", fontStyle, listOf("Regular", "Bold", "Italic", "Bold italic")) { fontStyle = it }
                 ChoiceDropdown("Font color", fontColor, listOf("White", "Yellow", "Cyan", "Green", "Magenta", "Red")) { fontColor = it }
                 Text("Font size: ${fontSize.toInt()} sp", style = MaterialTheme.typography.bodyMedium)
                 Slider(value = fontSize, onValueChange = { fontSize = it }, valueRange = 14f..40f)
@@ -152,6 +151,7 @@ fun PlayerDisplaySettingsDialog(
                 screenMode = "Fit"
                 fontSize = 22f
                 fontName = "Sans-serif"
+                fontStyle = "Regular"
                 fontColor = "White"
                 edgeStyle = "Outline"
                 backgroundStyle = "Transparent"
