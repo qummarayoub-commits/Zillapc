@@ -165,6 +165,9 @@ class LocalMediaHttpServer(private val appContext: Context) : NanoHTTPD(0) {
         }
     }
 
+    fun mimeTypeFor(uri: Uri, fallback: String): String =
+        mimeTypeFor(resolveDisplayName(uri, fallback))
+
     private fun mimeTypeFor(title: String): String = when (title.substringAfterLast('.', "").lowercase()) {
         "mp4", "m4v" -> "video/mp4"
         "mkv" -> "video/x-matroska"
