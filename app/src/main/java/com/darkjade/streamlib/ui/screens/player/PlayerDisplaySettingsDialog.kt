@@ -91,11 +91,11 @@ fun PlayerDisplaySettingsDialog(
             else -> CaptionStyleCompat.EDGE_TYPE_OUTLINE
         }
         val typeface = when (fontName) {
-            "Serif" -> Typeface.SERIF
-            "Monospace" -> Typeface.MONOSPACE
+            "Serif" -> "serif"
+            "Monospace" -> "monospace"
             "Casual" -> "casual"
             "Cursive" -> "cursive"
-            else -> Typeface.SANS_SERIF
+            else -> "sans-serif"
         }
         playerView?.subtitleView?.apply {
             setStyle(CaptionStyleCompat(
