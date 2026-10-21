@@ -104,7 +104,7 @@ fun PlayerDisplaySettingsDialog(
                 AndroidColor.BLACK,
                 Typeface.create(typeface, when (fontStyle) { "Bold" -> Typeface.BOLD; "Italic" -> Typeface.ITALIC; "Bold italic" -> Typeface.BOLD_ITALIC; else -> Typeface.NORMAL }),
             ))
-            setFixedTextSize(TypedValue.COMPLEX_UNIT_SP, fontSize)
+            setFixedTextSize(TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, fontSize, context.resources.displayMetrics))
             setBottomPaddingFraction(bottomPosition)
         }
     }
