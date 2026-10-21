@@ -12,6 +12,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.cast.CastPlayer
 import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.Tracks
 import androidx.media3.exoplayer.DefaultRenderersFactory
@@ -119,7 +120,7 @@ class PlayerViewModel(
     private val playbackRepository: PlaybackRepository,
 ) : ViewModel() {
 
-    val player: ExoPlayer = ExoPlayer.Builder(
+    private val localPlayer: ExoPlayer = ExoPlayer.Builder(
         appContext,
 
         // Prefer extension decoders when available.
@@ -155,6 +156,13 @@ class PlayerViewModel(
         .apply {
             volume = 1f
         }
+
+    val player: CastPlayer = CastPlayer.Builder(appContext)
+        .setLocalPlayer(localPlayer)
+        .build()
+
+    private val castStreamServer = LocalMediaHttpServer(appContext)
+    private var currentPlaybackUriString: String? = null
 
     private val _uiState = MutableStateFlow(PlayerUiState())
     val uiState: StateFlow<PlayerUiState> = _uiState.asStateFlow()
@@ -240,11 +248,24 @@ class PlayerViewModel(
                 )
 
                 currentMediaUriString = uriString
-
+                val originalUri = Uri.parse(uriString)
+                val playbackUriString = if (originalUri.scheme == "content" || originalUri.scheme == "file") {
+                    castStreamServer.urlFor(originalUri, title)
+                } else {
+                    uriString
+                }
+                currentPlaybackUriString = playbackUriString
+                val mimeType = MimeTypes.getMediaMimeType(playbackUriString.substringBefore('?'))
                 player.setMediaItem(
-                    MediaItem.fromUri(
-                        Uri.parse(uriString)
-                    )
+                    MediaItem.Builder()
+                        .setUri(Uri.parse(playbackUriString))
+                        .setMediaMetadata(
+                            androidx.media3.common.MediaMetadata.Builder()
+                                .setTitle(title)
+                                .build()
+                        )
+                        .apply { if (mimeType != null) setMimeType(mimeType) }
+                        .build()
                 )
 
                 player.prepare()
@@ -863,7 +884,7 @@ class PlayerViewModel(
      * themselves, unlike embedded MKV/MP4 tracks).
      */
     fun addExternalSubtitle(uri: Uri, displayName: String) {
-        val uriString = currentMediaUriString ?: return
+        val uriString = currentPlaybackUriString ?: return
         val ext = displayName.substringAfterLast('.', "").lowercase()
         val mimeType = when (ext) {
             "srt" -> MimeTypes.APPLICATION_SUBRIP
@@ -979,6 +1000,7 @@ class PlayerViewModel(
         saveProgressNow()
 
         player.release()
+        castStreamServer.stopServer()
 
         super.onCleared()
     }
