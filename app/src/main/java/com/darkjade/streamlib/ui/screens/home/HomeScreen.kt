@@ -117,12 +117,7 @@ fun HomeScreen(
                     item {
                         HomeTopBar(onOpenSearch = onOpenSearch, onOpenSettings = onOpenSettings, onOpenNews = onOpenNews, onOpenAccount = onOpenAccount)
                     }
-                    item {
-                        HomeCategoryPills(
-                            selected = selectedCategory,
-                            onSelect = { selectedCategory = it },
-                        )
-                    }
+                    // Main visual banner comes directly under the greeting, as in the reference.
 
                     // Top: main auto-rotating carousel across everything (up to 5: movies, series, comics).
                     if (state.heroItems.isNotEmpty()) {
@@ -135,9 +130,16 @@ fun HomeScreen(
                         }
                     }
 
+                    item {
+                        HomeCategoryPills(
+                            selected = selectedCategory,
+                            onSelect = { selectedCategory = it },
+                        )
+                    }
+
                     if (state.continueWatching.isNotEmpty()) {
                         item {
-                            Column(modifier = Modifier.padding(top = 32.dp)) {
+                            Column(modifier = Modifier.padding(top = 12.dp)) {
                                 Text(
                                     "Continue Watching",
                                     style = MaterialTheme.typography.titleMedium,
@@ -156,7 +158,7 @@ fun HomeScreen(
                         }
                     }
                     item {
-                        MediaRail("Recently Added", state.recentlyAdded, onItemClick = { onOpenDetails(it.id) }, onAddToList = viewModel::addToWatchlist, onRemoveFromLibrary = viewModel::removeFromLibrary)
+                        MediaRail("Watch list", state.recentlyAdded, onItemClick = { onOpenDetails(it.id) }, onAddToList = viewModel::addToWatchlist, onRemoveFromLibrary = viewModel::removeFromLibrary)
                     }
                     // "No Info" — items TMDB couldn't match (or hasn't been
                     // looked up yet for), so you can find them and manually
@@ -309,11 +311,20 @@ private fun HomeTopBar(onOpenSearch: () -> Unit, onOpenSettings: () -> Unit, onO
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        androidx.compose.foundation.Image(
-            painter = androidx.compose.ui.res.painterResource(id = com.darkjade.streamlib.R.drawable.logo_velora),
-            contentDescription = "App logo",
-            modifier = Modifier.height(36.dp),
-        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                "It’s Fun Time!",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = VaultColors.TextPrimary,
+                maxLines = 1,
+            )
+            Text(
+                "Find your next favorite",
+                style = MaterialTheme.typography.labelMedium,
+                color = VaultColors.TextSecondary,
+            )
+        }
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onOpenNews) {
                 Icon(Icons.Filled.Article, contentDescription = "News", tint = VaultColors.TextPrimary)
