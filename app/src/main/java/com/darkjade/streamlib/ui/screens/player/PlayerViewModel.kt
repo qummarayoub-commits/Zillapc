@@ -382,8 +382,11 @@ class PlayerViewModel(
                     "resumePosition=${resumePosition}ms"
             )
 
-            player.trackSelectionParameters =
-                player.trackSelectionParameters
+            // This fallback is only for the phone's local decoder. Do not
+            // disable the audio track on CastPlayer: the Chromecast may support
+            // a codec that the phone cannot decode.
+            localPlayer.trackSelectionParameters =
+                localPlayer.trackSelectionParameters
                     .buildUpon()
                     .setTrackTypeDisabled(
                         C.TRACK_TYPE_AUDIO,
@@ -395,7 +398,7 @@ class PlayerViewModel(
                 errorMessage = null,
                 audioUnavailableNotice =
                     "Audio format ($mimeLabel) isn't supported " +
-                        "on this device — playing video only."
+                        "by this device — local playback will continue without audio."
             )
 
             player.prepare()

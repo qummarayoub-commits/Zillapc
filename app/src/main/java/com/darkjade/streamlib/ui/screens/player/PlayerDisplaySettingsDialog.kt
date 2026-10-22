@@ -24,7 +24,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.CaptionStyleCompat
 import androidx.media3.ui.PlayerView
 
@@ -39,7 +38,6 @@ fun PlayerDisplaySettingsDialog(
     val context = androidx.compose.ui.platform.LocalContext.current
     val prefs = remember(context) { context.getSharedPreferences(PREFS_NAME, android.content.Context.MODE_PRIVATE) }
 
-    var screenMode by remember { mutableStateOf(prefs.getString("screen_mode", "Fit") ?: "Fit") }
     var fontSize by remember { mutableStateOf(prefs.getInt("subtitle_size", 22).toFloat()) }
     var fontName by remember { mutableStateOf(prefs.getString("subtitle_font", "Sans-serif") ?: "Sans-serif") }
     var fontStyle by remember { mutableStateOf(prefs.getString("subtitle_font_style", "Regular") ?: "Regular") }
@@ -50,7 +48,6 @@ fun PlayerDisplaySettingsDialog(
 
     fun applySettings() {
         prefs.edit()
-            .putString("screen_mode", screenMode)
             .putInt("subtitle_size", fontSize.toInt())
             .putString("subtitle_font", fontName)
             .putString("subtitle_font_style", fontStyle)
@@ -59,14 +56,6 @@ fun PlayerDisplaySettingsDialog(
             .putString("subtitle_background", backgroundStyle)
             .putFloat("subtitle_position", bottomPosition)
             .apply()
-
-        playerView?.resizeMode = when (screenMode) {
-            "Crop" -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-            "Stretch" -> AspectRatioFrameLayout.RESIZE_MODE_FILL
-            "Fixed width" -> AspectRatioFrameLayout.RESIZE_MODE_FIXED_WIDTH
-            "Fixed height" -> AspectRatioFrameLayout.RESIZE_MODE_FIXED_HEIGHT
-            else -> AspectRatioFrameLayout.RESIZE_MODE_FIT
-        }
 
         val foreground = when (fontColor) {
             "Yellow" -> AndroidColor.YELLOW
@@ -109,27 +98,18 @@ fun PlayerDisplaySettingsDialog(
         }
     }
 
-    LaunchedEffect(playerView, screenMode, fontSize, fontName, fontStyle, fontColor, edgeStyle, backgroundStyle, bottomPosition) {
+    LaunchedEffect(playerView, fontSize, fontName, fontStyle, fontColor, edgeStyle, backgroundStyle, bottomPosition) {
         applySettings()
     }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Screen & Subtitle Settings") },
+        title = { Text("Subtitle Settings") },
         text = {
             Column(
                 modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Text("Screen size", style = MaterialTheme.typography.titleSmall)
-                ChoiceDropdown(
-                    label = "Scaling mode",
-                    selected = screenMode,
-                    options = listOf("Fit", "Crop", "Stretch", "Fixed width", "Fixed height"),
-                    onSelect = { screenMode = it },
-                )
-                Text("Fit keeps the full picture. Crop fills the screen and may cut off edges. Stretch can distort the picture.", style = MaterialTheme.typography.bodySmall)
-
                 Text("Subtitle appearance", style = MaterialTheme.typography.titleSmall)
                 ChoiceDropdown("Font type", fontName, listOf("Sans-serif", "Serif", "Monospace", "Casual", "Cursive")) { fontName = it }
                 ChoiceDropdown("Font style", fontStyle, listOf("Regular", "Bold", "Italic", "Bold italic")) { fontStyle = it }
@@ -148,7 +128,6 @@ fun PlayerDisplaySettingsDialog(
         },
         dismissButton = {
             TextButton(onClick = {
-                screenMode = "Fit"
                 fontSize = 22f
                 fontName = "Sans-serif"
                 fontStyle = "Regular"
