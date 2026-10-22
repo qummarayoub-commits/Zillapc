@@ -12,8 +12,10 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.cast.CastPlayer
 import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.Tracks
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlaybackException
 import androidx.media3.exoplayer.ExoPlayer
@@ -111,6 +113,7 @@ data class PlayerUiState(
  * Never scans or identifies media itself — it only resolves the existing URI
  * from the existing LibraryRepository by the existing movie/episode ID.
  */
+@OptIn(UnstableApi::class)
 class PlayerViewModel(
     private val mediaId: Long,
     private val episodeId: Long?,
@@ -119,7 +122,7 @@ class PlayerViewModel(
     private val playbackRepository: PlaybackRepository,
 ) : ViewModel() {
 
-    val player: ExoPlayer = ExoPlayer.Builder(
+    private val localPlayer: ExoPlayer = ExoPlayer.Builder(
         appContext,
 
         // Prefer extension decoders when available.
@@ -156,6 +159,13 @@ class PlayerViewModel(
             volume = 1f
         }
 
+    val player: CastPlayer = CastPlayer.Builder(appContext)
+        .setLocalPlayer(localPlayer)
+        .build()
+
+    private val castStreamServer = LocalMediaHttpServer(appContext)
+    private var currentPlaybackUriString: String? = null
+
     private val _uiState = MutableStateFlow(PlayerUiState())
     val uiState: StateFlow<PlayerUiState> = _uiState.asStateFlow()
 
@@ -170,6 +180,7 @@ class PlayerViewModel(
      * tap, or the +/-10s buttons). Guards resumeSavedPosition() below - see
      * that function's comment for the race it closes. */
     private var userInitiatedSeek = false
+    @Volatile private var pendingSeekTargetMs: Long? = null
 
     init {
         player.addListener(
@@ -240,11 +251,28 @@ class PlayerViewModel(
                 )
 
                 currentMediaUriString = uriString
-
+                val originalUri = Uri.parse(uriString)
+                val playbackUriString = if (originalUri.scheme == "content" || originalUri.scheme == "file") {
+                    castStreamServer.urlFor(originalUri, title)
+                } else {
+                    uriString
+                }
+                currentPlaybackUriString = playbackUriString
+                val mimeType = if (originalUri.scheme == "content" || originalUri.scheme == "file") {
+                    castStreamServer.mimeTypeFor(originalUri, title)
+                } else {
+                    MimeTypes.getMediaMimeType(playbackUriString.substringBefore('?'))
+                }
                 player.setMediaItem(
-                    MediaItem.fromUri(
-                        Uri.parse(uriString)
-                    )
+                    MediaItem.Builder()
+                        .setUri(Uri.parse(playbackUriString))
+                        .setMediaMetadata(
+                            androidx.media3.common.MediaMetadata.Builder()
+                                .setTitle(title)
+                                .build()
+                        )
+                        .apply { if (mimeType != null) setMimeType(mimeType) }
+                        .build()
                 )
 
                 player.prepare()
@@ -355,8 +383,11 @@ class PlayerViewModel(
                     "resumePosition=${resumePosition}ms"
             )
 
-            player.trackSelectionParameters =
-                player.trackSelectionParameters
+            // This fallback is only for the phone's local decoder. Do not
+            // disable the audio track on CastPlayer: the Chromecast may support
+            // a codec that the phone cannot decode.
+            localPlayer.trackSelectionParameters =
+                localPlayer.trackSelectionParameters
                     .buildUpon()
                     .setTrackTypeDisabled(
                         C.TRACK_TYPE_AUDIO,
@@ -368,7 +399,7 @@ class PlayerViewModel(
                 errorMessage = null,
                 audioUnavailableNotice =
                     "Audio format ($mimeLabel) isn't supported " +
-                        "on this device — playing video only."
+                        "by this device — local playback will continue without audio."
             )
 
             player.prepare()
@@ -531,7 +562,17 @@ class PlayerViewModel(
                         _uiState.value.durationMs
                     }
 
-                val newPositionMs = player.currentPosition.coerceAtLeast(0)
+                var newPositionMs = player.currentPosition.coerceAtLeast(0)
+                val pendingTarget = pendingSeekTargetMs
+                if (pendingTarget != null) {
+                    // Ignore stale position samples until the seek has taken effect.
+                    if (kotlin.math.abs(newPositionMs - pendingTarget) <= 2_000L ||
+                        player.playbackState == Player.STATE_ENDED) {
+                        pendingSeekTargetMs = null
+                    } else {
+                        newPositionMs = pendingTarget
+                    }
+                }
 
                 // Diagnostic only (per the investigation checklist): if the
                 // engine's own position suddenly collapses to near-zero right
@@ -641,14 +682,12 @@ class PlayerViewModel(
                 !saved.completed &&
                 !userInitiatedSeek
             ) {
-                player.seekTo(
-                    saved.positionMs
-                )
+                pendingSeekTargetMs = saved.positionMs
+                player.seekTo(saved.positionMs)
 
-                _uiState.value =
-                    _uiState.value.copy(
-                        positionMs = saved.positionMs
-                    )
+                _uiState.value = _uiState.value.copy(
+                    positionMs = saved.positionMs
+                )
             }
         }
     }
@@ -683,12 +722,15 @@ class PlayerViewModel(
             return
         }
 
+        // Do not let periodic/background saves overwrite a newly requested seek
+        // with the engine's stale pre-seek position.
         val position =
             if (forceCompleted) {
                 duration
             } else {
-                player.currentPosition
+                (pendingSeekTargetMs ?: player.currentPosition)
                     .coerceAtLeast(0)
+                    .coerceAtMost(duration)
             }
 
         viewModelScope.launch {
@@ -736,7 +778,10 @@ class PlayerViewModel(
 
         userInitiatedSeek = true
 
-        val currentPosition = player.currentPosition
+        // The engine can report its pre-seek position while a long-file seek is
+        // still resolving. Use the pending target/UI position so repeated taps
+        // don't calculate from stale playback time.
+        val currentPosition = pendingSeekTargetMs ?: _uiState.value.positionMs
         val rawDuration = player.duration
         val safeDuration = safeSeekDuration()
 
@@ -756,6 +801,7 @@ class PlayerViewModel(
                 "target=${target}ms"
         )
 
+        pendingSeekTargetMs = target
         player.seekTo(target)
 
         val actualAfterSeek = player.currentPosition
@@ -787,6 +833,9 @@ class PlayerViewModel(
                 "safeDuration=${safeDuration}ms target=${target}ms"
         )
 
+        // Hold the requested target until ExoPlayer reports the seek has settled.
+        // Long files can briefly report their pre-seek position while seeking.
+        pendingSeekTargetMs = target
         player.seekTo(target)
 
         val actualAfterSeek = player.currentPosition
@@ -863,7 +912,7 @@ class PlayerViewModel(
      * themselves, unlike embedded MKV/MP4 tracks).
      */
     fun addExternalSubtitle(uri: Uri, displayName: String) {
-        val uriString = currentMediaUriString ?: return
+        val uriString = currentPlaybackUriString ?: return
         val ext = displayName.substringAfterLast('.', "").lowercase()
         val mimeType = when (ext) {
             "srt" -> MimeTypes.APPLICATION_SUBRIP
@@ -979,6 +1028,7 @@ class PlayerViewModel(
         saveProgressNow()
 
         player.release()
+        castStreamServer.stopServer()
 
         super.onCleared()
     }

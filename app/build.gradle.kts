@@ -135,6 +135,8 @@ dependencies {
     implementation("androidx.media3:media3-ui:1.11.0")
     implementation("androidx.media3:media3-common:1.11.0")
     implementation("androidx.media3:media3-session:1.11.0")
+    implementation("androidx.media3:media3-cast:1.11.0")
+    implementation("org.nanohttpd:nanohttpd:2.3.1")
 
     // FFmpeg audio decoder extension — built via a dedicated GitHub Actions
     // workflow (ffmpeg-extension-build.yml), not a Maven dependency (Google

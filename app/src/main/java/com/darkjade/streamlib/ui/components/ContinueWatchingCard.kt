@@ -48,11 +48,11 @@ fun ContinueWatchingCard(
     watchedFraction: Float?,
     onClick: () -> Unit,
 ) {
-    Column(modifier = Modifier.width(200.dp).clickable(onClick = onClick)) {
+    Column(modifier = Modifier.width(180.dp).clickable(onClick = onClick)) {
         Box(
             modifier = Modifier
-                .width(200.dp)
-                .height(112.dp)
+                .fillMaxWidth()
+                .height(101.dp)
                 .clip(VaultShapes.card)
                 .background(VaultColors.SurfaceVariant)
         ) {

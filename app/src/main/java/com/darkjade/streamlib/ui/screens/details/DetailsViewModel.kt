@@ -81,9 +81,19 @@ class DetailsViewModel(
                 val seasons = libraryRepository.getSeasonsForMedia(mediaId)
                 val firstSeason = seasons.firstOrNull()
 
-                val nextEpisode = libraryRepository.getNextUnwatchedEpisode(mediaId)
                 val allEpisodesForMedia = libraryRepository.getEpisodesForMedia(mediaId)
                 val hasWatchedAny = allEpisodesForMedia.any { it.watched }
+
+                // Prefer the most recently played unfinished episode for Continue Watching.
+                val lastInProgress = allEpisodesForMedia
+                    .mapNotNull { episode ->
+                        allProgress[episode.id]
+                            ?.takeIf { it.positionMs > 0 && !it.completed }
+                            ?.let { progress -> episode to progress }
+                    }
+                    .maxByOrNull { (_, progress) -> progress.lastPlayedAt }
+                val nextEpisode = lastInProgress?.first
+                    ?: libraryRepository.getNextUnwatchedEpisode(mediaId)
 
                 val resumeProgress = nextEpisode?.let { playbackRepository.getProgress(mediaId, it.id) }
                 val hasResume = resumeProgress != null && resumeProgress.positionMs > 0 && !resumeProgress.completed

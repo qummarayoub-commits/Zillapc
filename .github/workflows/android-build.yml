@@ -2,7 +2,7 @@ name: Unzip and Build Android APK
 
 on:
   push:
-    branches: [ "main", "master" ]
+    branches: [ "main", "master", "feature/chromecast-support" ]
   workflow_dispatch:
 
 permissions:

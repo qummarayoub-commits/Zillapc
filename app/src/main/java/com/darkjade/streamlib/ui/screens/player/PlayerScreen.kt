@@ -27,21 +27,17 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Brightness6
 import androidx.compose.material.icons.filled.ClosedCaption
 import androidx.compose.material.icons.filled.ClosedCaptionOff
 import androidx.compose.material.icons.filled.Forward10
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.FullscreenExit
-import androidx.compose.material.icons.filled.GraphicEq
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PictureInPicture
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay10
-import androidx.compose.material.icons.filled.Speed
-import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -51,6 +47,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -71,10 +68,15 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.media3.ui.PlayerView
+import androidx.media3.ui.AspectRatioFrameLayout
+import androidx.media3.cast.MediaRouteButton
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.common.DeviceInfo
 import com.darkjade.streamlib.ui.theme.VaultColors
 import kotlinx.coroutines.delay
 import java.util.Locale
 
+@OptIn(UnstableApi::class)
 @Composable
 fun PlayerScreen(
     viewModel: PlayerViewModel,
@@ -84,6 +86,21 @@ fun PlayerScreen(
     val context = LocalContext.current
     val activity = context as? Activity
     val view = LocalView.current
+    var playerViewRef by remember { mutableStateOf<PlayerView?>(null) }
+
+    // PlayerView must rebind its surface when CastPlayer switches between local and remote output.
+    DisposableEffect(viewModel.player) {
+        val listener = object : androidx.media3.common.Player.Listener {
+            override fun onDeviceInfoChanged(deviceInfo: DeviceInfo) {
+                playerViewRef?.let { playerView ->
+                    playerView.player = null
+                    playerView.player = viewModel.player
+                }
+            }
+        }
+        viewModel.player.addListener(listener)
+        onDispose { viewModel.player.removeListener(listener) }
+    }
 
     val subtitlePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
@@ -104,6 +121,12 @@ fun PlayerScreen(
     var showSubtitleMenu by remember { mutableStateOf(false) }
     var showVolumeSlider by remember { mutableStateOf(false) }
     var showBrightnessSlider by remember { mutableStateOf(false) }
+    var showDisplaySettings by remember { mutableStateOf(false) }
+    var showScreenModeMenu by remember { mutableStateOf(false) }
+    var showMoreMenu by remember { mutableStateOf(false) }
+    var screenMode by remember {
+        mutableStateOf(context.getSharedPreferences("player_display_settings", android.content.Context.MODE_PRIVATE).getString("screen_mode", "Fit") ?: "Fit")
+    }
 
     // Every control (top bar + bottom bar) shows/hides together, driven only
     // by tapping the video — fully owned here instead of depending on
@@ -189,7 +212,9 @@ fun PlayerScreen(
         AndroidView(
             factory = { ctx ->
                 PlayerView(ctx).apply {
+                    playerViewRef = this
                     player = viewModel.player
+                    resizeMode = resizeModeFor(screenMode)
                     useController = false // fully custom controls below
                     // Transparent subtitle background (just outlined text, no
                     // black box behind it) — matches modern streaming apps
@@ -270,7 +295,7 @@ fun PlayerScreen(
                 }
             }
         } else if (controlsVisible && state.errorMessage == null) {
-            // Top overlay: back, title, lock, audio, speed, volume, brightness, fullscreen, PiP.
+            // Keep the main overlay focused on frequent actions. Less-used controls live in More.
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -293,35 +318,24 @@ fun PlayerScreen(
                     )
                 }
 
-                IconButton(onClick = { isLocked = true; controlsVisible = false }) {
-                    Icon(Icons.Filled.Lock, contentDescription = "Lock", tint = Color.White)
-                }
+                MediaRouteButton(modifier = Modifier.size(44.dp))
 
-                if (state.audioTracks.size > 1) {
-                    Box {
-                        IconButton(onClick = { showAudioMenu = true }) {
-                            Icon(Icons.Filled.GraphicEq, contentDescription = "Audio track", tint = Color.White)
-                        }
-                        DropdownMenu(expanded = showAudioMenu, onDismissRequest = { showAudioMenu = false }) {
-                            state.audioTracks.forEach { track ->
-                                DropdownMenuItem(
-                                    text = {
-                                        val suffix = when {
-                                            track.isSelected -> " \u2713"
-                                            !track.isSupportedByDevice -> " (unsupported)"
-                                            else -> ""
-                                        }
-                                        Text(
-                                            "${track.label}$suffix",
-                                            color = if (track.isSupportedByDevice) Color.Unspecified else Color.Gray
-                                        )
-                                    },
-                                    onClick = {
-                                        viewModel.selectAudioTrack(track)
-                                        showAudioMenu = false
-                                    }
-                                )
-                            }
+                Box {
+                    TextButton(onClick = { showScreenModeMenu = true }) {
+                        Text(screenMode, color = Color.White)
+                    }
+                    DropdownMenu(expanded = showScreenModeMenu, onDismissRequest = { showScreenModeMenu = false }) {
+                        listOf("Fit", "Crop", "Stretch", "Fixed width", "Fixed height").forEach { mode ->
+                            DropdownMenuItem(
+                                text = { Text(if (screenMode == mode) "$mode ✓" else mode) },
+                                onClick = {
+                                    screenMode = mode
+                                    context.getSharedPreferences("player_display_settings", android.content.Context.MODE_PRIVATE)
+                                        .edit().putString("screen_mode", mode).apply()
+                                    playerViewRef?.resizeMode = resizeModeFor(mode)
+                                    showScreenModeMenu = false
+                                }
+                            )
                         }
                     }
                 }
@@ -336,76 +350,78 @@ fun PlayerScreen(
                     }
                     DropdownMenu(expanded = showSubtitleMenu, onDismissRequest = { showSubtitleMenu = false }) {
                         DropdownMenuItem(
-                            text = { Text(if (!state.subtitlesEnabled) "Off \u2713" else "Off") },
-                            onClick = {
-                                viewModel.disableSubtitles()
-                                showSubtitleMenu = false
-                            }
+                            text = { Text(if (!state.subtitlesEnabled) "Off ✓" else "Off") },
+                            onClick = { viewModel.disableSubtitles(); showSubtitleMenu = false }
                         )
                         state.textTracks.forEach { track ->
                             DropdownMenuItem(
                                 text = {
                                     val suffix = when {
-                                        state.subtitlesEnabled && track.isSelected -> " \u2713"
+                                        state.subtitlesEnabled && track.isSelected -> " ✓"
                                         !track.isSupportedByDevice -> " (unsupported)"
                                         else -> ""
                                     }
-                                    Text(
-                                        "${track.label}$suffix",
-                                        color = if (track.isSupportedByDevice) Color.Unspecified else Color.Gray
-                                    )
+                                    Text("${track.label}$suffix", color = if (track.isSupportedByDevice) Color.Unspecified else Color.Gray)
                                 },
-                                onClick = {
-                                    viewModel.selectTextTrack(track)
-                                    showSubtitleMenu = false
-                                }
+                                onClick = { viewModel.selectTextTrack(track); showSubtitleMenu = false }
                             )
                         }
                         DropdownMenuItem(
-                            text = { Text("Add subtitle file\u2026") },
+                            text = { Text("Add subtitle file…") },
                             leadingIcon = { Icon(Icons.Filled.Add, contentDescription = null) },
-                            onClick = {
-                                showSubtitleMenu = false
-                                subtitlePicker.launch(arrayOf("*/*"))
-                            }
+                            onClick = { showSubtitleMenu = false; subtitlePicker.launch(arrayOf("*/*")) }
                         )
                     }
                 }
 
+                IconButton(onClick = { showDisplaySettings = true }) {
+                    Icon(Icons.Filled.Tune, contentDescription = "Subtitle settings", tint = Color.White)
+                }
+
                 Box {
-                    IconButton(onClick = { showSpeedMenu = true }) {
-                        Icon(Icons.Filled.Speed, contentDescription = "Playback speed", tint = Color.White)
+                    IconButton(onClick = { showMoreMenu = true }) {
+                        Icon(Icons.Filled.MoreVert, contentDescription = "More playback options", tint = Color.White)
                     }
-                    DropdownMenu(expanded = showSpeedMenu, onDismissRequest = { showSpeedMenu = false }) {
-                        listOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f).forEach { speed ->
+                    DropdownMenu(expanded = showMoreMenu, onDismissRequest = { showMoreMenu = false }) {
+                        if (state.audioTracks.size > 1) {
+                            DropdownMenuItem(text = { Text("Audio track") }, onClick = { showMoreMenu = false; showAudioMenu = true })
+                        }
+                        DropdownMenuItem(text = { Text("Playback speed") }, onClick = { showMoreMenu = false; showSpeedMenu = true })
+                        DropdownMenuItem(
+                            text = { Text("Volume") },
+                            onClick = { showMoreMenu = false; showVolumeSlider = !showVolumeSlider; showBrightnessSlider = false }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Brightness") },
+                            onClick = { showMoreMenu = false; showBrightnessSlider = !showBrightnessSlider; showVolumeSlider = false }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Lock controls") },
+                            onClick = { showMoreMenu = false; isLocked = true; controlsVisible = false }
+                        )
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && activity != null) {
+                            DropdownMenuItem(text = { Text("Picture in picture") }, onClick = { showMoreMenu = false; enterPip(activity) })
+                        }
+                    }
+                    DropdownMenu(expanded = showAudioMenu, onDismissRequest = { showAudioMenu = false }) {
+                        state.audioTracks.forEach { track ->
                             DropdownMenuItem(
-                                text = { Text("${speed}x") },
-                                onClick = {
-                                    viewModel.setPlaybackSpeed(speed)
-                                    showSpeedMenu = false
-                                }
+                                text = {
+                                    val suffix = when {
+                                        track.isSelected -> " ✓"
+                                        !track.isSupportedByDevice -> " (unsupported)"
+                                        else -> ""
+                                    }
+                                    Text("${track.label}$suffix", color = if (track.isSupportedByDevice) Color.Unspecified else Color.Gray)
+                                },
+                                onClick = { viewModel.selectAudioTrack(track); showAudioMenu = false }
                             )
                         }
                     }
-                }
-
-                IconButton(onClick = {
-                    showVolumeSlider = !showVolumeSlider
-                    showBrightnessSlider = false
-                }) {
-                    Icon(Icons.Filled.VolumeUp, contentDescription = "Volume", tint = Color.White)
-                }
-
-                IconButton(onClick = {
-                    showBrightnessSlider = !showBrightnessSlider
-                    showVolumeSlider = false
-                }) {
-                    Icon(Icons.Filled.Brightness6, contentDescription = "Brightness", tint = Color.White)
-                }
-
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && activity != null) {
-                    IconButton(onClick = { enterPip(activity) }) {
-                        Icon(Icons.Filled.PictureInPicture, contentDescription = "Picture in picture", tint = Color.White)
+                    DropdownMenu(expanded = showSpeedMenu, onDismissRequest = { showSpeedMenu = false }) {
+                        listOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f).forEach { speed ->
+                            DropdownMenuItem(text = { Text("${speed}x") }, onClick = { viewModel.setPlaybackSpeed(speed); showSpeedMenu = false })
+                        }
                     }
                 }
 
@@ -533,7 +549,22 @@ fun PlayerScreen(
                 }
             }
         }
+
+        if (showDisplaySettings) {
+            PlayerDisplaySettingsDialog(
+                playerView = playerViewRef,
+                onDismiss = { showDisplaySettings = false },
+            )
+        }
     }
+}
+
+private fun resizeModeFor(mode: String): Int = when (mode) {
+    "Crop" -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+    "Stretch" -> AspectRatioFrameLayout.RESIZE_MODE_FILL
+    "Fixed width" -> AspectRatioFrameLayout.RESIZE_MODE_FIXED_WIDTH
+    "Fixed height" -> AspectRatioFrameLayout.RESIZE_MODE_FIXED_HEIGHT
+    else -> AspectRatioFrameLayout.RESIZE_MODE_FIT
 }
 
 private fun formatTime(ms: Long): String {

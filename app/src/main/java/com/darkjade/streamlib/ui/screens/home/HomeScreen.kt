@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -117,12 +118,7 @@ fun HomeScreen(
                     item {
                         HomeTopBar(onOpenSearch = onOpenSearch, onOpenSettings = onOpenSettings, onOpenNews = onOpenNews, onOpenAccount = onOpenAccount)
                     }
-                    item {
-                        HomeCategoryPills(
-                            selected = selectedCategory,
-                            onSelect = { selectedCategory = it },
-                        )
-                    }
+                    // Main visual banner comes directly under the greeting, as in the reference.
 
                     // Top: main auto-rotating carousel across everything (up to 5: movies, series, comics).
                     if (state.heroItems.isNotEmpty()) {
@@ -135,9 +131,16 @@ fun HomeScreen(
                         }
                     }
 
+                    item {
+                        HomeCategoryPills(
+                            selected = selectedCategory,
+                            onSelect = { selectedCategory = it },
+                        )
+                    }
+
                     if (state.continueWatching.isNotEmpty()) {
                         item {
-                            Column(modifier = Modifier.padding(top = 32.dp)) {
+                            Column(modifier = Modifier.padding(top = 4.dp)) {
                                 Text(
                                     "Continue Watching",
                                     style = MaterialTheme.typography.titleMedium,
@@ -156,7 +159,7 @@ fun HomeScreen(
                         }
                     }
                     item {
-                        MediaRail("Recently Added", state.recentlyAdded, onItemClick = { onOpenDetails(it.id) }, onAddToList = viewModel::addToWatchlist, onRemoveFromLibrary = viewModel::removeFromLibrary)
+                        MediaRail("Watch list", state.recentlyAdded, onItemClick = { onOpenDetails(it.id) }, onAddToList = viewModel::addToWatchlist, onRemoveFromLibrary = viewModel::removeFromLibrary)
                     }
                     // "No Info" — items TMDB couldn't match (or hasn't been
                     // looked up yet for), so you can find them and manually
@@ -314,7 +317,7 @@ private fun HomeTopBar(onOpenSearch: () -> Unit, onOpenSettings: () -> Unit, onO
             contentDescription = "App logo",
             modifier = Modifier.height(36.dp),
         )
-        Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onOpenNews) {
                 Icon(Icons.Filled.Article, contentDescription = "News", tint = VaultColors.TextPrimary)
             }
@@ -519,14 +522,14 @@ private fun <T> SecondaryBannerCarousel(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = VaultSpacing.md)
-            .padding(top = 40.dp),
+            .padding(top = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(VaultSpacing.sm),
     ) {
         pair.forEach { item ->
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .height(260.dp) // same size for Movies/Series/Anime/Comics banners
+                    .aspectRatio(16f / 9f) // consistent cinematic landscape ratio across screen sizes
                     .clip(VaultShapes.card)
                     .background(VaultColors.SurfaceVariant)
                     .clickable { onClick(item) }
