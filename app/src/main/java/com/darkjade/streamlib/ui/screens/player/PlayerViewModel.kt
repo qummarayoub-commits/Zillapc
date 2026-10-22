@@ -180,6 +180,7 @@ class PlayerViewModel(
      * tap, or the +/-10s buttons). Guards resumeSavedPosition() below - see
      * that function's comment for the race it closes. */
     private var userInitiatedSeek = false
+    @Volatile private var pendingSeekTargetMs: Long? = null
 
     init {
         player.addListener(
@@ -561,7 +562,17 @@ class PlayerViewModel(
                         _uiState.value.durationMs
                     }
 
-                val newPositionMs = player.currentPosition.coerceAtLeast(0)
+                var newPositionMs = player.currentPosition.coerceAtLeast(0)
+                val pendingTarget = pendingSeekTargetMs
+                if (pendingTarget != null) {
+                    // Ignore stale position samples until the seek has taken effect.
+                    if (kotlin.math.abs(newPositionMs - pendingTarget) <= 2_000L ||
+                        player.playbackState == Player.STATE_ENDED) {
+                        pendingSeekTargetMs = null
+                    } else {
+                        newPositionMs = pendingTarget
+                    }
+                }
 
                 // Diagnostic only (per the investigation checklist): if the
                 // engine's own position suddenly collapses to near-zero right
@@ -786,6 +797,7 @@ class PlayerViewModel(
                 "target=${target}ms"
         )
 
+        pendingSeekTargetMs = target
         player.seekTo(target)
 
         val actualAfterSeek = player.currentPosition
