@@ -722,12 +722,15 @@ class PlayerViewModel(
             return
         }
 
+        // Do not let periodic/background saves overwrite a newly requested seek
+        // with the engine's stale pre-seek position.
         val position =
             if (forceCompleted) {
                 duration
             } else {
-                player.currentPosition
+                (pendingSeekTargetMs ?: player.currentPosition)
                     .coerceAtLeast(0)
+                    .coerceAtMost(duration)
             }
 
         viewModelScope.launch {
@@ -775,7 +778,10 @@ class PlayerViewModel(
 
         userInitiatedSeek = true
 
-        val currentPosition = player.currentPosition
+        // The engine can report its pre-seek position while a long-file seek is
+        // still resolving. Use the pending target/UI position so repeated taps
+        // don't calculate from stale playback time.
+        val currentPosition = pendingSeekTargetMs ?: _uiState.value.positionMs
         val rawDuration = player.duration
         val safeDuration = safeSeekDuration()
 
