@@ -682,14 +682,12 @@ class PlayerViewModel(
                 !saved.completed &&
                 !userInitiatedSeek
             ) {
-                player.seekTo(
-                    saved.positionMs
-                )
+                pendingSeekTargetMs = saved.positionMs
+                player.seekTo(saved.positionMs)
 
-                _uiState.value =
-                    _uiState.value.copy(
-                        positionMs = saved.positionMs
-                    )
+                _uiState.value = _uiState.value.copy(
+                    positionMs = saved.positionMs
+                )
             }
         }
     }
@@ -829,6 +827,9 @@ class PlayerViewModel(
                 "safeDuration=${safeDuration}ms target=${target}ms"
         )
 
+        // Hold the requested target until ExoPlayer reports the seek has settled.
+        // Long files can briefly report their pre-seek position while seeking.
+        pendingSeekTargetMs = target
         player.seekTo(target)
 
         val actualAfterSeek = player.currentPosition

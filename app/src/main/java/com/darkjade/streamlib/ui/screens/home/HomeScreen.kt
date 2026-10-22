@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -528,7 +529,7 @@ private fun <T> SecondaryBannerCarousel(
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .height(116.dp) // compact landscape banners, matching the home reference
+                    .aspectRatio(16f / 9f) // consistent cinematic landscape ratio across screen sizes
                     .clip(VaultShapes.card)
                     .background(VaultColors.SurfaceVariant)
                     .clickable { onClick(item) }
