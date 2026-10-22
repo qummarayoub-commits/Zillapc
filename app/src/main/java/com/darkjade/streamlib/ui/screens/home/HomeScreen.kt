@@ -139,7 +139,7 @@ fun HomeScreen(
 
                     if (state.continueWatching.isNotEmpty()) {
                         item {
-                            Column(modifier = Modifier.padding(top = 12.dp)) {
+                            Column(modifier = Modifier.padding(top = 4.dp)) {
                                 Text(
                                     "Continue Watching",
                                     style = MaterialTheme.typography.titleMedium,
@@ -311,21 +311,12 @@ private fun HomeTopBar(onOpenSearch: () -> Unit, onOpenSettings: () -> Unit, onO
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                "It’s Fun Time!",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                color = VaultColors.TextPrimary,
-                maxLines = 1,
-            )
-            Text(
-                "Find your next favorite",
-                style = MaterialTheme.typography.labelMedium,
-                color = VaultColors.TextSecondary,
-            )
-        }
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        androidx.compose.foundation.Image(
+            painter = androidx.compose.ui.res.painterResource(id = com.darkjade.streamlib.R.drawable.logo_velora),
+            contentDescription = "App logo",
+            modifier = Modifier.height(36.dp),
+        )
+                Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onOpenNews) {
                 Icon(Icons.Filled.Article, contentDescription = "News", tint = VaultColors.TextPrimary)
             }
@@ -530,14 +521,14 @@ private fun <T> SecondaryBannerCarousel(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = VaultSpacing.md)
-            .padding(top = 40.dp),
+            .padding(top = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(VaultSpacing.sm),
     ) {
         pair.forEach { item ->
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .height(260.dp) // same size for Movies/Series/Anime/Comics banners
+                    .height(116.dp) // compact landscape banners, matching the home reference
                     .clip(VaultShapes.card)
                     .background(VaultColors.SurfaceVariant)
                     .clickable { onClick(item) }
