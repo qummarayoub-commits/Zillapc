@@ -37,12 +37,14 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -64,10 +66,13 @@ import androidx.compose.ui.unit.dp
 import coil.compose.SubcomposeAsyncImage
 import com.darkjade.streamlib.data.db.entity.ComicEntity
 import com.darkjade.streamlib.data.db.entity.MediaItemEntity
+import com.darkjade.streamlib.data.repository.NewReleaseEntry
 import com.darkjade.streamlib.ui.components.ComicRail
 import com.darkjade.streamlib.ui.components.ContinueWatchingCard
 import com.darkjade.streamlib.ui.components.EmptyState
 import com.darkjade.streamlib.ui.components.MediaRail
+import com.darkjade.streamlib.ui.components.NewReleasesRail
+import com.darkjade.streamlib.ui.components.releaseSubtitle
 import com.darkjade.streamlib.ui.theme.VaultColors
 import com.darkjade.streamlib.ui.theme.VaultShapes
 import com.darkjade.streamlib.ui.theme.VaultSizes
@@ -88,12 +93,33 @@ fun HomeScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     var selectedCategory by remember { mutableStateOf<HomeCategoryFilter?>(null) }
+    // A TMDB release that is NOT on this device — tapping it shows a small info dialog.
+    var selectedRelease by remember { mutableStateOf<NewReleaseEntry?>(null) }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(VaultColors.Background)
     ) {
+        selectedRelease?.let { entry ->
+            val r = entry.release
+            val rating = r.rating?.takeIf { it > 0 }?.let { "★ " + String.format("%.1f", it) }
+            AlertDialog(
+                onDismissRequest = { selectedRelease = null },
+                confirmButton = { TextButton(onClick = { selectedRelease = null }) { Text("Close", color = VaultColors.Orange) } },
+                containerColor = VaultColors.Surface,
+                titleContentColor = VaultColors.TextPrimary,
+                textContentColor = VaultColors.TextSecondary,
+                title = { Text(r.title) },
+                text = {
+                    Column {
+                        Text(listOfNotNull(releaseSubtitle(entry).takeIf { it.isNotBlank() }, rating).joinToString("  ·  "))
+                        r.overview?.takeIf { it.isNotBlank() }?.let { Text(it, modifier = Modifier.padding(top = 10.dp)) }
+                        Text("Not in your library yet", color = VaultColors.TextTertiary, modifier = Modifier.padding(top = 10.dp))
+                    }
+                },
+            )
+        }
         when {
             state.isLoading -> {
                 CircularProgressIndicator(
@@ -157,6 +183,34 @@ fun HomeScreen(
                     }
                     item {
                         MediaRail("Recently Added", state.recentlyAdded, onItemClick = { onOpenDetails(it.id) }, onAddToList = viewModel::addToWatchlist, onRemoveFromLibrary = viewModel::removeFromLibrary)
+                    }
+                    // Everything released this year + last year (movies, new series, new
+                    // seasons). Titles that are on THIS device carry the Velora "V" circle.
+                    if (state.newReleases.isNotEmpty()) {
+                        item {
+                            val thisYear = java.time.LocalDate.now().year
+                            NewReleasesRail(
+                                title = "New Releases · ${thisYear - 1}–$thisYear",
+                                entries = state.newReleases,
+                                onEntryClick = { entry ->
+                                    val local = entry.localItem
+                                    if (local != null) onOpenDetails(local.id) else selectedRelease = entry
+                                },
+                            )
+                        }
+                    }
+                    // The subset of those releases you can actually play from your library.
+                    if (state.availableForStream.isNotEmpty()) {
+                        item {
+                            MediaRail(
+                                "Available for Stream",
+                                state.availableForStream,
+                                onItemClick = { onOpenDetails(it.id) },
+                                onAddToList = viewModel::addToWatchlist,
+                                onRemoveFromLibrary = viewModel::removeFromLibrary,
+                                showAvailableBadge = true,
+                            )
+                        }
                     }
                     // "No Info" — items TMDB couldn't match (or hasn't been
                     // looked up yet for), so you can find them and manually

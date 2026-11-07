@@ -58,6 +58,7 @@ fun PosterCard(
     onClick: () -> Unit,
     onAddToList: (() -> Unit)? = null,
     onRemoveFromLibrary: (() -> Unit)? = null,
+    showAvailableBadge: Boolean = false, // Velora "V" circle: this title is available to stream on this device
 ) {
     var showDropdown by remember { mutableStateOf(false) }
 
@@ -107,6 +108,9 @@ fun PosterCard(
                     tint = VaultColors.Orange,
                     modifier = Modifier.size(16.dp)
                 )
+            }
+            if (showAvailableBadge) {
+                VeloraAvailableBadge(modifier = Modifier.align(Alignment.TopEnd).padding(6.dp))
             }
         }
         if (showTitle) {

@@ -48,6 +48,15 @@ data class TmdbSeriesDto(
     val production_countries: List<TmdbCountryDto>? = null,
     val original_language: String? = null,
     val content_ratings: TmdbContentRatingsDto? = null,
+    val seasons: List<TmdbSeriesSeasonDto>? = null,
+)
+
+/** One entry of tv/{id}'s "seasons" array — enough to know when each season aired. */
+data class TmdbSeriesSeasonDto(
+    val season_number: Int,
+    val air_date: String?,
+    val name: String?,
+    val poster_path: String?,
 )
 
 data class TmdbReleaseDatesDto(val results: List<TmdbReleaseDateCountryDto> = emptyList())
@@ -136,6 +145,48 @@ interface TmdbApi {
         @Query("api_key") apiKey: String,
         @Query("append_to_response") append: String = "credits,images,videos,external_ids,content_ratings",
         @Query("include_image_language") includeImageLanguage: String = "en,null",
+    ): TmdbSeriesDto
+
+    // ---- Discover: powers the "New Releases" rail on Home ----
+
+    @GET("discover/movie")
+    suspend fun discoverMovies(
+        @Query("api_key") apiKey: String,
+        @Query("primary_release_date.gte") releasedFrom: String,
+        @Query("primary_release_date.lte") releasedTo: String,
+        @Query("sort_by") sortBy: String = "popularity.desc",
+        @Query("include_adult") includeAdult: Boolean = false,
+        @Query("page") page: Int = 1,
+    ): TmdbSearchResponse<TmdbMovieDto>
+
+    /** Series whose very first episode aired inside the window (brand-new shows). */
+    @GET("discover/tv")
+    suspend fun discoverNewSeries(
+        @Query("api_key") apiKey: String,
+        @Query("first_air_date.gte") firstAiredFrom: String,
+        @Query("first_air_date.lte") firstAiredTo: String,
+        @Query("sort_by") sortBy: String = "popularity.desc",
+        @Query("include_adult") includeAdult: Boolean = false,
+        @Query("page") page: Int = 1,
+    ): TmdbSearchResponse<TmdbSeriesDto>
+
+    /** Series with ANY episode airing inside the window (includes older shows
+     * that just released a new season — we look those seasons up separately). */
+    @GET("discover/tv")
+    suspend fun discoverAiringSeries(
+        @Query("api_key") apiKey: String,
+        @Query("air_date.gte") airedFrom: String,
+        @Query("air_date.lte") airedTo: String,
+        @Query("sort_by") sortBy: String = "popularity.desc",
+        @Query("include_adult") includeAdult: Boolean = false,
+        @Query("page") page: Int = 1,
+    ): TmdbSearchResponse<TmdbSeriesDto>
+
+    /** tv/{id} WITHOUT append_to_response — cheap call, just the seasons list. */
+    @GET("tv/{id}")
+    suspend fun getSeriesSeasons(
+        @Path("id") id: Int,
+        @Query("api_key") apiKey: String,
     ): TmdbSeriesDto
 
     @GET("tv/{id}/season/{seasonNumber}")

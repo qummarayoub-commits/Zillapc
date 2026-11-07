@@ -7,6 +7,7 @@ import com.darkjade.streamlib.data.metadata.omdb.OmdbMetadataProvider
 import com.darkjade.streamlib.data.metadata.tmdb.TmdbMetadataProvider
 import com.darkjade.streamlib.data.repository.ComicRepository
 import com.darkjade.streamlib.data.repository.LibraryRepository
+import com.darkjade.streamlib.data.repository.NewReleasesRepository
 import com.darkjade.streamlib.data.repository.NewsRepository
 import com.darkjade.streamlib.data.repository.PlaybackRepository
 import com.darkjade.streamlib.data.repository.PreferencesRepository
@@ -29,4 +30,5 @@ class AppContainer(context: Context) {
     val comicRepository = ComicRepository(context, comicVineMetadataProvider)
     val playbackRepository = PlaybackRepository(context)
     val newsRepository = NewsRepository(context)
+    val newReleasesRepository = NewReleasesRepository(context, libraryRepository)
 }

@@ -24,6 +24,8 @@ import java.util.concurrent.TimeUnit
 object TmdbConfig {
     const val BASE_URL = "https://api.themoviedb.org/3/"
     const val IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w780"
+    // Smaller poster size for rails of many posters (discover/new releases) — w342 is plenty at poster-card size.
+    const val IMAGE_BASE_URL_SMALL = "https://image.tmdb.org/t/p/w342"
     // "original" for backdrops — hero banners/details backgrounds are shown
     // large, and w1280 was noticeably softer than Crunchyroll-style HD art.
     const val BACKDROP_BASE_URL = "https://image.tmdb.org/t/p/original"

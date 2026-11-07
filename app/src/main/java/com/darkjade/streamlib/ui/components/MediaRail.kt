@@ -23,6 +23,7 @@ fun MediaRail(
     onItemClick: (MediaItemEntity) -> Unit,
     onAddToList: ((MediaItemEntity) -> Unit)? = null,
     onRemoveFromLibrary: ((MediaItemEntity) -> Unit)? = null,
+    showAvailableBadge: Boolean = false,
 ) {
     if (items.isEmpty()) return
     Column(modifier = modifier.padding(top = 40.dp)) {
@@ -43,6 +44,7 @@ fun MediaRail(
                     showMenu = onAddToList != null || onRemoveFromLibrary != null,
                     onAddToList = onAddToList?.let { { it(item) } },
                     onRemoveFromLibrary = onRemoveFromLibrary?.let { { it(item) } },
+                    showAvailableBadge = showAvailableBadge,
                 )
             }
         }
