@@ -103,6 +103,8 @@ data class PlayerUiState(
 
     /** Shown as a brief banner when the audio track couldn't be decoded but video kept playing. */
     val audioUnavailableNotice: String? = null,
+    // Set when a seek was refused/failed because this file can't be seeked (see isSeekingBlocked()).
+    val seekNotice: String? = null,
 )
 
 /**
@@ -111,6 +113,10 @@ data class PlayerUiState(
  * Never scans or identifies media itself — it only resolves the existing URI
  * from the existing LibraryRepository by the existing movie/episode ID.
  */
+private const val SEEK_NOTICE =
+    "This file can't be skipped through - its format has no seek index, so jumping would restart it " +
+        "from 0:00. Open it in another player for full seeking."
+
 class PlayerViewModel(
     private val mediaId: Long,
     private val episodeId: Long?,
@@ -171,6 +177,16 @@ class PlayerViewModel(
      * that function's comment for the race it closes. */
     private var userInitiatedSeek = false
 
+    // Some containers (MKV without Cues, TS, AVI without an index...) report
+    // the media as non-seekable. ExoPlayer then treats EVERY seek as "go to
+    // 0:00" (ProgressiveMediaPeriod: "Treat all seeks into non-seekable media
+    // as being to t=0") - which is exactly the "I drag forward and it jumps
+    // back to the start" symptom. Media3 1.11 has no approximate-seek
+    // fallback for those containers, so the app refuses to seek instead of
+    // restarting the video, and tells the user why.
+    private var seekDisabled = false
+    private var seekWatchdogJob: Job? = null
+
     init {
         player.addListener(
             object : Player.Listener {
@@ -182,6 +198,12 @@ class PlayerViewModel(
                 override fun onPlaybackStateChanged(playbackState: Int) {
                     if (playbackState == Player.STATE_READY) {
                         val d = player.duration
+                        Log.i(
+                            TAG,
+                            "ready: seekable=${player.isCurrentMediaItemSeekable} duration=${d}ms " +
+                                "container=${player.videoFormat?.containerMimeType} " +
+                                "video=${player.videoFormat?.sampleMimeType}"
+                        )
 
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,
@@ -732,7 +754,56 @@ class PlayerViewModel(
         return if (known > 0) known else Long.MAX_VALUE
     }
 
+    private fun isSeekingBlocked(): Boolean {
+        if (seekDisabled) return true
+        // Timeline not known yet (still preparing) - let ExoPlayer decide.
+        if (player.currentTimeline.isEmpty) return false
+        return !player.isCurrentMediaItemSeekable
+    }
+
+    private fun onSeekBlocked() {
+        Log.w(
+            TAG,
+            "seek refused: media is not seekable " +
+                "(container=${player.videoFormat?.containerMimeType}, duration=${player.duration}ms)"
+        )
+        _uiState.value = _uiState.value.copy(seekNotice = SEEK_NOTICE)
+    }
+
+    /** Catches files that CLAIM to be seekable but still snap back to the start:
+     * if a far-forward seek leaves the engine near 0:00, stop seeking this file
+     * (each further attempt would just restart it again) and explain why. */
+    private fun scheduleSeekWatchdog(targetMs: Long) {
+        seekWatchdogJob?.cancel()
+        if (targetMs < 8_000) return
+        seekWatchdogJob = viewModelScope.launch {
+            delay(2_500)
+            val position = player.currentPosition
+            if (position < 1_500 && player.playbackState != Player.STATE_ENDED) {
+                Log.w(
+                    TAG,
+                    "seek watchdog: asked for ${targetMs}ms but engine is at ${position}ms " +
+                        "(container=${player.videoFormat?.containerMimeType}); treating this file as unseekable"
+                )
+                seekDisabled = true
+                _uiState.value = _uiState.value.copy(seekNotice = SEEK_NOTICE)
+            }
+        }
+    }
+
+    fun dismissSeekNotice() {
+        _uiState.value = _uiState.value.copy(seekNotice = null)
+    }
+
+    /** For the "open in external player" fallback shown with the seek notice. */
+    fun currentMediaUri(): String? = currentMediaUriString
+
     fun seekBy(deltaMs: Long) {
+
+        if (isSeekingBlocked()) {
+            onSeekBlocked()
+            return
+        }
 
         userInitiatedSeek = true
 
@@ -757,6 +828,7 @@ class PlayerViewModel(
         )
 
         player.seekTo(target)
+        scheduleSeekWatchdog(target)
 
         val actualAfterSeek = player.currentPosition
         Log.d(TAG, "seekBy: position immediately after seekTo=${actualAfterSeek}ms")
@@ -769,6 +841,11 @@ class PlayerViewModel(
 
     /** Used directly by the custom seek bar's drag/tap gesture. */
     fun seekTo(positionMs: Long) {
+
+        if (isSeekingBlocked()) {
+            onSeekBlocked()
+            return
+        }
 
         userInitiatedSeek = true
 
@@ -788,6 +865,7 @@ class PlayerViewModel(
         )
 
         player.seekTo(target)
+        scheduleSeekWatchdog(target)
 
         val actualAfterSeek = player.currentPosition
         Log.d(TAG, "seekTo: position immediately after seekTo=${actualAfterSeek}ms")

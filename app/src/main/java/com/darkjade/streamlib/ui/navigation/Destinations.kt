@@ -6,17 +6,20 @@ import androidx.compose.material.icons.filled.Article
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.NewReleases
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.Article
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.NewReleases
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.ui.graphics.vector.ImageVector
 
 object Routes {
     const val HOME = "home"
+    const val NEW = "new_releases"
     const val MY_LISTS = "my_lists"
     const val BROWSE = "browse"
     const val SEARCH = "search"
@@ -47,6 +50,7 @@ data class BottomNavItem(
 
 val bottomNavItems = listOf(
     BottomNavItem(Routes.HOME, "Home", Icons.Filled.Home, Icons.Outlined.Home),
+    BottomNavItem(Routes.NEW, "New", Icons.Filled.NewReleases, Icons.Outlined.NewReleases),
     BottomNavItem(Routes.MY_LISTS, "My Lists", Icons.Filled.Bookmark, Icons.Outlined.BookmarkBorder),
     BottomNavItem(Routes.BROWSE, "Browse", Icons.Filled.GridView, Icons.Outlined.GridView),
     BottomNavItem(Routes.SEARCH, "Search", Icons.Filled.Search, Icons.Outlined.Search),

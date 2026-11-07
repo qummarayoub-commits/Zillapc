@@ -41,6 +41,8 @@ import com.darkjade.streamlib.ui.screens.news.NewsArticleDetailsScreen
 import com.darkjade.streamlib.ui.screens.news.NewsArticleDetailsViewModel
 import com.darkjade.streamlib.ui.screens.news.NewsScreen
 import com.darkjade.streamlib.ui.screens.news.NewsViewModel
+import com.darkjade.streamlib.ui.screens.newreleases.NewReleasesScreen
+import com.darkjade.streamlib.ui.screens.newreleases.NewReleasesViewModel
 import com.darkjade.streamlib.ui.screens.player.PlayerScreen
 import com.darkjade.streamlib.ui.screens.player.PlayerViewModel
 import com.darkjade.streamlib.ui.screens.search.SearchScreen
@@ -50,7 +52,7 @@ import com.darkjade.streamlib.ui.screens.settings.SettingsViewModel
 import com.darkjade.streamlib.ui.util.SimpleViewModelFactory
 import kotlinx.coroutines.launch
 
-private val topLevelRoutes = setOf(Routes.HOME, Routes.MY_LISTS, Routes.BROWSE, Routes.NEWS, Routes.SEARCH)
+private val topLevelRoutes = setOf(Routes.HOME, Routes.NEW, Routes.MY_LISTS, Routes.BROWSE, Routes.NEWS, Routes.SEARCH)
 
 @Composable
 fun StreamLibNavGraph(container: AppContainer) {
@@ -117,6 +119,13 @@ fun StreamLibNavGraph(container: AppContainer) {
                     onOpenBrowse = { navController.navigate(Routes.BROWSE) },
                     onOpenAccount = { navController.navigate(Routes.ACCOUNT) },
                 )
+            }
+
+            composable(Routes.NEW) {
+                val vm: NewReleasesViewModel = viewModel(factory = SimpleViewModelFactory {
+                    NewReleasesViewModel(container.newReleasesRepository)
+                })
+                NewReleasesScreen(viewModel = vm, onOpenDetails = { navController.navigate(Routes.details(it)) })
             }
 
             composable(Routes.MY_LISTS) {

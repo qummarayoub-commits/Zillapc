@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -111,8 +113,31 @@ private fun ReleasePosterCard(entry: NewReleaseEntry, onClick: () -> Unit) {
 /** "Season 2 · Mar 2026", "New Series · Jan 2026", or just "Oct 2025" for movies. */
 fun releaseSubtitle(entry: NewReleaseEntry): String {
     val r = entry.release
-    val date = formatReleaseDate(r.releaseDate)
+    // Titles that come from the device library may only have a year, not a full date.
+    val date = formatReleaseDate(r.releaseDate) ?: r.year?.toString()
     return listOfNotNull(r.label, date).joinToString(" · ")
+}
+
+/** Info card for a release that is NOT on this device (tapping it can't open a player). */
+@Composable
+fun ReleaseInfoDialog(entry: NewReleaseEntry, onDismiss: () -> Unit) {
+    val r = entry.release
+    val rating = r.rating?.takeIf { it > 0 }?.let { "★ " + String.format("%.1f", it) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Close", color = VaultColors.Orange) } },
+        containerColor = VaultColors.Surface,
+        titleContentColor = VaultColors.TextPrimary,
+        textContentColor = VaultColors.TextSecondary,
+        title = { Text(r.title) },
+        text = {
+            Column {
+                Text(listOfNotNull(releaseSubtitle(entry).takeIf { it.isNotBlank() }, rating).joinToString("  ·  "))
+                r.overview?.takeIf { it.isNotBlank() }?.let { Text(it, modifier = Modifier.padding(top = 10.dp)) }
+                Text("Not in your library yet", color = VaultColors.TextTertiary, modifier = Modifier.padding(top = 10.dp))
+            }
+        },
+    )
 }
 
 fun formatReleaseDate(iso: String?): String? {

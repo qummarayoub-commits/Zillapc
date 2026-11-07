@@ -7,9 +7,8 @@ import com.darkjade.streamlib.data.db.entity.MediaItemEntity
 import com.darkjade.streamlib.data.db.entity.MediaType
 import com.darkjade.streamlib.data.repository.ComicRepository
 import com.darkjade.streamlib.data.repository.LibraryRepository
-import com.darkjade.streamlib.data.repository.NewReleaseEntry
+import com.darkjade.streamlib.data.repository.ReleaseRow
 import com.darkjade.streamlib.data.repository.NewReleasesRepository
-import com.darkjade.streamlib.data.metadata.tmdb.NewReleaseItem
 import com.darkjade.streamlib.data.repository.PlaybackRepository
 import com.darkjade.streamlib.data.repository.ProfileRepository
 import com.darkjade.streamlib.data.repository.WatchRepository
@@ -24,8 +23,6 @@ import kotlinx.coroutines.launch
 data class HomeUiState(
     val isLoading: Boolean = true,
     val heroItems: List<HeroCandidate> = emptyList(),
-    val movieBanners: List<MediaItemEntity> = emptyList(),
-    val seriesBanners: List<MediaItemEntity> = emptyList(),
     val animeBanners: List<MediaItemEntity> = emptyList(),
     val comicsBanners: List<ComicEntity> = emptyList(),
     val continueWatching: List<MediaItemEntity> = emptyList(),
@@ -36,9 +33,9 @@ data class HomeUiState(
     val anime: List<MediaItemEntity> = emptyList(),
     val comics: List<ComicEntity> = emptyList(),
     val missingMetadata: List<MediaItemEntity> = emptyList(),
-    // TMDB releases from this year + last year, each flagged with whether it's on this device.
-    val newReleases: List<NewReleaseEntry> = emptyList(),
-    // The subset of those that exist in the local library — the "Available for Stream" section.
+    // Themed rows of TMDB releases (this week, Netflix, family...), each flagged with whether it's on this device.
+    val releaseRows: List<ReleaseRow> = emptyList(),
+    // Everything from those releases that exists in the local library — the "Available for Stream" section.
     val availableForStream: List<MediaItemEntity> = emptyList(),
     val libraryEmpty: Boolean = false,
 )
@@ -72,21 +69,14 @@ class HomeViewModel(
     // session so items don't shuffle around on every recomposition — but a
     // fresh app open always re-rolls, so it's never the same lineup forever.
     private val pinnedHeroKeys = mutableListOf<Pair<Long, Boolean>>() // id to isComic
-    private val pinnedMovieBannerIds = mutableListOf<Long>()
-    private val pinnedSeriesBannerIds = mutableListOf<Long>()
     private val pinnedAnimeBannerIds = mutableListOf<Long>()
     private val pinnedComicsBannerIds = mutableListOf<Long>()
-
-    // Raw TMDB releases, loaded once off the main thread. Kept separate from the
-    // library flow so a library change only re-runs the (cheap) local matching,
-    // never another network call.
-    private val releases = MutableStateFlow<List<NewReleaseItem>>(emptyList())
 
     init {
         viewModelScope.launch {
             // Failures are handled inside the provider (stale cache / empty list),
             // so the rest of Home never waits on or breaks because of this.
-            releases.value = newReleasesRepository.fetch()
+            newReleasesRepository.refresh()
         }
         viewModelScope.launch {
             val profile = profileRepository.ensureDefaultProfile()
@@ -102,11 +92,9 @@ class HomeViewModel(
             }
 
             // TMDB releases + the user's library -> which releases are playable here.
-            val newReleaseEntries = combine(releases, libraryRepository.observeAll()) { rel, library ->
-                newReleasesRepository.match(rel, library)
-            }
+            val releaseBoard = newReleasesRepository.observeBoard()
 
-            combine(mediaFlows, comicRepository.observeRecentlyAdded(20), playbackRepository.observeAllProgress(), libraryRepository.observeMissingMetadata(), newReleaseEntries) { flows, comics, progressRows, missingMetadata, releaseEntries ->
+            combine(mediaFlows, comicRepository.observeRecentlyAdded(20), playbackRepository.observeAllProgress(), libraryRepository.observeMissingMetadata(), releaseBoard) { flows, comics, progressRows, missingMetadata, board ->
                 val heroPool = buildList {
                     addAll(flows.recentlyAdded.map { HeroCandidate.Media(it) })
                     addAll(flows.movies.map { HeroCandidate.Media(it) })
@@ -115,8 +103,6 @@ class HomeViewModel(
                 }.distinctBy { it.id to (it is HeroCandidate.Comic) }
 
                 val heroItems = pickPinnedHero(heroPool)
-                val movieBanners = pickPinnedHomogeneous(flows.movies, pinnedMovieBannerIds) { it.id }
-                val seriesBanners = pickPinnedHomogeneous(flows.series, pinnedSeriesBannerIds) { it.id }
                 val animeBanners = pickPinnedHomogeneous(flows.anime, pinnedAnimeBannerIds) { it.id }
                 val comicsBanners = pickPinnedHomogeneous(comics, pinnedComicsBannerIds) { it.id }
 
@@ -130,8 +116,6 @@ class HomeViewModel(
                 HomeUiState(
                     isLoading = false,
                     heroItems = heroItems,
-                    movieBanners = movieBanners,
-                    seriesBanners = seriesBanners,
                     animeBanners = animeBanners,
                     comicsBanners = comicsBanners,
                     continueWatching = flows.continueWatching,
@@ -142,8 +126,8 @@ class HomeViewModel(
                     anime = flows.anime,
                     comics = comics,
                     missingMetadata = missingMetadata,
-                    newReleases = releaseEntries,
-                    availableForStream = releaseEntries.mapNotNull { it.localItem }.distinctBy { it.id },
+                    releaseRows = board.rows,
+                    availableForStream = board.availableForStream,
                     libraryEmpty = flows.recentlyAdded.isEmpty() && flows.movies.isEmpty() &&
                         flows.series.isEmpty() && flows.anime.isEmpty() && comics.isEmpty(),
                 )

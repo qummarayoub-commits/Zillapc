@@ -5,6 +5,7 @@ import android.app.PictureInPictureParams
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.media.AudioManager
+import android.net.Uri
 import android.os.Build
 import android.util.Rational
 import android.view.WindowManager
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.systemGestures
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -74,6 +76,7 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.media3.ui.PlayerView
+import com.darkjade.streamlib.player.ExternalPlayerLauncher
 import com.darkjade.streamlib.ui.theme.VaultColors
 import kotlinx.coroutines.delay
 import java.util.Locale
@@ -176,6 +179,14 @@ fun PlayerScreen(
         onDispose { }
     }
 
+    // Same for the "can't seek this file" notice (long enough to read and tap the button).
+    LaunchedEffect(state.seekNotice) {
+        if (state.seekNotice != null) {
+            delay(9000)
+            viewModel.dismissSeekNotice()
+        }
+    }
+
     // Auto-dismiss the "audio not supported" notice after a few seconds.
     LaunchedEffect(state.audioUnavailableNotice) {
         if (state.audioUnavailableNotice != null) {
@@ -231,6 +242,38 @@ fun PlayerScreen(
                     .padding(horizontal = 12.dp, vertical = 8.dp),
             ) {
                 Text(notice, color = Color.White, style = MaterialTheme.typography.labelSmall)
+            }
+        }
+
+        state.seekNotice?.let { notice ->
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(start = 24.dp, end = 24.dp, bottom = 150.dp)
+                    .background(Color(0xFF2A2A2A), RoundedCornerShape(8.dp))
+                    .padding(12.dp),
+            ) {
+                Text(notice, color = Color.White, style = MaterialTheme.typography.labelMedium)
+                Row(modifier = Modifier.padding(top = 10.dp)) {
+                    Text(
+                        "Open in external player",
+                        color = VaultColors.Orange,
+                        style = MaterialTheme.typography.labelLarge,
+                        modifier = Modifier.clickable {
+                            viewModel.currentMediaUri()?.let { uri ->
+                                ExternalPlayerLauncher.play(context, Uri.parse(uri), state.title)
+                            }
+                            viewModel.dismissSeekNotice()
+                        }
+                    )
+                    Spacer(Modifier.width(24.dp))
+                    Text(
+                        "Dismiss",
+                        color = Color.White.copy(alpha = 0.7f),
+                        style = MaterialTheme.typography.labelLarge,
+                        modifier = Modifier.clickable { viewModel.dismissSeekNotice() }
+                    )
+                }
             }
         }
 

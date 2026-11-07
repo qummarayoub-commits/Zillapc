@@ -72,6 +72,7 @@ import com.darkjade.streamlib.ui.components.ContinueWatchingCard
 import com.darkjade.streamlib.ui.components.EmptyState
 import com.darkjade.streamlib.ui.components.MediaRail
 import com.darkjade.streamlib.ui.components.NewReleasesRail
+import com.darkjade.streamlib.ui.components.ReleaseInfoDialog
 import com.darkjade.streamlib.ui.components.releaseSubtitle
 import com.darkjade.streamlib.ui.theme.VaultColors
 import com.darkjade.streamlib.ui.theme.VaultShapes
@@ -101,25 +102,7 @@ fun HomeScreen(
             .fillMaxSize()
             .background(VaultColors.Background)
     ) {
-        selectedRelease?.let { entry ->
-            val r = entry.release
-            val rating = r.rating?.takeIf { it > 0 }?.let { "★ " + String.format("%.1f", it) }
-            AlertDialog(
-                onDismissRequest = { selectedRelease = null },
-                confirmButton = { TextButton(onClick = { selectedRelease = null }) { Text("Close", color = VaultColors.Orange) } },
-                containerColor = VaultColors.Surface,
-                titleContentColor = VaultColors.TextPrimary,
-                textContentColor = VaultColors.TextSecondary,
-                title = { Text(r.title) },
-                text = {
-                    Column {
-                        Text(listOfNotNull(releaseSubtitle(entry).takeIf { it.isNotBlank() }, rating).joinToString("  ·  "))
-                        r.overview?.takeIf { it.isNotBlank() }?.let { Text(it, modifier = Modifier.padding(top = 10.dp)) }
-                        Text("Not in your library yet", color = VaultColors.TextTertiary, modifier = Modifier.padding(top = 10.dp))
-                    }
-                },
-            )
-        }
+        selectedRelease?.let { entry -> ReleaseInfoDialog(entry) { selectedRelease = null } }
         when {
             state.isLoading -> {
                 CircularProgressIndicator(
@@ -184,20 +167,18 @@ fun HomeScreen(
                     item {
                         MediaRail("Recently Added", state.recentlyAdded, onItemClick = { onOpenDetails(it.id) }, onAddToList = viewModel::addToWatchlist, onRemoveFromLibrary = viewModel::removeFromLibrary)
                     }
-                    // Everything released this year + last year (movies, new series, new
-                    // seasons). Titles that are on THIS device carry the Velora "V" circle.
-                    if (state.newReleases.isNotEmpty()) {
-                        item {
-                            val thisYear = java.time.LocalDate.now().year
-                            NewReleasesRail(
-                                title = "New Releases · ${thisYear - 1}–$thisYear",
-                                entries = state.newReleases,
-                                onEntryClick = { entry ->
-                                    val local = entry.localItem
-                                    if (local != null) onOpenDetails(local.id) else selectedRelease = entry
-                                },
-                            )
-                        }
+                    // A few themed rows of what's new (the full set lives on the New tab). Titles
+                    // that are on THIS device carry the Velora "V" circle.
+                    val homeRowIds = listOf("this_week", "netflix", "family")
+                    items(homeRowIds.mapNotNull { id -> state.releaseRows.firstOrNull { it.id == id } }, key = { it.id }) { row ->
+                        NewReleasesRail(
+                            title = row.title,
+                            entries = row.entries,
+                            onEntryClick = { entry ->
+                                val local = entry.localItem
+                                if (local != null) onOpenDetails(local.id) else selectedRelease = entry
+                            },
+                        )
                     }
                     // The subset of those releases you can actually play from your library.
                     if (state.availableForStream.isNotEmpty()) {
@@ -225,38 +206,16 @@ fun HomeScreen(
                         }
                     }
 
-                    // Movies: banner ABOVE the content row, then the row itself.
+                    // Movies row (the 2-3 banner carousel above it was removed on request).
                     val showMovies = selectedCategory == null || selectedCategory == HomeCategoryFilter.MOVIES
-                    if (showMovies && state.movieBanners.isNotEmpty()) {
-                        item {
-                            SecondaryBannerCarousel(
-                                items = state.movieBanners,
-                                categoryLabel = "Movie",
-                                imageUrl = { it.backdropUrl ?: it.posterUrl ?: it.localFileUri },
-                                title = { it.title },
-                                onClick = { onOpenDetails(it.id) },
-                            )
-                        }
-                    }
                     if (showMovies) {
                         item {
                             MediaRail("Movies", state.movies, onItemClick = { onOpenDetails(it.id) }, onAddToList = viewModel::addToWatchlist, onRemoveFromLibrary = viewModel::removeFromLibrary)
                         }
                     }
 
-                    // Series: banner ABOVE the content row, then the row itself.
+                    // Series row.
                     val showSeries = selectedCategory == null || selectedCategory == HomeCategoryFilter.SERIES
-                    if (showSeries && state.seriesBanners.isNotEmpty()) {
-                        item {
-                            SecondaryBannerCarousel(
-                                items = state.seriesBanners,
-                                categoryLabel = "Series",
-                                imageUrl = { it.backdropUrl ?: it.posterUrl },
-                                title = { it.title },
-                                onClick = { onOpenDetails(it.id) },
-                            )
-                        }
-                    }
                     if (showSeries) {
                         item {
                             MediaRail("Series", state.series, onItemClick = { onOpenDetails(it.id) }, onAddToList = viewModel::addToWatchlist, onRemoveFromLibrary = viewModel::removeFromLibrary)

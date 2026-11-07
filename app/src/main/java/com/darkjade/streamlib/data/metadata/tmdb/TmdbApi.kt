@@ -3,6 +3,7 @@ package com.darkjade.streamlib.data.metadata.tmdb
 import retrofit2.http.GET
 import retrofit2.http.Path
 import retrofit2.http.Query
+import retrofit2.http.QueryMap
 
 // Minimal DTOs — only fields we actually use.
 
@@ -157,6 +158,7 @@ interface TmdbApi {
         @Query("sort_by") sortBy: String = "popularity.desc",
         @Query("include_adult") includeAdult: Boolean = false,
         @Query("page") page: Int = 1,
+        @QueryMap extra: Map<String, String> = emptyMap(),
     ): TmdbSearchResponse<TmdbMovieDto>
 
     /** Series whose very first episode aired inside the window (brand-new shows). */
@@ -168,6 +170,7 @@ interface TmdbApi {
         @Query("sort_by") sortBy: String = "popularity.desc",
         @Query("include_adult") includeAdult: Boolean = false,
         @Query("page") page: Int = 1,
+        @QueryMap extra: Map<String, String> = emptyMap(),
     ): TmdbSearchResponse<TmdbSeriesDto>
 
     /** Series with ANY episode airing inside the window (includes older shows
@@ -180,6 +183,7 @@ interface TmdbApi {
         @Query("sort_by") sortBy: String = "popularity.desc",
         @Query("include_adult") includeAdult: Boolean = false,
         @Query("page") page: Int = 1,
+        @QueryMap extra: Map<String, String> = emptyMap(),
     ): TmdbSearchResponse<TmdbSeriesDto>
 
     /** tv/{id} WITHOUT append_to_response — cheap call, just the seasons list. */
