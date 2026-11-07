@@ -17,6 +17,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.systemGestures
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -477,7 +480,16 @@ fun PlayerScreen(
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
                     .background(Color.Black.copy(alpha = 0.45f))
-                    .padding(horizontal = 12.dp, vertical = 4.dp)
+                    // The player is immersive (system bars hidden), so Android's
+                    // gesture zones sit right on top of the screen edges: swiping
+                    // up from the bottom reveals the nav bar and a swipe from the
+                    // left/right edge is the Back gesture. The seek bar used to
+                    // sit inside those zones, so the system swallowed the drag
+                    // before the Slider ever saw it. Keep the whole control block
+                    // inside the system gesture insets, plus a fixed bottom margin
+                    // as a fallback for devices that report zero insets.
+                    .windowInsetsPadding(WindowInsets.systemGestures)
+                    .padding(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 16.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
